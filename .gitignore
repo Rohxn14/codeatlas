@@ -1,0 +1,29 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Node (the TypeScript fixture)
+node_modules/
+
+# Build output
+dist/
+build/
+
+# CodeAtlas working data: clones, indexes, LLM cache and usage log
+.codeatlas/
+
+# Local secrets and personal settings
+.env
+.claude/settings.local.json
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
