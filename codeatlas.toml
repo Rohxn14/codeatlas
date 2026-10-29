@@ -1,0 +1,11 @@
+# CodeAtlas settings. Every value below is the default; delete a line to keep it.
+# CodeAtlas reads this file from the directory it runs in, never from an indexed repository.
+
+[limits]
+max_files = 20000            # files discovered per index; more stops discovery and records "max_files"
+max_file_bytes = 1000000     # larger files are skipped, with the reason recorded
+max_seconds = 300            # wall-clock budget per index; reaching it records "max_seconds"
+max_history_commits = 2000   # commits the repository layer reads for co-change (T15)
+
+[paths]
+workdir = ".codeatlas"       # clones go to <workdir>/repos/<owner>__<repo>/
