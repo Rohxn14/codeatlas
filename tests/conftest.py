@@ -1,12 +1,19 @@
 """Shared test helpers: a throwaway local git repository instead of the network."""
 
 import subprocess
+import sys
 from collections.abc import Callable
 from pathlib import Path
 
 import pytest
 
 DATA = Path(__file__).parent / "data"
+
+# The eval harness (`eval/oracle/`) lives at the repository root, outside the installed
+# package; its tests in tests/eval import it from there.
+ROOT = str(Path(__file__).resolve().parent.parent)
+if ROOT not in sys.path:
+    sys.path.insert(0, ROOT)
 
 # tests/data holds sample source files for adapters to parse, including files named
 # like tests (test_*.py, *_test.go). They are inputs, not tests, so pytest skips them.
