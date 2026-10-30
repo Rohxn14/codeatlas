@@ -28,6 +28,15 @@ An **indexer** walks one git commit (a snapshot). The **repository layer** works
 - Never silence or skip a failing test to finish. If something cannot work, say so in the pull request.
 - Unit tests never call real LLM APIs or the network. Use mocks or recorded fixtures. A test that needs the network is marked `@pytest.mark.live` and skipped by default.
 
+## Cost discipline
+
+Sessions run on a small, fixed credit, so spend it on code, not on loops.
+
+- If an external service fails (an API call, a clone, a download, a tool install), try at most twice, then record the exact error in the pull request, continue with mocks or fixtures, and move on.
+- Do not stop to ask the owner about choices the brief leaves open: pick the simplest reasonable option and list it under "Questions for the owner". Stop only for a contract change. Sessions often run overnight, and a question left waiting wastes the night.
+- Run targeted tests while developing and the full suite once at the end; do not re-read large files you have already read.
+- Do not install tools beyond what `pyproject.toml` and the environment's setup script provide.
+
 ## Safety
 
 - CodeAtlas analyses code statically. The indexer, search, impact engine, agent and any server never install, import or run code from an indexed repository.
