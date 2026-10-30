@@ -1,4 +1,5 @@
 import hashlib
+import sys
 from collections.abc import Callable
 from dataclasses import replace
 from pathlib import Path
@@ -56,9 +57,24 @@ def test_lists_and_ignores(tree: Path) -> None:
     for ignored in ("logs/run.log", "src/secret.py"):
         assert ignored not in paths
     assert not any(p.startswith(("node_modules/", "dist/")) for p in paths)
-    assert "static/app.min.js" not in paths
-    skipped = {s.path: s.reason for s in found.skipped}
-    assert skipped.get("static/app.min.js") == "minified"
+    by_path = {f.path: f for f in found.files}
+    assert by_path["static/app.min.js"].tier is Tier.TEXT
+    assert found.skip_reasons == {"static/app.min.js": "minified"}
+
+
+def test_excluded_folders_are_recorded_once_with_file_count(tree: Path) -> None:
+    folders = {(s.path, s.reason, s.file_count) for s in run(tree).skipped}
+    assert folders == {
+        ("dist", "excluded directory", 1),
+        ("node_modules", "excluded directory", 1),
+    }
+
+
+def test_nested_excluded_folder_counts_every_file(tmp_path: Path) -> None:
+    write_tree(tmp_path, {"web/node_modules/a/x.js": "", "web/node_modules/b/y.js": "", "z.py": ""})
+    found = run(tmp_path)
+    assert [f.path for f in found.files] == ["z.py"]
+    assert [(s.path, s.file_count) for s in found.skipped] == [("web/node_modules", 2)]
 
 
 def test_languages_and_tiers(tree: Path) -> None:
@@ -93,15 +109,18 @@ def test_git_mode_used_for_git_repo(make_repo: Callable[..., Path], tmp_path: Pa
     assert not run(plain).used_git
 
 
-def test_binary_and_large_files_are_skipped_with_reason(tmp_path: Path) -> None:
+def test_binary_and_large_files_stay_as_text_records_with_reason(tmp_path: Path) -> None:
     (tmp_path / "image.py").write_bytes(b"\x89PNG\x00\x00binary")
     (tmp_path / "big.py").write_text("x = 1\n" * 50, encoding="utf-8")
     (tmp_path / "ok.py").write_text("x = 1\n", encoding="utf-8")
     found = run(tmp_path, replace(Config(), max_file_bytes=100))
-    assert [f.path for f in found.files] == ["ok.py"]
-    reasons = {s.path: s.reason for s in found.skipped}
-    assert reasons["image.py"] == "binary"
-    assert reasons["big.py"].startswith("over max_file_bytes")
+    tiers = {f.path: f.tier for f in found.files}
+    assert tiers == {"big.py": Tier.TEXT, "image.py": Tier.TEXT, "ok.py": Tier.STRUCTURAL}
+    assert found.skip_reasons["image.py"] == "binary"
+    assert found.skip_reasons["big.py"].startswith("over max_file_bytes")
+    assert "ok.py" not in found.skip_reasons
+    big = next(f for f in found.files if f.path == "big.py")
+    assert big.sha256 == hashlib.sha256((tmp_path / "big.py").read_bytes()).hexdigest()
     assert found.limits_hit == ("max_file_bytes",)
 
 
@@ -109,7 +128,23 @@ def test_tracked_file_in_excluded_dir_is_reported(make_repo: Callable[..., Path]
     root = make_repo({"vendor.py": "x = 1\n", "build/gen.py": "y = 2\n"})
     found = run(root)
     assert [f.path for f in found.files] == ["vendor.py"]
-    assert {s.path: s.reason for s in found.skipped} == {"build/gen.py": "excluded directory"}
+    assert [(s.path, s.reason, s.file_count) for s in found.skipped] == [
+        ("build", "excluded directory", 1)
+    ]
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="symlinks need extra rights on Windows")
+def test_symlinked_folder_is_recorded_not_followed(tmp_path: Path) -> None:
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "secret.py").write_text("x = 1\n", encoding="utf-8")
+    root = tmp_path / "repo"
+    root.mkdir()
+    (root / "a.py").write_text("y = 2\n", encoding="utf-8")
+    (root / "link").symlink_to(outside, target_is_directory=True)
+    found = run(root)
+    assert [f.path for f in found.files] == ["a.py"]
+    assert [(s.path, s.reason) for s in found.skipped] == [("link", "symlink")]
 
 
 @pytest.mark.parametrize(

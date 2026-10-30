@@ -11,9 +11,7 @@ requires-python = ">=3.11"
 dependencies = [
     # Parsing: the tree-sitter runtime plus one wheel per grammar. Each wheel ships a
     # compiled grammar and, for these languages, its upstream tags query.
-    # Upper bound: tree-sitter 0.26.0 segfaults while CodeAtlas walks query results
-    # (reproduced on this repository's own files; 0.25.2 is clean). Lift it when fixed.
-    "tree-sitter>=0.25,<0.26",
+    "tree-sitter>=0.25",
     "tree-sitter-python>=0.25",
     "tree-sitter-typescript>=0.23.2",
     "tree-sitter-javascript>=0.25",

@@ -9,6 +9,7 @@ name-level calls without writing an adapter per language.
 
 from __future__ import annotations
 
+import hashlib
 import re
 from dataclasses import dataclass, field
 from pathlib import PurePosixPath
@@ -62,6 +63,7 @@ class _Definition:
     name: str
     tag: str
     kind: NodeKind | None  # None for scope-only tags such as modules
+    signature: str | None = None
     qualname: str = ""
     owner_key: str | None = None
     attrs: dict[str, object] = field(default_factory=dict)
@@ -83,6 +85,18 @@ class TagsAdapter:
         self.extensions = extensions
         self._parser = Parser(grammar)
         self._query = Query(grammar, tags_query)
+        self._disable_unsupported_patterns()
+
+    def _disable_unsupported_patterns(self) -> None:
+        """Turn off patterns guarded by `#is?` / `#is-not?`, which py-tree-sitter ignores.
+
+        Ruby's tags query tags every bare identifier as a call unless `(#is-not? local)`
+        says it is a local variable. Ignored, that filter would turn every variable read
+        into a call, so the pattern is dropped: fewer calls, but no invented ones.
+        """
+        for index in range(self._query.pattern_count):
+            if self._query.pattern_assertions(index):
+                self._query.disable_pattern(index)
 
     def parse(self, path: str, source: bytes, snapshot_id: str) -> ParseResult:
         """Never raises: a failure anywhere still yields the module node and an error."""
@@ -146,7 +160,7 @@ class TagsAdapter:
                     qualname=definition.qualname,
                     path=path,
                     span=_span(definition.node),
-                    signature=_signature(definition.node, source),
+                    signature=definition.signature,
                     docstring=_leading_comment(definition.node, source),
                     owner_key=definition.owner_key,
                     attrs=definition.attrs,
@@ -180,7 +194,7 @@ class TagsAdapter:
                 callee_text=callee,
                 name=name,
                 receiver=receiver,
-                line=call.start_point.row + 1,
+                line=call.start_point[0] + 1,
             )
         return [calls[k] for k in sorted(calls)]
 
@@ -236,7 +250,7 @@ def syntax_errors(root: TSNode) -> tuple[str, ...]:
     stack = [root]
     while stack and len(errors) < _MAX_ERRORS:
         node = stack.pop()
-        line, col = node.start_point.row + 1, node.start_point.column
+        line, col = node.start_point[0] + 1, node.start_point[1]
         if node.is_missing:
             errors.append(f"syntax error: missing {node.type!r} at line {line}, column {col}")
         elif node.is_error:
@@ -253,11 +267,10 @@ def _make_definition(
     name = _text(name_node, source)
     if tag in _SCOPE_TAGS:
         return _Definition(node, name, tag, None)
-    if tag == "type":
-        kind = _type_kind(node)
-        return _Definition(node, name, tag, kind) if kind else None
-    kind = _KIND_BY_TAG.get(tag)
-    return _Definition(node, name, tag, kind) if kind else None
+    kind = _type_kind(node) if tag == "type" else _KIND_BY_TAG.get(tag)
+    if kind is None:
+        return None
+    return _Definition(node, name, tag, kind, _signature(node, source))
 
 
 def _type_kind(node: TSNode) -> NodeKind | None:
@@ -276,31 +289,60 @@ def _assign_qualnames(
     definitions: dict[NodeId, _Definition], path: str, source: bytes
 ) -> None:
     """Dotted qualnames from nesting, owners for methods, and unique keys per file."""
-    used: dict[str, int] = {}
-    for definition in definitions.values():  # outer definitions come first
-        parent = _enclosing_definition(definition.node, definitions)
-        prefix = parent.qualname if parent else ""
-        external_owner = None
-        if definition.kind is NodeKind.FUNCTION and (parent is None or parent.kind is None):
-            external_owner = _declared_owner(definition.node, source)
-            if external_owner:
-                prefix = f"{prefix}.{external_owner}" if prefix else external_owner
-                definition.attrs["receiver"] = external_owner
+    parents = {key: _enclosing_definition(d.node, definitions) for key, d in definitions.items()}
+    owners: dict[NodeId, str | None] = {}
+    for key, definition in definitions.items():
+        parent = parents[key]
+        is_free_function = definition.kind is NodeKind.FUNCTION and (
+            parent is None or parent.kind is None
+        )
+        owners[key] = _declared_owner(definition.node, source) if is_free_function else None
+    suffixes = _duplicate_suffixes(definitions, parents, owners)
+    for key, definition in definitions.items():  # outer definitions come first
+        parent, owner = parents[key], owners[key]
+        prefix = ".".join(p for p in (parent.qualname if parent else "", owner or "") if p)
+        if owner:
+            definition.attrs["receiver"] = owner
         qualname = f"{prefix}.{definition.name}" if prefix else definition.name
-        count = used.get(qualname, 0) + 1
-        used[qualname] = count
-        if count > 1:  # overloads and repeated impl blocks: keep keys unique in the file
-            qualname = f"{qualname}#{count}"
-        definition.qualname = qualname
+        definition.qualname = qualname + suffixes.get(key, "")
         if definition.kind is NodeKind.FUNCTION and parent and parent.kind in _OWNER_KINDS:
             definition.owner_key = make_key(path, parent.qualname)
     by_qualname = {d.qualname: d for d in definitions.values() if d.kind in _OWNER_KINDS}
-    for definition in definitions.values():
-        receiver = definition.attrs.get("receiver")
-        if isinstance(receiver, str) and definition.owner_key is None:
-            owner_qualname = definition.qualname.rsplit(".", 1)[0].split("#")[0]
+    for key, definition in definitions.items():
+        if owners[key] and definition.owner_key is None:
+            owner_qualname = definition.qualname.rsplit(".", 1)[0]
             if owner_qualname in by_qualname:
                 definition.owner_key = make_key(path, owner_qualname)
+
+
+def _duplicate_suffixes(
+    definitions: dict[NodeId, _Definition],
+    parents: dict[NodeId, _Definition | None],
+    owners: dict[NodeId, str | None],
+) -> dict[NodeId, str]:
+    """`#<hash of signature>` for every definition whose qualname would repeat.
+
+    Overloads (`save(int)`, `save(String)`) and repeated impl blocks (two `fmt`) share a
+    qualname. A hash of the signature keeps each key stable when another overload is
+    added or moved; only identical signatures fall back to `-2`, `-3` by order.
+    """
+    groups: dict[tuple[NodeId | None, str | None, str], list[NodeId]] = {}
+    for key, definition in definitions.items():
+        parent = parents[key]
+        scope = _ident(parent.node) if parent else None
+        groups.setdefault((scope, owners[key], definition.name), []).append(key)
+    suffixes: dict[NodeId, str] = {}
+    for keys in groups.values():
+        if len(keys) < 2:
+            continue
+        seen: dict[str, int] = {}
+        for key in keys:
+            signature = definitions[key].signature or definitions[key].name
+            digest = hashlib.sha1(signature.encode(), usedforsecurity=False).hexdigest()[:4]
+            seen[digest] = seen.get(digest, 0) + 1
+            ordinal = f"-{seen[digest]}" if seen[digest] > 1 else ""
+            suffixes[key] = f"#{digest}{ordinal}"
+    return suffixes
 
 
 def _enclosing_definition(
@@ -376,12 +418,12 @@ def _signature(node: TSNode, source: bytes) -> str | None:
 def _leading_comment(node: TSNode, source: bytes) -> str | None:
     """Comments directly above a definition, without blank lines in between."""
     lines: list[str] = []
-    current, expected_row = node.prev_sibling, node.start_point.row
+    current, expected_row = node.prev_sibling, node.start_point[0]
     while current is not None and "comment" in current.type:
-        if current.end_point.row < expected_row - 1:
+        if current.end_point[0] < expected_row - 1:
             break
         lines.insert(0, _text(current, source))
-        expected_row = current.start_point.row
+        expected_row = current.start_point[0]
         current = current.prev_sibling
     if not lines:
         return None
@@ -395,10 +437,10 @@ def _leading_comment(node: TSNode, source: bytes) -> str | None:
 
 def _span(node: TSNode) -> Span:
     return Span(
-        node.start_point.row + 1,
-        node.end_point.row + 1,
-        node.start_point.column,
-        node.end_point.column,
+        node.start_point[0] + 1,
+        node.end_point[0] + 1,
+        node.start_point[1],
+        node.end_point[1],
     )
 
 

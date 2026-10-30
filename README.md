@@ -28,8 +28,10 @@ codeatlas scan https://github.com/pallets/click@8.1.7 --json
 and prints a census per language. A URL is fetched with one blobless `git clone` into
 `.codeatlas/repos/<owner>__<repo>/` and reused while the remote commit is unchanged.
 
-Every file is either in a language row or in the skipped list with its reason (binary,
-minified, too large, excluded folder), so nothing disappears silently.
+Every file lands in a (language, tier) row. A file that cannot be parsed (binary,
+minified, too large, unreadable) is counted as text with its reason, and each folder left
+out (`node_modules`, `dist`, a symlink, a submodule) is listed once with its file count,
+so nothing disappears silently.
 
 ## Tiers
 

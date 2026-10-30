@@ -14,6 +14,8 @@ import shutil
 import stat
 import subprocess
 import sys
+import tempfile
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -26,6 +28,8 @@ _NAME = re.compile(r"^[A-Za-z0-9_.-]+$")
 _REF = re.compile(r"^(?!-)(?!.*\.\.)[A-Za-z0-9_./-]+$")
 _CLONE_TIMEOUT_SECONDS = 600
 _GIT_TIMEOUT_SECONDS = 60
+# Written inside `.git/` (so discovery never lists it) to mark a clone as CodeAtlas's own.
+_MARKER = Path(".git") / "codeatlas-clone"
 
 
 class IntakeError(Exception):
@@ -104,28 +108,72 @@ def clone_or_reuse(remote: str, dest: Path, ref: str | None = None) -> tuple[str
     """Make `dest` a blobless clone of `remote` at `ref`; return (commit SHA, reused).
 
     An existing clone is kept when its HEAD already matches the remote's SHA for `ref`.
-    Otherwise it is deleted and cloned again, which is simpler than fetching into a
-    single-branch blobless clone and costs little because blobs are not downloaded.
+    Otherwise a fresh clone is made in a temporary folder beside `dest` and swapped in
+    only once it has succeeded, so a failed clone never costs the previous one. Only
+    folders that CodeAtlas created (marked inside `.git/`) are ever replaced or deleted.
     """
     remote_sha = _remote_sha(remote, ref)
-    if (dest / ".git").is_dir():
+    if _is_codeatlas_clone(dest):
         local_sha = head_sha(dest)
         if local_sha is not None and local_sha == remote_sha:
             return local_sha, True
-        _remove_tree(dest)
+    elif dest.is_symlink() or (dest.exists() and not _is_empty_dir(dest)):
+        raise IntakeError(
+            f"refusing to replace {dest}: it was not created by CodeAtlas; "
+            "move or delete it yourself"
+        )
     dest.parent.mkdir(parents=True, exist_ok=True)
+    fresh = Path(tempfile.mkdtemp(prefix=f".{dest.name}.", suffix=".tmp", dir=dest.parent))
+    try:
+        sha = _clone_into(remote, fresh, ref)
+        _swap_in(fresh, dest)
+    except BaseException:
+        _remove_tree(fresh)  # made by mkdtemp above, so it is ours
+        raise
+    return sha, False
+
+
+def _clone_into(remote: str, folder: Path, ref: str | None) -> str:
+    """Clone into an empty folder, mark it as CodeAtlas's, and return its HEAD."""
     args = ["clone", "--filter=blob:none", "--single-branch", "--no-tags"]
     if ref:
         args += ["--branch", ref]
-    try:
-        _git([*args, "--", remote, str(dest)], timeout=_CLONE_TIMEOUT_SECONDS)
-    except IntakeError:
-        _remove_tree(dest)
-        raise
-    sha = head_sha(dest)
+    _git([*args, "--", remote, str(folder)], timeout=_CLONE_TIMEOUT_SECONDS)
+    (folder / _MARKER).write_text(remote + "\n", encoding="utf-8")
+    sha = head_sha(folder)
     if sha is None:
         raise IntakeError(f"clone of {remote} has no HEAD commit")
-    return sha, False
+    return sha
+
+
+def _swap_in(fresh: Path, dest: Path) -> None:
+    """Replace `dest` with `fresh`; the old clone is deleted only after the swap.
+
+    Two renames rather than one, because Windows cannot rename onto an existing folder.
+    """
+    if not dest.exists():
+        fresh.rename(dest)
+        return
+    if not _is_codeatlas_clone(dest):  # an empty folder: nothing to keep
+        dest.rmdir()
+        fresh.rename(dest)
+        return
+    old = dest.with_name(f".{dest.name}.old-{uuid.uuid4().hex[:8]}")
+    dest.rename(old)
+    try:
+        fresh.rename(dest)
+    except OSError:
+        old.rename(dest)
+        raise
+    _remove_tree(old)  # checked by _is_codeatlas_clone above
+
+
+def _is_empty_dir(path: Path) -> bool:
+    return path.is_dir() and not any(path.iterdir())
+
+
+def _is_codeatlas_clone(path: Path) -> bool:
+    return not path.is_symlink() and (path / _MARKER).is_file()
 
 
 def head_sha(root: Path) -> str | None:
@@ -171,7 +219,11 @@ def _git(args: list[str], timeout: float = _GIT_TIMEOUT_SECONDS) -> str:
 
 
 def _remove_tree(path: Path) -> None:
-    """Delete a folder, including git's read-only pack files on Windows."""
+    """Delete a folder, including git's read-only pack files on Windows.
+
+    Callers pass only a temporary folder this module just made, or a folder that
+    `_is_codeatlas_clone` has confirmed.
+    """
 
     def make_writable_and_retry(func, target, _exc):  # type: ignore[no-untyped-def]
         os.chmod(target, stat.S_IWRITE)

@@ -12,7 +12,7 @@ from __future__ import annotations
 import hashlib
 import os
 import subprocess
-from collections.abc import Callable, Iterator
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
@@ -69,20 +69,26 @@ LANGUAGE_BY_FILENAME: dict[str, str] = {
 
 
 @dataclass(frozen=True, slots=True)
-class SkippedFile:
-    """A path discovery saw but will not analyse, and why."""
+class SkippedPath:
+    """A folder, symlink or submodule discovery did not enter, recorded once with its reason."""
 
     path: str
     reason: str
-    size_bytes: int = 0
+    file_count: int = 0
 
 
 @dataclass(frozen=True, slots=True)
 class Discovery:
-    """What discovery found: files to analyse, files it skipped, limits it reached."""
+    """What discovery found.
+
+    `files` holds every file, including ones that cannot be analysed (binary, minified,
+    too large): those are TEXT records, and `skip_reasons` says why for each path.
+    `skipped` lists what was not entered at all, one entry per folder or link.
+    """
 
     files: list[FileRecord]
-    skipped: list[SkippedFile]
+    skip_reasons: dict[str, str]
+    skipped: list[SkippedPath]
     limits_hit: tuple[str, ...]
     used_git: bool
 
@@ -112,9 +118,12 @@ def discover(
     """
     deadline = deadline or Deadline(config.max_seconds)
     git_paths = _git_ls_files(root)
-    candidates = git_paths if git_paths is not None else _walk(root)
+    if git_paths is not None:
+        candidates, skipped = _drop_excluded(git_paths)
+    else:
+        candidates, skipped = _walk(root)
     files: list[FileRecord] = []
-    skipped: list[SkippedFile] = []
+    skip_reasons: dict[str, str] = {}
     limits: set[str] = set()
     for rel in candidates:
         if deadline.expired():
@@ -124,41 +133,70 @@ def discover(
             limits.add("max_files")
             break
         outcome = _examine(root, rel, config, tier_for)
-        if isinstance(outcome, FileRecord):
-            files.append(outcome)
-            continue
-        if outcome is not None:
+        if isinstance(outcome, SkippedPath):
             skipped.append(outcome)
-            if outcome.reason.startswith("over max_file_bytes"):
-                limits.add("max_file_bytes")
-    return Discovery(files, skipped, tuple(sorted(limits)), git_paths is not None)
+        elif outcome is not None:
+            record, reason = outcome
+            files.append(record)
+            if reason:
+                skip_reasons[rel] = reason
+                if reason.startswith("over max_file_bytes"):
+                    limits.add("max_file_bytes")
+    return Discovery(files, skip_reasons, skipped, tuple(sorted(limits)), git_paths is not None)
 
 
 def _examine(
     root: Path, rel: str, config: Config, tier_for: Callable[[str], Tier]
-) -> FileRecord | SkippedFile | None:
-    """Turn one candidate path into a record, a skip with a reason, or None if it vanished."""
-    parts = rel.split("/")
-    if any(part in EXCLUDED_DIRS for part in parts[:-1]):
-        return SkippedFile(rel, "excluded directory")
-    full = root.joinpath(*parts)
+) -> tuple[FileRecord, str | None] | SkippedPath | None:
+    """A record (with a reason when it will not be parsed), a path not entered, or None.
+
+    None means git listed a file that is no longer in the work tree, so it is not part
+    of this snapshot.
+    """
+    full = root.joinpath(*rel.split("/"))
     if full.is_symlink():
-        return SkippedFile(rel, "symlink")
+        return SkippedPath(rel, "symlink")
     if full.is_dir():
-        return SkippedFile(rel, "git submodule (not fetched)")
+        return SkippedPath(rel, "git submodule (not fetched)")
     if not full.is_file():
-        return None  # listed by git but deleted from the work tree: not part of this snapshot
-    size = full.stat().st_size
-    if rel.lower().endswith(MINIFIED_SUFFIXES):
-        return SkippedFile(rel, "minified", size)
-    if size > config.max_file_bytes:
-        return SkippedFile(rel, f"over max_file_bytes ({config.max_file_bytes})", size)
-    data = full.read_bytes()
-    if b"\0" in data[:BINARY_SNIFF_BYTES]:
-        return SkippedFile(rel, "binary", size)
+        return None
     language = language_for(rel)
+    size = full.stat().st_size
+    reason = None
+    if rel.lower().endswith(MINIFIED_SUFFIXES):
+        reason = "minified"
+    elif size > config.max_file_bytes:
+        reason = f"over max_file_bytes ({config.max_file_bytes})"
+    if reason:
+        return FileRecord(rel, language, Tier.TEXT, _hash_file(full), size), reason
+    data = full.read_bytes()
+    digest = hashlib.sha256(data).hexdigest()
+    if b"\0" in data[:BINARY_SNIFF_BYTES]:
+        return FileRecord(rel, language, Tier.TEXT, digest, len(data)), "binary"
     tier = Tier.TEXT if language == TEXT_LANGUAGE else tier_for(language)
-    return FileRecord(rel, language, tier, hashlib.sha256(data).hexdigest(), len(data))
+    return FileRecord(rel, language, tier, digest, len(data)), None
+
+
+def _hash_file(path: Path) -> str:
+    """SHA-256 without reading a large file into memory at once."""
+    with path.open("rb") as handle:
+        return hashlib.file_digest(handle, "sha256").hexdigest()
+
+
+def _drop_excluded(paths: list[str]) -> tuple[list[str], list[SkippedPath]]:
+    """Remove paths under excluded folders, recording each folder once with its file count."""
+    kept: list[str] = []
+    counts: dict[str, int] = {}
+    for rel in paths:
+        parts = rel.split("/")
+        hit = next((i for i, part in enumerate(parts[:-1]) if part in EXCLUDED_DIRS), None)
+        if hit is None:
+            kept.append(rel)
+        else:
+            folder = "/".join(parts[: hit + 1])
+            counts[folder] = counts.get(folder, 0) + 1
+    skipped = [SkippedPath(f, "excluded directory", n) for f, n in sorted(counts.items())]
+    return kept, skipped
 
 
 def _git_ls_files(root: Path) -> list[str] | None:
@@ -177,8 +215,14 @@ def _git_ls_files(root: Path) -> list[str] | None:
     return sorted(paths)
 
 
-def _walk(root: Path) -> Iterator[str]:
-    """Walk `root` in sorted order, pruning excluded folders and `.gitignore`d paths."""
+def _walk(root: Path) -> tuple[list[str], list[SkippedPath]]:
+    """Walk `root` in sorted order, honouring `.gitignore`, and record excluded folders.
+
+    An excluded folder (`node_modules`, `dist`, ...) is recorded even when `.gitignore`
+    also lists it: it is on disk, so the census should say it was left out.
+    """
+    files: list[str] = []
+    skipped: list[SkippedPath] = []
     specs: list[tuple[str, pathspec.PathSpec]] = []
     for current, dirnames, filenames in os.walk(root):
         rel_dir = Path(current).relative_to(root).as_posix()
@@ -187,14 +231,28 @@ def _walk(root: Path) -> Iterator[str]:
         if ignore_file.is_file():
             lines = ignore_file.read_text(encoding="utf-8", errors="replace").splitlines()
             specs.append((rel_dir, pathspec.GitIgnoreSpec.from_lines(lines)))
-        dirnames[:] = sorted(
-            d for d in dirnames
-            if d not in EXCLUDED_DIRS and not _ignored(_join(rel_dir, d) + "/", specs)
-        )
+        entered = []
+        for name in sorted(dirnames):
+            rel = _join(rel_dir, name)
+            if name in EXCLUDED_DIRS:
+                skipped.append(SkippedPath(rel, "excluded directory", _count_files(root / rel)))
+            elif _ignored(rel + "/", specs):
+                continue
+            elif (Path(current) / name).is_symlink():
+                skipped.append(SkippedPath(rel, "symlink"))
+            else:
+                entered.append(name)
+        dirnames[:] = entered  # os.walk descends only into these
         for name in sorted(filenames):
             rel = _join(rel_dir, name)
             if not _ignored(rel, specs):
-                yield rel
+                files.append(rel)
+    return files, skipped
+
+
+def _count_files(folder: Path) -> int:
+    """Files under a skipped folder, counted without reading them or following links."""
+    return sum(len(names) for _, _, names in os.walk(folder))
 
 
 def _join(rel_dir: str, name: str) -> str:

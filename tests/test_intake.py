@@ -6,6 +6,7 @@ import pytest
 from conftest import git
 
 from codeatlas.config import Config
+from codeatlas.indexer import intake
 from codeatlas.indexer.discover import discover
 from codeatlas.indexer.intake import (
     GitHubSource,
@@ -99,6 +100,68 @@ def test_clone_at_tag(make_repo: Callable[..., Path], tmp_path: Path) -> None:
     assert sha == tagged
     _, reused = clone_or_reuse(origin.as_uri(), tmp_path / "clone", "v1")
     assert reused
+
+
+def test_failed_reclone_keeps_the_old_clone(
+    make_repo: Callable[..., Path], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    origin = make_repo({"app.py": "v = 1\n"})
+    dest = tmp_path / "repos" / "owner__repo"
+    first, _ = clone_or_reuse(origin.as_uri(), dest)
+    (origin / "app.py").write_text("v = 2\n", encoding="utf-8")
+    git(origin, "commit", "-q", "-am", "change")
+
+    def broken_clone(*_args: object) -> str:
+        raise IntakeError("network down")
+
+    monkeypatch.setattr(intake, "_clone_into", broken_clone)
+    with pytest.raises(IntakeError, match="network down"):
+        clone_or_reuse(origin.as_uri(), dest)
+    assert head_sha(dest) == first
+    assert (dest / "app.py").read_text(encoding="utf-8") == "v = 1\n"
+    assert [p.name for p in dest.parent.iterdir()] == ["owner__repo"]  # no temp left over
+
+
+def test_refuses_to_replace_a_folder_it_did_not_create(
+    make_repo: Callable[..., Path], tmp_path: Path
+) -> None:
+    origin = make_repo({"a.txt": "1\n"})
+    dest = tmp_path / "repos" / "owner__repo"
+    dest.mkdir(parents=True)
+    (dest / "precious.txt").write_text("keep me", encoding="utf-8")
+    with pytest.raises(IntakeError, match="not created by CodeAtlas"):
+        clone_or_reuse(origin.as_uri(), dest)
+    assert (dest / "precious.txt").read_text(encoding="utf-8") == "keep me"
+
+
+def test_refuses_an_unmarked_git_repository(
+    make_repo: Callable[..., Path], tmp_path: Path
+) -> None:
+    origin = make_repo({"a.txt": "1\n"})
+    other = make_repo({"b.txt": "2\n"}, name="someone_elses")
+    with pytest.raises(IntakeError, match="not created by CodeAtlas"):
+        clone_or_reuse(origin.as_uri(), other)
+    assert (other / "b.txt").is_file()
+
+
+def test_an_empty_folder_is_replaced(make_repo: Callable[..., Path], tmp_path: Path) -> None:
+    origin = make_repo({"a.txt": "1\n"})
+    dest = tmp_path / "empty"
+    dest.mkdir()
+    sha, reused = clone_or_reuse(origin.as_uri(), dest)
+    assert (sha, reused) == (head_sha(origin), False)
+    assert (dest / "a.txt").is_file()
+
+
+def test_clone_marker_is_invisible_to_discovery(
+    make_repo: Callable[..., Path], tmp_path: Path
+) -> None:
+    origin = make_repo({"a.py": "x = 1\n"})
+    dest = tmp_path / "clone"
+    clone_or_reuse(origin.as_uri(), dest)
+    assert (dest / ".git" / "codeatlas-clone").is_file()
+    found = discover(dest, Config(), lambda _language: Tier.STRUCTURAL)
+    assert [f.path for f in found.files] == ["a.py"]
 
 
 def test_unknown_ref_fails(make_repo: Callable[..., Path], tmp_path: Path) -> None:

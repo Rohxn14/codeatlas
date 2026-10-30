@@ -6,7 +6,13 @@ from pathlib import Path
 import pytest
 from conftest import DATA
 
-from codeatlas.cli import main
+from codeatlas import cli
+from codeatlas import config as config_module
+from codeatlas.cli import main, scan, skipped_result
+from codeatlas.config import Config
+from codeatlas.indexer.intake import open_source
+from codeatlas.indexer.registry import Registry
+from codeatlas.models import Tier
 
 
 def scan_json(capsys: pytest.CaptureFixture[str], *args: str) -> dict:
@@ -17,8 +23,8 @@ def scan_json(capsys: pytest.CaptureFixture[str], *args: str) -> dict:
 def test_scan_generic_json(capsys: pytest.CaptureFixture[str]) -> None:
     report = scan_json(capsys, str(DATA / "generic"))
     rows = {row["language"]: row for row in report["languages"]}
-    assert set(rows) == {"go", "java", "rust", "markdown"}
-    assert {rows[lang]["tier"] for lang in ("go", "java", "rust")} == {"structural"}
+    assert set(rows) == {"go", "java", "rust", "ruby", "markdown"}
+    assert {rows[lang]["tier"] for lang in ("go", "java", "rust", "ruby")} == {"structural"}
     assert rows["markdown"]["tier"] == "text"
     assert rows["go"]["files"] == 2
     assert rows["go"]["files_with_errors"] == 1
@@ -31,8 +37,90 @@ def test_scan_generic_json(capsys: pytest.CaptureFixture[str]) -> None:
 def test_every_file_in_exactly_one_row(capsys: pytest.CaptureFixture[str]) -> None:
     report = scan_json(capsys, str(DATA / "generic"))
     on_disk = [p for p in (DATA / "generic").rglob("*") if p.is_file()]
-    assert report["totals"]["files"] + report["skipped"]["count"] == len(on_disk)
+    in_skipped_folders = sum(entry["file_count"] for entry in report["skipped_paths"])
+    assert report["totals"]["files"] + in_skipped_folders == len(on_disk)
     assert sum(r["files"] for r in report["languages"]) == report["totals"]["files"]
+
+
+def test_skipped_folders_and_files_are_reported(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    (tmp_path / "node_modules" / "pkg").mkdir(parents=True)
+    for name in ("a.js", "b.js", "c.js"):
+        (tmp_path / "node_modules" / "pkg" / name).write_text("x\n", encoding="utf-8")
+    (tmp_path / "app.min.js").write_text("var a=1;\n", encoding="utf-8")
+    (tmp_path / "logo.go").write_bytes(b"\x00\x01binary")
+    (tmp_path / "main.go").write_text("package main\n", encoding="utf-8")
+    report = scan_json(capsys, str(tmp_path))
+    assert report["skipped_paths"] == [
+        {"path": "node_modules", "reason": "excluded directory", "file_count": 3}
+    ]
+    assert report["skipped_files"]["by_reason"] == {"binary": 1, "minified": 1}
+    rows = {(r["language"], r["tier"]): r["files"] for r in report["languages"]}
+    assert rows == {("go", "structural"): 1, ("go", "text"): 1, ("javascript", "text"): 1}
+    assert report["totals"]["files"] == 3
+
+    assert main(["scan", str(tmp_path)]) == 0
+    out = capsys.readouterr().out
+    assert "node_modules (excluded directory, 3 files)" in out
+    assert "not parsed, kept as text: 2 files" in out
+
+
+def test_skipped_files_become_text_nodes_with_reason(tmp_path: Path) -> None:
+    (tmp_path / "logo.go").write_bytes(b"\x00\x01binary")
+    (tmp_path / "notes.weird").write_text("hi\n", encoding="utf-8")
+    report = scan(str(tmp_path), Config())
+    rows = {(r.language, r.tier) for r in report.rows}
+    assert rows == {("go", "text"), ("text", "text")}
+    record = next(f for f in report.discovery.files if f.path == "logo.go")
+    result = skipped_result(record, "binary", report.snapshot.id)
+    assert result.tier is Tier.TEXT
+    assert result.nodes[0].attrs == {"skipped_reason": "binary"}
+
+
+def test_unknown_extension_records_a_reason(tmp_path: Path) -> None:
+    (tmp_path / "notes.weird").write_text("hi\n", encoding="utf-8")
+    report = scan(str(tmp_path), Config())
+    record = report.discovery.files[0]
+    result = cli._parse(open_source(str(tmp_path), Config()), record, Registry(), "s@1")
+    assert result.nodes[0].attrs["tier_reason"] == cli.UNKNOWN_TYPE_REASON
+
+
+def test_unreadable_file_counts_as_text(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A file that disappears or is locked between discovery and parsing is still counted."""
+    (tmp_path / "main.go").write_text("package main\n", encoding="utf-8")
+    real_discover = cli.discover
+
+    def denied(_self: Path) -> bytes:
+        raise PermissionError("denied")
+
+    def discover_then_lock(*args: object, **kwargs: object) -> object:
+        found = real_discover(*args, **kwargs)
+        monkeypatch.setattr(Path, "read_bytes", denied)
+        return found
+
+    monkeypatch.setattr(cli, "discover", discover_then_lock)
+    report = scan(str(tmp_path), Config())
+    assert [(r.language, r.tier, r.files) for r in report.rows] == [("go", "text", 1)]
+
+
+def test_time_limit_starts_after_intake(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A slow clone must not use up the index budget."""
+    (tmp_path / "a.go").write_text("package a\n", encoding="utf-8")
+    clock = [0.0]
+    monkeypatch.setattr(config_module.time, "monotonic", lambda: clock[0])
+    real_open = cli.open_source
+
+    def slow_open(source: str, config: Config) -> object:
+        clock[0] += 10_000  # far beyond max_seconds
+        return real_open(source, config)
+
+    monkeypatch.setattr(cli, "open_source", slow_open)
+    report = scan(str(tmp_path), Config())
+    assert report.snapshot.limits_hit == ()
+    assert report.rows[0].unparsed == 0
 
 
 def test_rows_sorted_by_size(capsys: pytest.CaptureFixture[str]) -> None:
@@ -69,4 +157,4 @@ def test_console_script_entry_point() -> None:
         check=False,
     )
     assert done.returncode == 0, done.stderr
-    assert json.loads(done.stdout)["totals"]["files"] == 5
+    assert json.loads(done.stdout)["totals"]["files"] == 6
