@@ -27,7 +27,11 @@ from codeatlas.models import Tier
 # Deep adapters, by grammar name: "module.path:ClassName", imported on first use.
 # The class is constructed with no arguments. Example entry (T01):
 #   "python": "codeatlas.indexer.languages.python.adapter:PythonAdapter",
-DEEP_ADAPTERS: dict[str, str] = {}
+DEEP_ADAPTERS: dict[str, str] = {
+    "typescript": "codeatlas.indexer.languages.typescript.adapter:TypeScriptAdapter",
+    "tsx": "codeatlas.indexer.languages.typescript.adapter:TsxAdapter",
+    "javascript": "codeatlas.indexer.languages.typescript.adapter:JavaScriptAdapter",
+}
 
 _VENDORED_QUERIES = Path(__file__).parent / "queries"
 

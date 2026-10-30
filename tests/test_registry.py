@@ -18,13 +18,13 @@ def test_every_grammar_loads_with_a_compiling_tags_query(language: str) -> None:
     grammar = load_grammar(spec)
     assert isinstance(grammar, Language)
     Query(grammar, load_tags_query(spec, GRAMMARS))
-    adapter = Registry().adapter_for(language)
+    adapter = Registry(deep={}).adapter_for(language)  # the tier a deep adapter falls back to
     assert isinstance(adapter, TagsAdapter)
     assert adapter.tier is Tier.STRUCTURAL
 
 
 def test_required_languages_are_structural() -> None:
-    registry = Registry()
+    registry = Registry(deep={})  # without deep adapters, so the grammars themselves are checked
     for language in ("python", "typescript", "tsx", "javascript", "go", "java", "rust",
                      "c_sharp", "php"):
         assert registry.tier_for(language) is Tier.STRUCTURAL, language
@@ -58,7 +58,7 @@ def test_unknown_language_is_text() -> None:
 
 
 def test_typescript_inherits_javascript_patterns() -> None:
-    adapter = Registry().adapter_for("typescript")
+    adapter = Registry(deep={}).adapter_for("typescript")
     result = adapter.parse(
         "a.ts",
         b"interface Repo { save(): void }\nclass Svc { run() { helper(); } }\n",
