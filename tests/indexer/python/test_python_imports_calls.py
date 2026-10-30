@@ -61,3 +61,10 @@ def test_nested_function_calls_belong_to_the_innermost_function() -> None:
     assert ("app/models.py::UserService.fetch.build", "dict") in calls
     assert ("app/models.py::UserService.fetch", "build") in calls
     assert ("app/models.py::", "functools.lru_cache") in calls
+
+
+def test_crlf_line_continuations_are_joined() -> None:
+    """Windows checkouts use CRLF; `\\` then CRLF must join like `\\` then LF."""
+    source = (DATA / "app/calls.py").read_bytes().replace(b"\r\n", b"\n").replace(b"\n", b"\r\n")
+    calls = PythonAdapter().parse("app/calls.py", source, SNAPSHOT).calls
+    assert "self.repo.flush" in [c.callee_text for c in calls]

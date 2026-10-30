@@ -12,7 +12,7 @@ from codeatlas.models import Span
 
 NodeId = tuple[int, int, str]
 
-_LINE_BREAK = re.compile(r"\s*\\?\n\s*")  # a newline, with any `\` continuation
+_LINE_BREAK = re.compile(r"\s*\\?\r?\n\s*")  # a newline (LF or CRLF), with any `\` continuation
 
 
 def ident(node: TSNode) -> NodeId:
