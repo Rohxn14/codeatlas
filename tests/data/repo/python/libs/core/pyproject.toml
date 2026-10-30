@@ -1,0 +1,6 @@
+[tool.poetry]
+name = "acme-core"
+version = "0.2.0"
+
+[tool.poetry.dependencies]
+python = "^3.11"

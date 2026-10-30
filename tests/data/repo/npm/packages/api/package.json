@@ -1,0 +1,6 @@
+{
+  "name": "@shop/api",
+  "version": "1.2.0",
+  "main": "src/index.js",
+  "dependencies": {"@shop/core": "workspace:*", "express": "^4.19.0"}
+}
