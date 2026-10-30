@@ -1,0 +1,147 @@
+from collections.abc import Callable
+from dataclasses import replace
+from pathlib import Path
+
+import pytest
+from conftest import git
+
+from codeatlas.config import Config
+from codeatlas.indexer.discover import discover
+from codeatlas.indexer.intake import (
+    GitHubSource,
+    IntakeError,
+    clone_or_reuse,
+    head_sha,
+    open_source,
+    parse_github_url,
+)
+from codeatlas.models import Tier
+
+
+@pytest.mark.parametrize(
+    ("url", "expected"),
+    [
+        ("https://github.com/pallets/click", GitHubSource("pallets", "click")),
+        ("https://github.com/pallets/click/", GitHubSource("pallets", "click")),
+        ("https://github.com/pallets/click.git", GitHubSource("pallets", "click")),
+        ("https://www.github.com/pallets/click", GitHubSource("pallets", "click")),
+        ("https://github.com/pallets/click@8.1.7", GitHubSource("pallets", "click", "8.1.7")),
+        (
+            "https://github.com/owner/repo@feature/new-thing",
+            GitHubSource("owner", "repo", "feature/new-thing"),
+        ),
+    ],
+)
+def test_parse_valid_urls(url: str, expected: GitHubSource) -> None:
+    assert parse_github_url(url) == expected
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://gitlab.com/owner/repo",
+        "https://github.com.evil.example/owner/repo",
+        "https://user@github.com/owner/repo",
+        "http://github.com/owner/repo",
+        "https://github.com/owner",
+        "https://github.com/owner/repo/tree/main",
+        "https://github.com/owner/repo@--upload-pack=evil",
+        "https://github.com/owner/repo@a..b",
+        "https://github.com/owner/repo?tab=readme",
+    ],
+)
+def test_parse_rejects_bad_urls(url: str) -> None:
+    with pytest.raises(IntakeError):
+        parse_github_url(url)
+
+
+def test_clone_folder_name() -> None:
+    assert GitHubSource("pallets", "click").dirname == "pallets__click"
+
+
+def test_clone_then_reuse_then_reclone(
+    make_repo: Callable[..., Path], tmp_path: Path
+) -> None:
+    origin = make_repo({"app.py": "def main():\n    pass\n"})
+    dest = tmp_path / "repos" / "owner__repo"
+    sha, reused = clone_or_reuse(origin.as_uri(), dest)
+    assert not reused
+    assert sha == head_sha(origin) == head_sha(dest)
+    assert (dest / "app.py").is_file()
+
+    again, reused = clone_or_reuse(origin.as_uri(), dest)
+    assert (again, reused) == (sha, True)
+
+    (origin / "app.py").write_text("def main():\n    return 1\n", encoding="utf-8")
+    git(origin, "commit", "-q", "-am", "change")
+    newer, reused = clone_or_reuse(origin.as_uri(), dest)
+    assert not reused
+    assert newer == head_sha(origin) != sha
+    assert "return 1" in (dest / "app.py").read_text(encoding="utf-8")
+
+
+def test_clone_keeps_history(make_repo: Callable[..., Path], tmp_path: Path) -> None:
+    origin = make_repo({"a.txt": "1\n"})
+    (origin / "a.txt").write_text("2\n", encoding="utf-8")
+    git(origin, "commit", "-q", "-am", "second")
+    dest = tmp_path / "clone"
+    clone_or_reuse(origin.as_uri(), dest)
+    assert git(dest, "rev-list", "--count", "HEAD") == "2"
+
+
+def test_clone_at_tag(make_repo: Callable[..., Path], tmp_path: Path) -> None:
+    origin = make_repo({"a.txt": "1\n"})
+    git(origin, "tag", "-a", "v1", "-m", "release")
+    tagged = head_sha(origin)
+    (origin / "a.txt").write_text("2\n", encoding="utf-8")
+    git(origin, "commit", "-q", "-am", "after tag")
+    sha, _ = clone_or_reuse(origin.as_uri(), tmp_path / "clone", "v1")
+    assert sha == tagged
+    _, reused = clone_or_reuse(origin.as_uri(), tmp_path / "clone", "v1")
+    assert reused
+
+
+def test_unknown_ref_fails(make_repo: Callable[..., Path], tmp_path: Path) -> None:
+    origin = make_repo({"a.txt": "1\n"})
+    with pytest.raises(IntakeError, match="not found"):
+        clone_or_reuse(origin.as_uri(), tmp_path / "clone", "no-such-branch")
+
+
+def test_open_local_path(make_repo: Callable[..., Path]) -> None:
+    origin = make_repo({"a.py": "x = 1\n"})
+    result = open_source(str(origin), Config())
+    assert result.root == origin.resolve()
+    assert result.repo == "origin"
+    assert result.commit_sha == head_sha(origin)
+
+
+def test_open_folder_outside_git(tmp_path: Path) -> None:
+    result = open_source(str(tmp_path), Config())
+    assert result.commit_sha is None
+
+
+def test_open_missing_folder(tmp_path: Path) -> None:
+    with pytest.raises(IntakeError):
+        open_source(str(tmp_path / "missing"), Config())
+
+
+def test_open_rejects_non_github_url() -> None:
+    with pytest.raises(IntakeError):
+        open_source("https://example.com/owner/repo", Config())
+
+
+def test_file_limit_stops_discovery(tmp_path: Path) -> None:
+    for i in range(5):
+        (tmp_path / f"m{i}.py").write_text("x = 1\n", encoding="utf-8")
+    config = replace(Config(), max_files=3)
+    found = discover(tmp_path, config, lambda _language: Tier.STRUCTURAL)
+    assert len(found.files) == 3
+    assert found.limits_hit == ("max_files",)
+
+
+def test_no_limit_hit_at_exact_count(tmp_path: Path) -> None:
+    for i in range(3):
+        (tmp_path / f"m{i}.py").write_text("x = 1\n", encoding="utf-8")
+    found = discover(tmp_path, replace(Config(), max_files=3), lambda _l: Tier.STRUCTURAL)
+    assert len(found.files) == 3
+    assert found.limits_hit == ()
