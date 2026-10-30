@@ -8,6 +8,10 @@ import pytest
 
 DATA = Path(__file__).parent / "data"
 
+# tests/data holds sample source files for adapters to parse, including files named
+# like tests (test_*.py, *_test.go). They are inputs, not tests, so pytest skips them.
+collect_ignore = ["data"]
+
 
 def git(cwd: Path, *args: str) -> str:
     done = subprocess.run(

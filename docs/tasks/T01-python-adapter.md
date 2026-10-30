@@ -48,3 +48,13 @@ Put realistic snippets in `tests/data/python/` and assert exact outputs for:
 ## Done when
 
 All tests pass; `codeatlas scan` on `tests/data/python` reports deep-tier Python with the expected counts; explainer written.
+
+## Notes from T00 (read before starting)
+
+T00 is merged, so build on what exists:
+
+- **Registration**: the registry imports deep adapters from the `DEEP_ADAPTERS` dictionary in `src/codeatlas/indexer/registry.py`, as `"<language>": "module.path:ClassName"`. Each class is constructed with no arguments. Add exactly one line: `"python": "codeatlas.indexer.languages.python.adapter:PythonAdapter"`. T02 edits the same dictionary in parallel, so change nothing else in that file.
+- **Shared helpers**: reuse `module_node` (the module node every adapter emits first) and `syntax_errors` from `src/codeatlas/indexer/generic/adapter.py` instead of writing your own.
+- **Keys for repeated names** must follow T00's rule, so a symbol gets the same key whichever tier parses it: `#` plus a short hash of the signature text, with an ordinal only when two signatures are identical. Import T00's helper for this from `generic/adapter.py` even though it is private, and do not edit that file; mention the import in the pull request.
+- **Tree-sitter positions**: read rows as `node.start_point[0]`, not `.row`; T00 found `.row` breaks on some tree-sitter versions.
+- **Sample files**: pytest does not collect anything under `tests/data/` (`collect_ignore` in `tests/conftest.py`), so snippet files named like tests are safe there.

@@ -48,3 +48,10 @@ Scorer on tiny hand-made predicted and truth files with known answers; calibrati
 ## Done when
 
 Fixture and labels committed; `pytest backend` and `vitest run` pass; the oracle produces a reference list for the fixture in the cloud session (report counts in the pull request); scorer tests pass; explainer written.
+
+## Notes from T00 (read before starting)
+
+- **The fixture's own dependencies belong to the fixture.** FastAPI (for the backend tests) goes in `eval/fixtures/polyglot_app/requirements.txt`; vitest and typescript go in its `package.json` with a lockfile. They are not CodeAtlas dependencies: do not add them to `pyproject.toml`. The no-new-dependencies rule in `CLAUDE.md` is about `pyproject.toml`.
+- **The fixture never runs in CI.** The project's pytest collects only `tests/` and ruff skips `eval/fixtures`, so install the fixture's dependencies in your session, run `pytest backend` and `npx vitest run` there, and report the results in the pull request.
+- **The oracle and scorer are project code.** Everything under `eval/oracle/` must pass `ruff check .`, and its unit tests go in `tests/eval/`, which CI runs.
+- **SCIP indexers** were installed by the environment's setup script; check them with `--version` before use.

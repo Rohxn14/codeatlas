@@ -90,3 +90,11 @@ If the cloud session can clone public repositories, run all three analyzers on t
 ## Done when
 
 All tests pass on Linux and Windows CI; the real-repository check is reported; the explainer covers each analyzer's What, Why, How and Where, including why co-change is directional and what its filters can wrongly remove.
+
+## Notes from T00 (read before starting)
+
+- **Configuration**: `Config.max_history_commits` already exists in `src/codeatlas/config.py` (default 2,000, from `[history]` in `codeatlas.toml`). Read it from there.
+- **Test helpers**: reuse the `make_repo` fixture and the `git` helper in `tests/conftest.py` to build repositories with scripted commits.
+- **Parent repositories**: a test that runs git in a temporary folder must not see a git repository in a parent folder. The owner's home folder is one, and that broke a T00 test on his machine. In your git-based tests, set the environment variable `GIT_CEILING_DIRECTORIES` to the temporary folder's parent, for example in a fixture in `tests/repo/conftest.py`.
+- **Where to plug in**: `src/codeatlas/repo/__init__.py` exists with only a docstring; add `default_analyzers()` there.
+- **Sample files**: pytest does not collect anything under `tests/data/`, so sample repositories with files like `test_user.py` are safe there.
