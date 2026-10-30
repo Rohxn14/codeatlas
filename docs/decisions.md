@@ -17,6 +17,51 @@ Every design decision lands here: the question, the decision, and why. When a pu
 | D-09 | The MCP server is built with the agent tools in T09 | Same tools, one extra entry point; lets the owner practise giving an agent his own tools | 2026-10-29 |
 | D-10 | The SCIP oracle runs on Linux only (cloud sessions, CI or WSL), never on Windows | scip-python crashes on Windows: it builds a RegExp from `path.sep`; the upstream fix (PR #211) was closed unmerged. Patching the installed copy would make the answer key unreproducible | 2026-10-30 |
 
+## Proposed on Oct 30: confirm on Day 2
+
+From the Wave 1 reviews and the Wave 2 plan. For each, write "yes", "no" or your change after **Your call**; then move the ones you accept into the Decided table above. Five of them change `docs/contract.md`: the exact text to add is under "Contract text" below. None of them changes `models.py`.
+
+| # | Proposal | Why | Affects |
+| --- | --- | --- | --- |
+| D-11 | A function decorator is a call from the decorated function: `@logged` above `create_user` gives CALLS `create_user → logged` | Python runs `logged(create_user)`, and the impact engine must see that changing a decorator changes every function it wraps. The fixture labels already say so; the T01 adapter does not | T01 (issue #13 part 2), T06 |
+| D-12 | Packages get `attrs["role"]`: `package`, `fixture` (under a test or fixture folder) or `vendored` (under `vendor/`, `third_party/`, `node_modules/`); no DEPENDS_ON into vendored packages; summaries count real packages only | Indexing this repository finds 31 packages, 30 of them test fixtures; a committed `vendor/` folder makes a library look internal | T15 (issue #16 part 5) |
+| D-13 | Parse problems live on the file's module node: `attrs["errors"]` (list of strings), written by the pipeline from `ParseResult.errors`; a skipped file keeps `attrs["skipped_reason"]` | The no-silent-gaps rule needs a place to record the reason, and the store has none; the module node exists for every file, so no schema change is needed | T18 |
+| D-14 | CONTAINS also allows Class → nested class and Function → nested function | The fixture labels contain `logged → logged.wrapper`; the contract's list does not allow it | T18, the contract |
+| D-15 | A ROUTE node's key is `{path of the handler's file}::route:{METHOD} {path_pattern}` | The fixture labels use it, and the linker (T11) creates these nodes | T11, the contract |
+| D-16 | In a qualname, a `#` right after a `.` is part of a name (`A.#secret`, a TypeScript private member); a `#` after a name is the duplicate-name suffix (`Square.label#98f3`) | Both tiers already produce this; it only needs saying | The contract |
+| D-17 | When the configured LLM model is retired, auto-resolution stays within its size (`gpt-oss-20b` never silently becomes `gpt-oss-120b`) | A bigger model has different free-tier limits and cost | T04 (issue #14 part 5) |
+| D-18 | Wave 2 changes: a new task T18 (pipeline, `codeatlas index`, `view`, `export`) runs first, and `codeatlas index` moves there from T09; T06, T07 and T16 write a plan and stop for review before building; incremental re-indexing moves to the local phase | Nothing joins the Wave 1 parts yet, the owner cannot see results, and every resolver needs the pipeline to score itself. Re-parsing is cheap (583 files in 5.5 s), so incremental indexing saves little now | Wave 2 briefs |
+| D-19 | Something outside the repository has the key `::external:{dotted name}` (empty path, like the implicit package); resolvers return edges to such keys, and the pipeline creates one EXTERNAL node per key | The contract's `Resolver` returns edges only, so resolvers cannot create the EXTERNAL nodes the contract's edge table points at | T18, T06, T07, T16, the contract |
+
+**Your call**: D-11: · D-12: · D-13: · D-14: · D-15: · D-16: · D-17: · D-18: · D-19:
+
+### Contract text (for the decisions you accept)
+
+Section 4, two new rows in the identifiers table:
+
+```markdown
+| route key | `{path}::route:{METHOD} {path_pattern}` | `backend/routes.py::route:GET /api/users/{id}` | a ROUTE node; the path is the handler's file |
+| external key | `::external:{name}` | `::external:requests.get` | something outside the repository; the pipeline creates its EXTERNAL node from the edges that point at it |
+```
+
+Section 4, at the end of the **Qualname** paragraph:
+
+```markdown
+A `#` right after a `.` is part of a name (a TypeScript private member, `A.#secret`); a `#` that follows a name starts the duplicate-name suffix (`Square.label#98f3`).
+```
+
+Section 5, the CONTAINS row of `EdgeKind`:
+
+```markdown
+| `CONTAINS` | `"contains"` | Package → Module; Module → Class, Interface or Function; Class → method or nested class; Function → nested function |
+```
+
+Section 6, `Node`, add to the common `attrs` keys:
+
+```markdown
+`errors` (list of str: parse problems, on a module node), `skipped_reason` (str: why a file was not parsed, on a module node), `role` (packages: `package`, `fixture` or `vendored`)
+```
+
 ## Open: Day 1 and 2 questions
 
 Answer in a few sentences each. Wrong answers are fine; unexamined ones are not.
