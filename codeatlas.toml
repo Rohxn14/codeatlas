@@ -1,0 +1,16 @@
+# CodeAtlas settings. Every value here is the default; delete a line to keep it.
+# Read from the folder you run `codeatlas` in (or `--config path`), never from an
+# indexed repository, so a repository cannot raise its own limits.
+
+[limits]
+# When a limit is reached, indexing stops, keeps what it has, and names the limit
+# in the snapshot's `limits_hit`.
+max_files = 20000          # source files per index
+max_file_bytes = 1000000   # larger files are skipped and listed with the reason
+max_seconds = 300          # wall-clock time per index
+
+[history]
+max_history_commits = 2000 # commits read for co-change analysis (repository layer)
+
+[paths]
+data_dir = ".codeatlas"    # clones, indexes and caches
