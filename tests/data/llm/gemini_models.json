@@ -1,0 +1,34 @@
+{
+  "models": [
+    {
+      "name": "models/gemini-3.7-flash",
+      "supportedGenerationMethods": [
+        "generateContent"
+      ]
+    },
+    {
+      "name": "models/gemini-3.8-flash",
+      "supportedGenerationMethods": [
+        "generateContent"
+      ]
+    },
+    {
+      "name": "models/gemini-3.8-flash-lite",
+      "supportedGenerationMethods": [
+        "generateContent"
+      ]
+    },
+    {
+      "name": "models/gemini-3.8-flash-tts",
+      "supportedGenerationMethods": [
+        "generateContent"
+      ]
+    },
+    {
+      "name": "models/text-embedding-005",
+      "supportedGenerationMethods": [
+        "embedContent"
+      ]
+    }
+  ]
+}
