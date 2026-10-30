@@ -44,9 +44,12 @@ reached, indexing stops, keeps what it has, and names the limit in `Snapshot.lim
   Intake replaces or deletes a folder only if it carries that mark (or is the temporary
   folder it just created); any other non-empty folder at the target path is refused with
   an error. The mark lives inside `.git/` so `git ls-files` never reports it.
-- **`git ls-files` when possible.** Inside a git work tree, git already knows exactly
-  which files belong to the repository and applies every `.gitignore`, global excludes
-  and `.git/info/exclude` correctly. Untracked files that are not ignored are included
+- **`git ls-files` only at a repository's top level.** When the scanned folder is the
+  top level of its repository (`git rev-parse --show-toplevel` is the folder itself),
+  git already knows exactly which files belong to it and applies every `.gitignore`,
+  global excludes and `.git/info/exclude` correctly. A folder *inside* some other
+  repository is walked instead: an untracked project under a home folder that is itself
+  a git repository would otherwise lose every file the outer repository does not track. Untracked files that are not ignored are included
   (`--others --exclude-standard`), so a local work in progress is scanned too. Outside git
   the code walks the folder and applies `.gitignore` files with `pathspec`, the same
   matching rules git uses.
@@ -83,7 +86,7 @@ Intake (`open_source`):
 
 Discovery (`discover`):
 
-1. List candidates: `git ls-files`, then drop paths under an excluded folder
+1. List candidates: at a repository's top level, `git ls-files`, then drop paths under an excluded folder
    (`node_modules`, `.venv`, `venv`, `dist`, `build`, `.git`, `.codeatlas`), counting
    them per folder. Outside git, walk instead: an excluded folder is not entered but its
    files are counted; a `.gitignore`d folder is not entered; a symlinked folder is
@@ -146,5 +149,8 @@ and `skipped = [("node_modules", "excluded directory", 1 file)]`, `limits_hit = 
   `.<name>.*.tmp` folder beside the clone; delete those by hand too.
 - Inside git, untracked files that are not ignored are scanned, but the snapshot still
   carries `HEAD`'s SHA, so a dirty work tree is indexed under the commit's id.
+- A folder walked because it sits inside another repository applies only the
+  `.gitignore` files at or below it, not the outer repository's, so files the outer
+  repository ignores (for example `__pycache__`) appear in the census.
 - In git mode a `.gitignore`d `node_modules` is never seen, so it is not listed; the walk
   lists excluded folders even when ignored. The two modes differ there.

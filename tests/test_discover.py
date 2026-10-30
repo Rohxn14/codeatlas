@@ -109,6 +109,40 @@ def test_git_mode_used_for_git_repo(make_repo: Callable[..., Path], tmp_path: Pa
     assert not run(plain).used_git
 
 
+def test_plain_folder_inside_a_git_repository_is_walked(
+    make_repo: Callable[..., Path],
+) -> None:
+    """An untracked project inside another repository keeps all of its files."""
+    outer = make_repo({".gitignore": "*.log\nproject/\n", "outer.py": "x = 1\n"})
+    write_tree(
+        outer / "project",
+        {
+            "app.py": "def main():\n    pass\n",
+            "run.log": "the outer repository ignores *.log\n",
+            "cache/tmp.txt": "ignored by the project's own .gitignore\n",
+            ".gitignore": "cache/\n",
+        },
+    )
+    found = run(outer / "project")
+    assert not found.used_git
+    assert sorted(f.path for f in found.files) == [".gitignore", "app.py", "run.log"]
+
+
+def test_subfolder_of_a_git_repository_is_walked(make_repo: Callable[..., Path]) -> None:
+    root = make_repo({"pkg/a.py": "x = 1\n", "pkg/untracked_but_new.py": "y = 2\n"})
+    found = run(root / "pkg")
+    assert not found.used_git
+    assert sorted(f.path for f in found.files) == ["a.py", "untracked_but_new.py"]
+
+
+def test_repository_top_level_uses_git(make_repo: Callable[..., Path]) -> None:
+    root = make_repo({"a.py": "x = 1\n"})
+    (root / "new.py").write_text("y = 2\n", encoding="utf-8")  # untracked, not ignored
+    found = run(root)
+    assert found.used_git
+    assert sorted(f.path for f in found.files) == ["a.py", "new.py"]
+
+
 def test_binary_and_large_files_stay_as_text_records_with_reason(tmp_path: Path) -> None:
     (tmp_path / "image.py").write_bytes(b"\x89PNG\x00\x00binary")
     (tmp_path / "big.py").write_text("x = 1\n" * 50, encoding="utf-8")
