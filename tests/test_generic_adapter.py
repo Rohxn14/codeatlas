@@ -1,4 +1,4 @@
-from pathlib import Path
+import hashlib
 
 import pytest
 from conftest import DATA
@@ -135,14 +135,49 @@ def test_never_raises_on_odd_input(source: bytes) -> None:
     assert result.nodes[0].kind is NodeKind.MODULE
 
 
-def test_duplicate_qualnames_get_unique_keys(tmp_path: Path) -> None:
-    source = b"""
-class A { void save(int a) {} void save(String b) {} }
-"""
+def short_hash(signature: str) -> str:
+    return hashlib.sha1(signature.encode(), usedforsecurity=False).hexdigest()[:4]
+
+
+def java_methods(source: bytes) -> dict[str, str | None]:
     result = Registry().adapter_for("java").parse("A.java", source, SNAPSHOT)
-    keys = [n.key for n in result.nodes]
-    assert len(keys) == len(set(keys))
-    assert {"A.java::A.save", "A.java::A.save#2"} <= set(keys)
+    return {n.qualname: n.signature for n in result.nodes if n.kind is NodeKind.FUNCTION}
+
+
+def test_overloads_get_a_signature_hash_suffix() -> None:
+    methods = java_methods(b"class A { void save(int a) {} void save(String b) {} void run() {} }")
+    assert methods == {
+        f"A.save#{short_hash('void save(int a)')}": "void save(int a)",
+        f"A.save#{short_hash('void save(String b)')}": "void save(String b)",
+        "A.run": "void run()",
+    }
+
+
+def test_overload_keys_do_not_depend_on_order() -> None:
+    forward = java_methods(b"class A { void save(int a) {} void save(String b) {} }")
+    backward = java_methods(b"class A { void save(String b) {} void save(int a) {} }")
+    assert set(forward) == set(backward)
+
+
+def test_identical_signatures_fall_back_to_ordinals() -> None:
+    source = b"impl A { fn fmt(&self) {} }\nimpl A { fn fmt(&self) {} }\nstruct A;\n"
+    result = Registry().adapter_for("rust").parse("a.rs", source, SNAPSHOT)
+    digest = short_hash("fn fmt(&self)")
+    keys = {n.qualname for n in result.nodes if n.kind is NodeKind.FUNCTION}
+    assert keys == {f"A.fmt#{digest}", f"A.fmt#{digest}-2"}
+
+
+def test_ruby_locals_are_not_calls() -> None:
+    result = parse("ruby", "greeter.rb")
+    assert result.errors == ()
+    nodes = by_qualname(result)
+    assert nodes["Greeter"].kind is NodeKind.CLASS
+    assert nodes["Greeter.greet"].owner_key == "greeter.rb::Greeter"
+    names = {c.name for c in result.calls}
+    assert {"build", "puts", "info"} <= names
+    for local in ("count", "message", "times", "name"):
+        assert local not in names, f"local variable {local!r} reported as a call"
+    assert ("greeter.rb::Greeter.greet", "log.info", "info", "log") in calls(result)
 
 
 def test_text_adapter_emits_only_module_with_reason() -> None:

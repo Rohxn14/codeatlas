@@ -36,9 +36,24 @@ adapter if one is registered, otherwise the tags adapter (tier `STRUCTURAL`), ot
 - **Never raise.** tree-sitter builds a tree even for broken code, marking `ERROR` and
   `MISSING` nodes. The adapter reports up to 20 of them in `errors` and keeps every
   definition it could still read. Any unexpected exception still returns the module node.
-- **tree-sitter is held below 0.26.** 0.26.0 crashed the interpreter (segmentation fault)
-  while reading query results on this repository's own files; 0.25.2 does not. A crash
-  cannot be caught, so `pyproject.toml` caps the version until a fixed release.
+- **Positions are read by index.** `node.start_point[0]` (row) and `[1]` (column), not
+  `.row` and `.column`: on tree-sitter 0.26.0 the attribute form crashed the interpreter
+  (segmentation fault), which no `try` can catch. Index access works on 0.25 and 0.26,
+  so no upper version bound is needed.
+- **Filters py-tree-sitter cannot run are switched off, not ignored.** A query can guard a
+  pattern with `#is?` / `#is-not?` (Ruby: `(#is-not? local)`, "this identifier is not a
+  local variable"). py-tree-sitter does not evaluate those, so the pattern would fire on
+  every identifier and report each variable read as a call. The adapter disables any
+  pattern that carries one. Today only Ruby's bare-identifier call pattern is affected:
+  Ruby loses calls written without arguments or receiver (`helper`), but reports no
+  invented ones. Calls with a receiver or arguments (`log.info(x)`, `puts x`) still come
+  from the other pattern.
+- **Duplicate names get a hash of their signature.** Java overloads share the qualname
+  `A.save`; so do `fmt` methods in two Rust `impl` blocks. Numbering them by order (`#2`)
+  would change a key whenever an overload is added above another, and keys must survive
+  across commits. A short hash of the signature does not depend on order. Rejected: no
+  suffix (duplicate node ids in the store) and the full signature in the key (long, and
+  full of characters awkward in ids).
 
 ## How
 
@@ -58,8 +73,10 @@ adapter if one is registered, otherwise the tags adapter (tier `STRUCTURAL`), ot
    enclosing definition's qualname plus `.name`. A function whose direct enclosing
    definition is a class or interface gets that as `owner_key`. A top-level function with a
    Go receiver or inside a Rust `impl` gets `Type.name`, `attrs["receiver"] = "Type"`, and
-   an `owner_key` when `Type` is defined in the same file. A repeated qualname (Java
-   overloads, two `impl` blocks with `fmt`) gets `#2`, `#3` so keys stay unique.
+   an `owner_key` when `Type` is defined in the same file. When several definitions in the
+   same scope share a name, every one of them gets `#` plus the first four hex digits of
+   the SHA-1 of its signature: `A.save#3f9c`, `A.save#b071`. Only identical signatures
+   fall back to order: `A.fmt#c2d4`, `A.fmt#c2d4-2`.
 6. **Signature and doc comment.** The signature is the text from the definition's start
    to its body, whitespace collapsed. The doc comment is the run of comment lines directly
    above the definition, with comment markers removed.
