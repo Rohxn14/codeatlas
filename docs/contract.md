@@ -223,9 +223,9 @@ These exist only inside one indexing run. Adapters cannot resolve names across f
 | --- | --- | --- | --- |
 | `caller_key` | `str` | | |
 | `client` | `str` | | `fetch`, `axios`, `requests`, `httpx` |
-| `method` | `str \| None` | `None` | Known HTTP method, if any |
 | `url_text` | `str` | | Literal or template as written |
 | `url_kind` | `str` | | `literal`, `template` or `dynamic` |
+| `method` | `str \| None` | `None` | Known HTTP method, if any |
 | `line` | `int` | `0` | |
 
 ### `ParseResult`: everything an adapter learned from one file

@@ -51,7 +51,7 @@ Sessions run on a small, fixed credit, so spend it on code, not on loops.
    - **Why**: the design choices and the alternatives you rejected
    - **How**: the algorithm, step by step, with a small worked example
    - **Where**: how it connects to other modules and which contract types it uses
-3. A branch named `task/Txx-short-name` and one pull request that fills in every section of `.github/pull_request_template.md`. Under "Questions for the owner", list the design choices you made that the brief left open, so the owner can confirm or reverse them.
+3. One pull request titled `Txx: <short summary>` that fills in every section of `.github/pull_request_template.md`. Keep the branch name the cloud environment gives you (`claude/...`); the title is how the owner finds the task. Under "Questions for the owner", list the design choices you made that the brief left open, so the owner can confirm or reverse them.
 
 ## Environment notes
 
