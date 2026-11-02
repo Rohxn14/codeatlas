@@ -22,3 +22,31 @@ query. They are appended to the upstream query, never replacing it:
 
 TypeScript and TSX also prepend JavaScript's query, as tree-sitter itself does: the
 TypeScript tags file only adds TypeScript-specific patterns (interfaces, signatures).
+
+# Imports queries
+
+`queries/<language>/imports.scm` is optional. When it exists the tags adapter runs it on
+every file and turns each match into one `RawImport`. It is CodeAtlas's own file, written
+per language (upstream tags queries say nothing about imports).
+
+| Capture | Meaning | Becomes |
+| --- | --- | --- |
+| `@import` | the whole import statement (or one spec of a group) | `line`, and groups captures into one import |
+| `@import.target` | the module or path as written, without quotes | `RawImport.target` |
+| `@import.name` | an imported name (repeat for several in one statement) | `names=((name, alias), ...)` |
+| `@import.alias` | the alias written for the whole import (Go `f "fmt"`, `.`, `_`) | `RawImport.alias` |
+| `@import.wildcard` | a `*` import | `names=(("*", None),)` |
+| `@package.name` | the file's package declaration | module node `attrs["package"]` |
+
+Rules: one `@import` per statement or spec, so write a pattern for each shape and keep
+them from matching the same statement twice (the Java queries use a trailing `.` anchor
+for that). A `@import.wildcard` target is the package or class without `.*`.
+
+| File | Languages |
+| --- | --- |
+| `java/imports.scm` | `import a.b.C;`, `import a.b.*;`, static imports, `package` |
+| `go/imports.scm` | single and grouped imports, aliases, dot and blank imports, `package` |
+
+A language with an imports query also needs a resolution profile in
+`codeatlas/indexer/structural/` before its imports mean anything; see
+`.claude/skills/add-language/SKILL.md`.

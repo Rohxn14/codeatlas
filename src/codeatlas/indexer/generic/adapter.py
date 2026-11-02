@@ -11,8 +11,8 @@ from __future__ import annotations
 
 import hashlib
 import re
-from dataclasses import dataclass, field
-from pathlib import PurePosixPath
+from dataclasses import dataclass, field, replace
+from pathlib import Path, PurePosixPath
 
 from tree_sitter import Language, Parser, Query, QueryCursor
 from tree_sitter import Node as TSNode
@@ -22,6 +22,7 @@ from codeatlas.models import (
     NodeKind,
     ParseResult,
     RawCall,
+    RawImport,
     Span,
     Tier,
     make_key,
@@ -45,6 +46,7 @@ _OWNER_KINDS = frozenset({NodeKind.CLASS, NodeKind.INTERFACE})
 _RECEIVER_FIELDS: dict[str, str] = {"method_declaration": "receiver"}
 _IMPL_BLOCKS: dict[str, str] = {"impl_item": "type"}
 
+_QUERIES_DIR = Path(__file__).resolve().parent.parent / "queries"
 _MAX_ERRORS = 20
 _CALL_SEPARATOR = re.compile(r"(\?\.|\.|::|->)$")
 _COMMENT_MARKERS = re.compile(r"^\s*(///?|/\*\*?|\*/?|#|--)\s?")
@@ -80,12 +82,16 @@ class TagsAdapter:
         grammar: Language,
         tags_query: str,
         extensions: tuple[str, ...] = (),
+        imports_query: str | None = None,
     ) -> None:
         self.language = language
         self.extensions = extensions
         self._parser = Parser(grammar)
         self._query = Query(grammar, tags_query)
         self._disable_unsupported_patterns()
+        if imports_query is None:
+            imports_query = _vendored_imports_query(language)
+        self._imports_query = Query(grammar, imports_query) if imports_query else None
 
     def _disable_unsupported_patterns(self) -> None:
         """Turn off patterns guarded by `#is?` / `#is-not?`, which py-tree-sitter ignores.
@@ -108,13 +114,42 @@ class TagsAdapter:
             definitions = self._definitions(matches, source, path)
             nodes = [module, *self._nodes(definitions, path, source, snapshot_id)]
             calls = self._calls(tree.root_node, matches, source, path, definitions)
+            imports, package = self._imports(tree.root_node, source, module.key)
+            if package:
+                nodes[0] = replace(module, attrs={**module.attrs, "package": package})
         except Exception as exc:  # defensive: a grammar bug must not stop indexing
             return ParseResult(
                 path, self.language, self.tier, (module,), errors=(f"adapter failed: {exc}",)
             )
         return ParseResult(
-            path, self.language, self.tier, tuple(nodes), calls=tuple(calls), errors=errors
+            path,
+            self.language,
+            self.tier,
+            tuple(nodes),
+            imports=tuple(imports),
+            calls=tuple(calls),
+            errors=errors,
         )
+
+    # Imports
+
+    def _imports(
+        self, root: TSNode, source: bytes, module_key: str
+    ) -> tuple[list[RawImport], str | None]:
+        """Imports and the package declaration, from `imports.scm` (see queries/README.md)."""
+        if self._imports_query is None:
+            return [], None
+        statements: dict[NodeId, dict[str, list[TSNode]]] = {}
+        package: str | None = None
+        for _, captures in QueryCursor(self._imports_query).matches(root):
+            if "package.name" in captures and package is None:
+                package = _text(captures["package.name"][0], source)
+            if "import" in captures and "import.target" in captures:
+                merged = statements.setdefault(_ident(captures["import"][0]), {})
+                for capture, nodes in captures.items():
+                    merged.setdefault(capture, []).extend(nodes)
+        imports = [_raw_import(c, source, module_key) for c in statements.values()]
+        return sorted(imports, key=lambda i: i.line), package
 
     # Definitions
 
@@ -197,6 +232,25 @@ class TagsAdapter:
                 line=call.start_point[0] + 1,
             )
         return [calls[k] for k in sorted(calls)]
+
+
+def _raw_import(captures: dict[str, list[TSNode]], source: bytes, module_key: str) -> RawImport:
+    names = tuple((_text(n, source), None) for n in captures.get("import.name", []))
+    if "import.wildcard" in captures:
+        names += (("*", None),)
+    alias = captures.get("import.alias")
+    return RawImport(
+        module_key=module_key,
+        target=_text(captures["import.target"][0], source),
+        names=names,
+        alias=_text(alias[0], source) if alias else None,
+        line=captures["import"][0].start_point[0] + 1,
+    )
+
+
+def _vendored_imports_query(language: str) -> str | None:
+    path = _QUERIES_DIR / language / "imports.scm"
+    return path.read_text(encoding="utf-8") if path.is_file() else None
 
 
 class TextAdapter:
@@ -405,14 +459,39 @@ def _enclosing_key(node: TSNode, definitions: dict[NodeId, _Definition], path: s
 
 
 def _signature(node: TSNode, source: bytes) -> str | None:
-    """Source text from the start of the definition to its body, whitespace collapsed."""
+    """The definition's header as one line: no body, no comments, whitespace collapsed.
+
+    It feeds the `#hash` suffix for repeated names, so it must be the same text the deep
+    adapters hash. A comment between a Python `def ...:` and its first statement, or inside
+    the header, would otherwise change the key whenever someone edits the comment.
+    """
     body = node.child_by_field_name("body")
     end = body.start_byte if body is not None else node.end_byte
-    text = source[node.start_byte : end].decode("utf-8", "replace")
+    pieces, position = [], node.start_byte
+    for comment in _comments_between(node, end):
+        pieces.append(source[position : comment.start_byte])
+        position = max(position, comment.end_byte)
+    pieces.append(source[position:end])
+    text = b"".join(pieces).decode("utf-8", "replace")
     if body is None:
         text = text.split("\n", 1)[0]
-    text = " ".join(text.split()).rstrip("{:= ").strip()
+    text = " ".join(text.split()).rstrip("{:=; ").strip()
     return text or None
+
+
+def _comments_between(node: TSNode, end: int) -> list[TSNode]:
+    """Comment nodes inside `node` that start before byte `end`, in source order."""
+    found: list[TSNode] = []
+    stack = [node]
+    while stack:
+        current = stack.pop()
+        if current.start_byte >= end:
+            continue
+        if "comment" in current.type:
+            found.append(current)
+        else:
+            stack.extend(current.children)
+    return sorted(found, key=lambda c: c.start_byte)
 
 
 def _leading_comment(node: TSNode, source: bytes) -> str | None:
