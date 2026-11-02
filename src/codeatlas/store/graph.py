@@ -62,7 +62,8 @@ def _walk(
         # round cannot extend a path by two edges in one round.
         start_scores = {node: best[node] for node in frontier}
         improved: set[str] = set()
-        for node, base in start_scores.items():
+        for node in sorted(frontier):  # sorted, so the result never depends on hash order
+            base = start_scores[node]
             for neighbour, confidence in _steps(g, node, kinds, min_confidence, reverse):
                 score = base * confidence
                 if score > best.get(neighbour, 0.0):
