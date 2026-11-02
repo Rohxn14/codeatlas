@@ -15,6 +15,7 @@ Every design decision lands here: the question, the decision, and why. When a pu
 | D-07 | Repository-first: every repository gets a repository layer (packages, tests, co-change) whatever its languages; depth grows per language | The owner's requirement: any public repository must work. "Works" means four promises measured on a suite of about 40 repositories | 2026-10-29 |
 | D-08 | Strategy memory moves to the local phase | Frees cloud sessions for the repository layer and more languages; it belongs with AdaptiveAgent anyway | 2026-10-29 |
 | D-09 | The MCP server is built with the agent tools in T09 | Same tools, one extra entry point; lets the owner practise giving an agent his own tools | 2026-10-29 |
+| D-10 | The SCIP oracle runs on Linux only (cloud sessions, CI or WSL), never on Windows | scip-python crashes on Windows: it builds a RegExp from `path.sep`; the upstream fix (PR #211) was closed unmerged. Patching the installed copy would make the answer key unreproducible | 2026-10-30 |
 
 ## Open: Day 1 and 2 questions
 

@@ -25,9 +25,9 @@ from codeatlas.indexer.generic.adapter import TagsAdapter, TextAdapter
 from codeatlas.models import Tier
 
 # Deep adapters, by grammar name: "module.path:ClassName", imported on first use.
-# The class is constructed with no arguments. Example entry (T01):
-#   "python": "codeatlas.indexer.languages.python.adapter:PythonAdapter",
+# The class is constructed with no arguments.
 DEEP_ADAPTERS: dict[str, str] = {
+    "python": "codeatlas.indexer.languages.python.adapter:PythonAdapter",
     "typescript": "codeatlas.indexer.languages.typescript.adapter:TypeScriptAdapter",
     "tsx": "codeatlas.indexer.languages.typescript.adapter:TsxAdapter",
     "javascript": "codeatlas.indexer.languages.typescript.adapter:JavaScriptAdapter",

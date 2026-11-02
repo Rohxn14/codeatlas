@@ -56,4 +56,5 @@ Sessions run on a small, fixed credit, so spend it on code, not on loops.
 ## Environment notes
 
 - Cloud sessions run on Linux; the owner develops on Windows with PowerShell. Avoid shell-specific scripts in the library; put helper scripts under `scripts/` with a Python entry point.
+- scip-python does not run on Windows: it builds a regular expression from `path.sep`, and a lone backslash is not a valid pattern (upstream fix PR #211 was closed unmerged). Run SCIP oracle steps only on Linux (a cloud session or WSL). On Windows, code must print a clear message saying so instead of crashing. Never patch the installed indexer.
 - LLM keys are attached by the environment's network proxy; code reads optional `GROQ_API_KEY` and `GEMINI_API_KEY` environment variables but must work in tests without them.
