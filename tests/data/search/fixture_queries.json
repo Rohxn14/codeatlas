@@ -1,0 +1,93 @@
+[
+  {
+    "question": "where is a new account checked for a missing name?",
+    "expected": [
+      "backend/user_repo.py::UserRepo.save"
+    ]
+  },
+  {
+    "question": "which component shows one person in the page list?",
+    "expected": [
+      "frontend/src/components/UserCard.tsx::UserCard"
+    ]
+  },
+  {
+    "question": "what answers the request that lists everybody?",
+    "expected": [
+      "backend/routes.py::list_users"
+    ]
+  },
+  {
+    "question": "how do we turn a person record into a plain dictionary?",
+    "expected": [
+      "backend/models.py::user_to_dict"
+    ]
+  },
+  {
+    "question": "where does the browser ask the server for all people?",
+    "expected": [
+      "frontend/src/api/client.ts::fetchUsers"
+    ]
+  },
+  {
+    "question": "what hands out the next free number for a new person?",
+    "expected": [
+      "backend/services.py::UserService._next_id"
+    ]
+  },
+  {
+    "question": "which code remembers a fetched person so it is not downloaded twice?",
+    "expected": [
+      "frontend/src/api/client.ts::UserApi.getUser",
+      "frontend/src/api/client.ts::UserApi.remember"
+    ]
+  },
+  {
+    "question": "what is the generic storage base that keeps things by number?",
+    "expected": [
+      "backend/repo.py::Repo"
+    ]
+  },
+  {
+    "question": "what happens when someone looks up a person who does not exist?",
+    "expected": [
+      "backend/routes.py::get_user"
+    ]
+  },
+  {
+    "question": "which function turns a person into display text with their number?",
+    "expected": [
+      "frontend/src/components/format.ts::formatName"
+    ]
+  },
+  {
+    "question": "where do we record the name of every wrapped function that runs?",
+    "expected": [
+      "backend/decorators.py::logged"
+    ]
+  },
+  {
+    "question": "what builds the web application and attaches the routes?",
+    "expected": [
+      "backend/app.py::create_app"
+    ]
+  },
+  {
+    "question": "which test makes sure a blank name is refused?",
+    "expected": [
+      "backend/tests/test_services.py::test_user_repo_rejects_empty_name"
+    ]
+  },
+  {
+    "question": "where are people searched by their name?",
+    "expected": [
+      "backend/user_repo.py::UserRepo.find_by_name"
+    ]
+  },
+  {
+    "question": "which type describes anything that can supply people to the interface?",
+    "expected": [
+      "frontend/src/api/types.ts::UserSource"
+    ]
+  }
+]

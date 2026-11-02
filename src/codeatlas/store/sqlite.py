@@ -8,6 +8,7 @@ from collections.abc import Iterable, Sequence
 from pathlib import Path
 
 import networkx as nx
+import numpy as np
 
 from codeatlas.models import (
     Edge,
@@ -391,6 +392,38 @@ class GraphStore:
         hits = [(_node(r), -r["rank"]) for r in rows]
         hits.sort(key=lambda hit: (hit[0].name.lower() != wanted, -hit[1]))
         return hits[:k]
+
+    # Embeddings
+
+    def write_embeddings(self, rows: Iterable[tuple[str, str, np.ndarray]]) -> int:
+        """Store `(node_id, model, vector)` rows as float32 blobs; a repeat replaces the old."""
+        data = []
+        for node_id, model, vector in rows:
+            vec = np.asarray(vector, dtype=np.float32).ravel()
+            data.append((node_id, model, int(vec.size), vec.tobytes()))
+        with self._conn:
+            self._conn.executemany(
+                "INSERT OR REPLACE INTO embeddings (node_id, model, dim, vector) "
+                "VALUES (?, ?, ?, ?)",
+                data,
+            )
+        return len(data)
+
+    def embeddings(self, snapshot_id: str, model: str) -> tuple[list[str], np.ndarray]:
+        """Node ids and a `(n, dim)` float32 matrix for one snapshot and model.
+
+        Empty snapshots give `([], zeros((0, 0)))` so callers can test `len(ids)`.
+        """
+        rows = self._conn.execute(
+            "SELECT node_id, dim, vector FROM embeddings "
+            "WHERE model = ? AND substr(node_id, 1, ?) = ? ORDER BY node_id",
+            (model, len(snapshot_id) + 1, snapshot_id + "/"),
+        ).fetchall()
+        if not rows:
+            return [], np.zeros((0, 0), dtype=np.float32)
+        ids = [r["node_id"] for r in rows]
+        matrix = np.stack([np.frombuffer(r["vector"], dtype=np.float32) for r in rows])
+        return ids, matrix
 
     # Views
 
