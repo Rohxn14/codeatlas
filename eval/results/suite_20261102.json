@@ -2336,6 +2336,160 @@
       "edges_dropped": {},
       "seconds": 38.11,
       "peak_memory_mb": 187.4
+    },
+    {
+      "name": "TypeScript",
+      "url": "https://github.com/microsoft/TypeScript",
+      "sha": "6161772c1370bdd4a82f808e6823bd755eb1870d",
+      "size": "very large",
+      "declared_languages": [
+        "typescript"
+      ],
+      "status": "completed",
+      "snapshot_id": "TypeScript@6161772c1370",
+      "files": 20000,
+      "files_by_tier": {
+        "deep": 4179,
+        "structural": 5212,
+        "text": 10609
+      },
+      "files_by_language": {
+        "text": 10470,
+        "go": 5216,
+        "javascript": 3853,
+        "typescript": 327,
+        "json": 73,
+        "yaml": 35,
+        "markdown": 26
+      },
+      "files_with_parse_errors": 3858,
+      "parse_errors": 23197,
+      "parse_error_samples": [
+        "syntax error at line 3197, column 28",
+        "syntax error at line 6574, column 28",
+        "syntax error at line 331, column 24",
+        "syntax error at line 4, column 7",
+        "syntax error at line 1653, column 80"
+      ],
+      "skipped_by_reason": {
+        "binary": 14,
+        "over max_file_bytes (1000000)": 10
+      },
+      "nodes_by_kind": {
+        "class": 7626,
+        "function": 33219,
+        "interface": 2151,
+        "module": 20000,
+        "package": 11,
+        "test": 1048
+      },
+      "edges_by_kind": {
+        "co_changes": 2267,
+        "contains": 64044,
+        "depends_on": 1,
+        "tests": 165
+      },
+      "raw_calls": 217481,
+      "resolved_calls": 0,
+      "unresolved_share": 1.0,
+      "limits_hit": [
+        "max_file_bytes",
+        "max_files"
+      ],
+      "problems": [
+        "resolver python not loaded: ModuleNotFoundError: No module named 'codeatlas.indexer.languages.python.resolver'",
+        "resolver structural not loaded: AttributeError: module 'codeatlas.indexer.structural' has no attribute 'StructuralResolver'",
+        "resolver typescript not loaded: ModuleNotFoundError: No module named 'codeatlas.indexer.languages.typescript.resolver'"
+      ],
+      "languages_without_resolver": [
+        "go",
+        "javascript",
+        "typescript"
+      ],
+      "edges_dropped": {},
+      "seconds": 38.37,
+      "peak_memory_mb": 322.8
+    },
+    {
+      "name": "kong",
+      "url": "https://github.com/Kong/kong",
+      "sha": "21032122ab80c973f368f6bc539f53985e7164e8",
+      "size": "large",
+      "declared_languages": [
+        "lua",
+        "sql"
+      ],
+      "status": "completed",
+      "snapshot_id": "kong@21032122ab80",
+      "files": 2408,
+      "files_by_tier": {
+        "deep": 16,
+        "structural": 1323,
+        "text": 1069
+      },
+      "files_by_language": {
+        "lua": 1311,
+        "yaml": 525,
+        "text": 297,
+        "json": 150,
+        "proto": 39,
+        "markdown": 28,
+        "python": 15,
+        "bash": 13,
+        "rust": 8,
+        "go": 4,
+        "html": 4,
+        "make": 3,
+        "toml": 3,
+        "dockerfile": 2,
+        "perl": 2,
+        "css": 1,
+        "javascript": 1,
+        "sql": 1,
+        "xml": 1
+      },
+      "files_with_parse_errors": 1,
+      "parse_errors": 1,
+      "parse_error_samples": [
+        "syntax error at line 5, column 17"
+      ],
+      "skipped_by_reason": {
+        "binary": 3,
+        "over max_file_bytes (1000000)": 1
+      },
+      "nodes_by_kind": {
+        "class": 34,
+        "function": 5100,
+        "interface": 3,
+        "module": 2408,
+        "package": 5,
+        "test": 2
+      },
+      "edges_by_kind": {
+        "co_changes": 1931,
+        "contains": 7547
+      },
+      "raw_calls": 98848,
+      "resolved_calls": 0,
+      "unresolved_share": 1.0,
+      "limits_hit": [
+        "max_file_bytes"
+      ],
+      "problems": [
+        "resolver python not loaded: ModuleNotFoundError: No module named 'codeatlas.indexer.languages.python.resolver'",
+        "resolver structural not loaded: AttributeError: module 'codeatlas.indexer.structural' has no attribute 'StructuralResolver'",
+        "resolver typescript not loaded: ModuleNotFoundError: No module named 'codeatlas.indexer.languages.typescript.resolver'"
+      ],
+      "languages_without_resolver": [
+        "go",
+        "javascript",
+        "lua",
+        "python",
+        "rust"
+      ],
+      "edges_dropped": {},
+      "seconds": 5.66,
+      "peak_memory_mb": 99.1
     }
   ]
 }
