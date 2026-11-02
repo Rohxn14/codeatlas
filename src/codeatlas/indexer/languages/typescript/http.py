@@ -118,8 +118,24 @@ def _prefixed(base: ClientBase, url: tuple[str, str]) -> tuple[str, str]:
         return url
     kind = syntax.worst_kind(base.kind, url[1])
     if kind != syntax.DYNAMIC:
-        return base.text + url[0], kind
+        return join_url(base.text, url[0]), kind
     return f"{_expression(base.text, base.kind)} + {_expression(*url)}", kind
+
+
+def join_url(base: str, path: str) -> str:
+    """Join with exactly one `/`: `https://x.io/api/` + `/users` is `https://x.io/api/users`.
+
+    An absolute request URL ignores the base, as axios does.
+    """
+    if not path:
+        return base
+    if path.startswith(("http://", "https://")):
+        return path
+    if base.endswith("/") and path.startswith("/"):
+        return base + path[1:]
+    if not base.endswith("/") and not path.startswith(("/", "?", "#")):
+        return base + "/" + path
+    return base + path
 
 
 def _expression(text: str, kind: str) -> str:

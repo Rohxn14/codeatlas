@@ -3,7 +3,6 @@ from collections.abc import Callable
 from dataclasses import replace
 from pathlib import Path
 
-import pytest
 from conftest import git
 from test_manifests import SAMPLES, records
 
@@ -17,11 +16,6 @@ from codeatlas.repo import (
     default_analyzers,
     summarize,
 )
-
-
-@pytest.fixture(autouse=True)
-def no_parent_repository(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))
 
 
 def test_default_analyzers_follow_the_contract_and_config() -> None:
@@ -60,6 +54,8 @@ def test_summary_of_a_whole_run(make_repo: Callable[..., Path], tmp_path: Path) 
     summary = summarize(found, nodes, edges, analyzers)
     assert summary["packages"] == {
         "total": 3,
+        "real": 3,
+        "by_role": {"package": 3},
         "by_ecosystem": {"maven": 3},
         "implicit": False,
         "internal_dependencies": 1,
@@ -74,7 +70,7 @@ def test_summary_of_a_whole_run(make_repo: Callable[..., Path], tmp_path: Path) 
     assert cochange["status"] == "ok"
     assert cochange["commits_read"] == 4 and cochange["commits_analysed"] == 4
     assert cochange["files_removed"] == {
-        "vendored": 0, "lockfile": 0, "generated": 0, "not_at_head": 0,
+        "vendored": 0, "lockfile": 0, "generated": 0, "not_in_snapshot": 0,
     }
     languages = summary["languages"]
     assert isinstance(languages, list)

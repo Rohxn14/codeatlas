@@ -11,7 +11,14 @@ from __future__ import annotations
 import re
 import xml.etree.ElementTree as ET
 
-from codeatlas.repo.ecosystems.base import Declared, Found, ManifestError, RepoView, Workspace
+from codeatlas.repo.ecosystems.base import (
+    Declared,
+    Found,
+    ManifestError,
+    RepoView,
+    Workspace,
+    guarded,
+)
 from codeatlas.repo.paths import parent
 
 ECOSYSTEM = "maven"
@@ -21,7 +28,7 @@ _PROPERTY = re.compile(r"\$\{([^}]+)\}")
 def find(view: RepoView) -> Found:
     found = Found()
     for manifest in view.named("pom.xml"):
-        _pom(view, manifest, found)
+        guarded(view, ECOSYSTEM, manifest, found, lambda m=manifest: _pom(view, m, found))
     return found
 
 

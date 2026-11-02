@@ -21,6 +21,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from codeatlas.config import Config
+from codeatlas.indexer.discover import is_repo_top_level
 
 _GITHUB_HOSTS = frozenset({"github.com", "www.github.com"})
 _NAME = re.compile(r"^[A-Za-z0-9_.-]+$")
@@ -101,7 +102,10 @@ def open_source(source: str, config: Config) -> IntakeResult:
     root = Path(source).expanduser().resolve()
     if not root.is_dir():
         raise IntakeError(f"not a folder: {source}")
-    return IntakeResult(root, root.name, source, head_sha(root))
+    # A folder inside another repository gets no SHA: the outer repository's HEAD does
+    # not describe it, so the caller falls back to a hash of the files' contents.
+    sha = head_sha(root) if is_repo_top_level(root) else None
+    return IntakeResult(root, root.name, source, sha)
 
 
 def clone_or_reuse(remote: str, dest: Path, ref: str | None = None) -> tuple[str, bool]:

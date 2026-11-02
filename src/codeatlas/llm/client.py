@@ -16,7 +16,13 @@ from pathlib import Path
 
 from codeatlas.llm.cache import LLMCache, cache_key
 from codeatlas.llm.config import LLMConfig, load_llm_config
-from codeatlas.llm.errors import CacheMissError, LLMTransientError, LLMUnavailableError
+from codeatlas.llm.errors import (
+    CacheMissError,
+    LLMEmptyResponseError,
+    LLMRequestError,
+    LLMTransientError,
+    LLMUnavailableError,
+)
 from codeatlas.llm.providers.base import Provider, resolve_model
 from codeatlas.llm.types import LLMResponse, Message, ToolSpec
 
@@ -38,6 +44,9 @@ class LLMClient:
         sleep: Callable[[float], None] = time.sleep,
         rng: random.Random | None = None,
     ) -> None:
+        if cache_mode == "replay_only" and cache is None:
+            raise ValueError("cache_mode='replay_only' needs a cache; without one every call "
+                             "would go to the network")
         self.providers = list(providers)
         self.cache = cache if cache_mode != "off" else None
         self.cache_mode = cache_mode
@@ -48,6 +57,7 @@ class LLMClient:
         self._sleep = sleep
         self._rng = rng or random.Random()
         self._resolved: set[str] = set()
+        self._re_resolved: set[str] = set()
 
     @classmethod
     def from_config(cls, config: LLMConfig | None = None) -> LLMClient:
@@ -98,21 +108,33 @@ class LLMClient:
         failures: list[str] = []
         for provider in self.providers:
             self._resolve_once(provider)
-            for attempt in range(self.max_tries):
+            attempt = 0
+            while attempt < self.max_tries:
                 started = time.monotonic()
                 try:
                     response = provider.chat(messages, tools, temperature, max_tokens)
-                except LLMTransientError as exc:
+                except LLMEmptyResponseError as exc:
+                    # The same request would come back empty again: move on at once.
                     failures.append(str(exc))
-                    log.warning("%s try %d/%d failed: %s", provider.name, attempt + 1,
+                    log.warning("%s: %s; trying the next provider", provider.name, exc)
+                    break
+                except LLMRequestError as exc:
+                    if not self._model_was_retired(provider, exc):
+                        raise
+                    continue  # retry once with the newly resolved model
+                except LLMTransientError as exc:
+                    attempt += 1
+                    failures.append(str(exc))
+                    log.warning("%s try %d/%d failed: %s", provider.name, attempt,
                                 self.max_tries, exc)
-                    if attempt + 1 < self.max_tries:
-                        self._sleep(self._backoff(attempt))
+                    if attempt < self.max_tries:
+                        self._sleep(self._backoff(attempt - 1))
                     continue
                 self._log_usage(response, time.monotonic() - started)
                 return response
-            log.warning("%s gave up after %d tries; trying the next provider", provider.name,
-                        self.max_tries)
+            else:
+                log.warning("%s gave up after %d tries; trying the next provider",
+                            provider.name, self.max_tries)
         raise LLMUnavailableError("every provider failed: " + " | ".join(failures))
 
     def _backoff(self, attempt: int) -> float:
@@ -124,6 +146,19 @@ class LLMClient:
         if provider.name not in self._resolved:
             self._resolved.add(provider.name)
             resolve_model(provider)
+
+    def _model_was_retired(self, provider: Provider, exc: LLMRequestError) -> bool:
+        """After a 404, look the model up again once; True if a different one was found.
+
+        A model retired since the first check is still configured, so the 404 says
+        nothing about the request itself.
+        """
+        if exc.status != 404 or provider.name in self._re_resolved:
+            return False
+        self._re_resolved.add(provider.name)
+        before = provider.model
+        resolve_model(provider)
+        return provider.model != before
 
     def _log_usage(self, response: LLMResponse, seconds: float) -> None:
         if self.usage_log is None:
@@ -147,7 +182,9 @@ def _make_provider(name: str, config: LLMConfig) -> Provider:
     if name == "groq":
         from codeatlas.llm.providers.groq import GroqProvider
 
-        return GroqProvider(config.groq_model, timeout=config.timeout_seconds)
+        return GroqProvider(config.groq_model, timeout=config.timeout_seconds,
+                            reasoning_effort=config.groq_reasoning_effort)
     from codeatlas.llm.providers.gemini import GeminiProvider
 
-    return GeminiProvider(config.gemini_model, timeout=config.timeout_seconds)
+    return GeminiProvider(config.gemini_model, timeout=config.timeout_seconds,
+                          thinking_level=config.gemini_thinking_level)

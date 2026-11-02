@@ -37,9 +37,10 @@ def test_calls_with_receivers_chains_comprehensions_and_lambdas() -> None:
     module, handle, top = "app/calls.py::", "app/calls.py::Handler.handle", "app/calls.py::top"
     assert calls == [
         (module, "logging.getLogger", "getLogger", "logging", 3),
-        # A class body and a method's decorator and defaults run in the enclosing scope.
+        # A class body and a method's defaults run in the enclosing scope; a method's
+        # decorator belongs to the method it decorates (decision D-11).
         (module, "compute_timeout", "compute_timeout", None, 15),
-        (module, "register_method", "register_method", None, 20),
+        (handle, "register_method", "register_method", None, 20),
         (module, "make_default", "make_default", None, 21),
         (handle, "self.repo.save", "save", "self.repo", 22),
         (handle, "build().run", "run", "build()", 23),
@@ -51,6 +52,7 @@ def test_calls_with_receivers_chains_comprehensions_and_lambdas() -> None:
         (handle, "handlers[0]", "handlers[0]", None, 29),
         (handle, "super().handle", "handle", "super()", 30),
         (handle, "super", "super", None, 30),
+        (top, "register", "register", None, 33),  # a bare decorator is a call too
         (top, "print", "print", None, 35),
         (top, "make_default", "make_default", None, 35),  # inside an f-string
     ]
@@ -60,7 +62,43 @@ def test_nested_function_calls_belong_to_the_innermost_function() -> None:
     calls = {(c.caller_key, c.callee_text) for c in parse("app/models.py").calls}
     assert ("app/models.py::UserService.fetch.build", "dict") in calls
     assert ("app/models.py::UserService.fetch", "build") in calls
-    assert ("app/models.py::", "functools.lru_cache") in calls
+    assert ("app/models.py::UserService.fetch", "functools.lru_cache") in calls  # D-11
+
+
+def test_function_decorators_are_calls_from_the_decorated_function() -> None:
+    source = b"""import mock
+
+def logged(f):
+    return f
+
+@logged
+def create():
+    pass
+
+class S:
+    @mock.patch("os.getcwd")
+    @a.b
+    def run(self):
+        pass
+
+@dataclass
+class Plain:
+    pass
+"""
+    calls = {(c.caller_key, c.callee_text, c.receiver, c.line)
+             for c in PythonAdapter().parse("d.py", source, SNAPSHOT).calls}
+    assert calls == {
+        ("d.py::create", "logged", None, 6),
+        ("d.py::S.run", "mock.patch", "mock", 11),
+        ("d.py::S.run", "a.b", "a", 12),
+    }  # `@dataclass` on a class stays with the module, and a bare one records nothing
+
+
+def test_crlf_docstrings_match_lf_docstrings() -> None:
+    lf = b'def f():\n    """Summary line.\n\n    More text.\n    """\n'
+    crlf = lf.replace(b"\n", b"\r\n")
+    docs = [PythonAdapter().parse("f.py", src, SNAPSHOT).nodes[1].docstring for src in (lf, crlf)]
+    assert docs == ["Summary line.\n\nMore text."] * 2
 
 
 def test_crlf_line_continuations_are_joined() -> None:

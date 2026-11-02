@@ -146,15 +146,21 @@ def docstring(body: TSNode | None, source: bytes) -> str | None:
     value = string_value(first.named_children[0], source)
     if value is None or value.is_fstring:  # an f-string is never a docstring
         return None
-    return inspect.cleandoc(value.content) or None
+    # CRLF files would keep "\r" (or, on Python 3.13, skip cleaning entirely), so the same
+    # file would give a different docstring on Windows than on Linux.
+    return inspect.cleandoc(value.content.replace("\r\n", "\n")) or None
 
 
 class Scopes:
     """Answers "which function does this code run in?" for calls and HTTP calls.
 
-    Code runs in a function only when it sits in that function's body. Decorators and
-    default argument values run when the `def` statement runs, so they belong to the
-    scope around the function; so does a class body, since a class is not a function.
+    Code runs in a function only when it sits in that function's body. Default argument
+    values run when the `def` statement runs, so they belong to the scope around the
+    function; so does a class body, since a class is not a function. A function's
+    decorators are the exception (decision D-11): `@logged` runs `logged(f)`, and
+    changing `logged` changes what `f` does, so calls in a function's decorators belong
+    to the decorated function. Decorators on a class stay with the scope around it,
+    since the contract has CALLS edges only from functions and tests.
     """
 
     def __init__(self, definitions: list[PyDefinition], module_key: str) -> None:
@@ -162,10 +168,22 @@ class Scopes:
         self._functions = {
             ident(d.node): d.key for d in definitions if d.node.type == "function_definition"
         }
+        self._decorated_functions = {
+            ident(d.outer): d.key
+            for d in definitions
+            if d.node.type == "function_definition" and d.outer is not d.node
+        }
+
+    def decorated_function(self, decorator: TSNode) -> str | None:
+        """Key of the function a decorator node decorates, or None for a class."""
+        parent = decorator.parent
+        return None if parent is None else self._decorated_functions.get(ident(parent))
 
     def caller_key(self, node: TSNode) -> str:
         child, parent = node, node.parent
         while parent is not None:
+            if child.type == "decorator" and ident(parent) in self._decorated_functions:
+                return self._decorated_functions[ident(parent)]
             if ident(parent) in self._functions:
                 body = parent.child_by_field_name("body")
                 if body is not None and ident(body) == ident(child):

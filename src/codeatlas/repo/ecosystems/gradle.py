@@ -14,7 +14,14 @@ from __future__ import annotations
 
 import re
 
-from codeatlas.repo.ecosystems.base import Declared, Found, ManifestError, RepoView, Workspace
+from codeatlas.repo.ecosystems.base import (
+    Declared,
+    Found,
+    ManifestError,
+    RepoView,
+    Workspace,
+    guarded,
+)
 from codeatlas.repo.paths import child, parent
 
 ECOSYSTEM = "gradle"
@@ -37,12 +44,15 @@ def find(view: RepoView) -> Found:
     found = Found()
     claimed: set[str] = set()  # folders some settings file declares as a project
     for settings in view.named(*_SETTINGS):
-        _settings(view, settings, found, claimed)
+        guarded(view, ECOSYSTEM, settings, found,
+                lambda s=settings: _settings(view, s, found, claimed))
     for build in view.named(*_BUILD):
         folder = parent(build)
         if folder not in claimed:
             claimed.add(folder)
-            found.packages.append(_project(view, view.folder_name(folder), ":", folder, build))
+            guarded(view, ECOSYSTEM, build, found,
+                    lambda b=build, f=folder: found.packages.append(
+                        _project(view, view.folder_name(f), ":", f, b)))
     _resolve_accessors(found.packages)
     return found
 

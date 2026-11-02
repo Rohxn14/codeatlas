@@ -142,3 +142,20 @@ def test_main_prints_and_saves_a_timestamped_result(tmp_path, capsys):
     data = json.loads(saved.read_text())
     assert data["overall"]["tp"] == 3
     assert data["inputs"]["truth"] == str(truth)
+
+
+def test_partial_truth_is_flagged():
+    from eval.oracle.graph import parse_graph
+    from eval.oracle.score import render, score
+
+    edge = {"src_key": "a.py::f", "dst_key": "a.py::g", "kind": "calls", "line": 2}
+    nodes = [{"key": "a.py::f", "kind": "function"}, {"key": "a.py::g", "kind": "function"}]
+    truth = parse_graph({"snapshot": {"commit_sha": "t"}, "nodes": nodes, "edges": [edge],
+                         "errors": ["scip-typescript in frontend: exit 1"]})
+    predicted = parse_graph({"snapshot": {"commit_sha": "p", "limits_hit": ["max_files"]},
+                             "nodes": nodes, "edges": [edge]})
+    result = score(predicted, truth)
+    assert result["measured"]["truth_errors"] == ["scip-typescript in frontend: exit 1"]
+    assert result["measured"]["predicted_limits_hit"] == ["max_files"]
+    assert len(result["measured"]["warnings"]) == 2
+    assert render(result).startswith("WARNING: truth is partial")

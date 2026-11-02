@@ -11,7 +11,14 @@ import configparser
 import re
 import tomllib
 
-from codeatlas.repo.ecosystems.base import Declared, Found, ManifestError, RepoView, Workspace
+from codeatlas.repo.ecosystems.base import (
+    Declared,
+    Found,
+    ManifestError,
+    RepoView,
+    Workspace,
+    guarded,
+)
 from codeatlas.repo.paths import child, join, parent
 
 ECOSYSTEM = "pypi"
@@ -30,30 +37,36 @@ def find(view: RepoView) -> Found:
     found = Found()
     folders = sorted({parent(p) for p in view.named(*_MANIFESTS)})
     for folder in folders:
-        package, warnings = None, []
-        is_package = False
-        for filename in _MANIFESTS:
-            manifest = child(folder, filename)
-            if not view.exists(manifest):
-                continue
-            result, claims_package = _PARSERS[filename](view, manifest, found, warnings)
-            is_package = is_package or claims_package
-            if package is None and result is not None:
-                package = result
-        if package is None and is_package:
-            name = view.folder_name(folder)
-            warnings.append(f"{folder or '.'}: no literal package name; named after its folder")
-            package = Declared(ECOSYSTEM, name, _first_manifest(view, folder), folder)
-        if package is not None:
-            package.warnings.extend(warnings)
-            found.packages.append(package)
-        elif warnings:
-            # Not a package, but the problem must still surface: the orchestrator files
-            # workspace warnings on the package that contains the manifest.
-            found.workspaces.append(
-                Workspace(ECOSYSTEM, _first_manifest(view, folder), folder, warnings=warnings)
-            )
+        guarded(view, ECOSYSTEM, _first_manifest(view, folder), found,
+                lambda f=folder: _folder(view, f, found))
     return found
+
+
+def _folder(view: RepoView, folder: str, found: Found) -> None:
+    """The package (if any) declared by the Python manifests in one folder."""
+    package, warnings = None, []
+    is_package = False
+    for filename in _MANIFESTS:
+        manifest = child(folder, filename)
+        if not view.exists(manifest):
+            continue
+        result, claims_package = _PARSERS[filename](view, manifest, found, warnings)
+        is_package = is_package or claims_package
+        if package is None and result is not None:
+            package = result
+    if package is None and is_package:
+        name = view.folder_name(folder)
+        warnings.append(f"{folder or '.'}: no literal package name; named after its folder")
+        package = Declared(ECOSYSTEM, name, _first_manifest(view, folder), folder)
+    if package is not None:
+        package.warnings.extend(warnings)
+        found.packages.append(package)
+    elif warnings:
+        # Not a package, but the problem must still surface: the orchestrator files
+        # workspace warnings on the package that contains the manifest.
+        found.workspaces.append(
+            Workspace(ECOSYSTEM, _first_manifest(view, folder), folder, warnings=warnings)
+        )
 
 
 def _first_manifest(view: RepoView, folder: str) -> str:

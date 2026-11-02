@@ -269,3 +269,60 @@ def test_missing_fts5_names_sqlite_version(monkeypatch: pytest.MonkeyPatch) -> N
     monkeypatch.setattr("codeatlas.store.schema.sqlite3.connect", lambda _: NoFts())
     with pytest.raises(StoreError, match=sqlite3.sqlite_version):
         GraphStore(":memory:")
+
+
+def test_only_the_call_that_resolved_is_marked(store: GraphStore) -> None:
+    # foo(mystery()) on one line: only `save` resolved, so `mystery` stays unresolved.
+    outer = RawCall(HELPER.key, "save", "save", None, 3)
+    inner = RawCall(HELPER.key, "mystery", "mystery", None, 3)
+    store.write_raw_calls(SID, [outer, inner])
+    assert store.mark_resolved_calls(SID) == 1
+    assert store.raw_calls(SID, resolved=False) == [(inner, False)]
+
+
+def test_constructor_call_is_marked_by_its_init_on_the_same_line() -> None:
+    s = GraphStore(":memory:")
+    s.create_snapshot(snap())
+    init = node("backend/users.py", "UserService.__init__", NodeKind.FUNCTION)
+    s.write_nodes([MODULE, CLASS, init, HELPER])
+    s.write_edges(SID, [Edge(HELPER.id, init.id, EdgeKind.CALLS, 1.0, Resolution.DIRECT, 4)])
+    s.write_raw_calls(SID, [RawCall(HELPER.key, "UserService", "UserService", None, 4)])
+    assert s.mark_resolved_calls(SID) == 1
+
+
+def test_writes_for_an_unknown_snapshot_raise() -> None:
+    s = GraphStore(":memory:")
+    with pytest.raises(KeyError, match="create_snapshot"):
+        s.write_nodes([MODULE])
+    with pytest.raises(KeyError):
+        s.write_files(SID, FILES)
+    with pytest.raises(KeyError):
+        s.write_edges(SID, EDGES)
+    with pytest.raises(KeyError):
+        s.write_raw_calls(SID, [RawCall(HELPER.key, "x", "x", None, 1)])
+
+
+def test_delete_snapshot_allows_indexing_the_same_commit_again(store: GraphStore) -> None:
+    store.write_raw_calls(SID, [RawCall(HELPER.key, "x", "x", None, 1)])
+    assert store.delete_snapshot(SID) == 6
+    assert store.get_snapshot(SID) is None
+    assert store.search_text(SID, "save") == []
+    assert store.edges(SID) == [] and store.files(SID) == [] and store.raw_calls(SID) == []
+    store.create_snapshot(snap())  # no IntegrityError the second time
+    store.write_nodes([MODULE, SAVE_ALL])
+    assert [n.name for n, _ in store.search_text(SID, "save_all")] == ["save_all"]
+
+
+def test_failed_schema_check_closes_the_connection(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from codeatlas.store import sqlite as store_module
+
+    def broken(conn: object) -> None:
+        raise RuntimeError("schema mismatch")
+
+    monkeypatch.setattr(store_module, "init_schema", broken)
+    db = tmp_path / "x.db"
+    with pytest.raises(RuntimeError):
+        GraphStore(db)
+    db.unlink()  # would fail on Windows if the connection were still open

@@ -41,9 +41,15 @@ class GraphStore:
         self.path = str(path)
         self._conn = sqlite3.connect(self.path)
         self._conn.row_factory = sqlite3.Row
+        try:
+            init_schema(self._conn)
+        except Exception:
+            # An open connection keeps the file locked on Windows, which would block the
+            # "delete the database and re-index" advice the schema check gives.
+            self._conn.close()
+            raise
         if self.path != ":memory:":
             self._conn.execute("PRAGMA journal_mode = WAL")
-        init_schema(self._conn)
 
     def close(self) -> None:
         self._conn.close()
@@ -83,9 +89,34 @@ class GraphStore:
         ).fetchone()
         return _snapshot(row) if row else None
 
+    def delete_snapshot(self, snapshot_id: str) -> int:
+        """Remove a snapshot and everything in it, so the same commit can be indexed again.
+
+        Returns the number of nodes removed. The FTS delete trigger keeps search in step.
+        """
+        prefix = snapshot_id + "/"
+        with self._conn:
+            removed = self._conn.execute(
+                "DELETE FROM nodes WHERE snapshot_id = ?", (snapshot_id,)
+            ).rowcount
+            for table in ("files", "edges", "raw_calls"):
+                self._conn.execute(f"DELETE FROM {table} WHERE snapshot_id = ?", (snapshot_id,))
+            self._conn.execute(
+                "DELETE FROM embeddings WHERE substr(node_id, 1, ?) = ?",
+                (len(prefix), prefix),
+            )
+            self._conn.execute("DELETE FROM snapshots WHERE id = ?", (snapshot_id,))
+        return removed
+
+    def _require_snapshot(self, snapshot_id: str) -> None:
+        """Writes for an unknown snapshot would succeed and then be invisible to lookups."""
+        if self.get_snapshot(snapshot_id) is None:
+            raise KeyError(f"no snapshot {snapshot_id!r}: call create_snapshot first")
+
     # Bulk writes: one transaction and one executemany each
 
     def write_files(self, snapshot_id: str, files: Iterable[FileRecord]) -> int:
+        self._require_snapshot(snapshot_id)
         rows = [
             (snapshot_id, f.path, f.language, str(f.tier), f.sha256, f.size_bytes) for f in files
         ]
@@ -95,6 +126,9 @@ class GraphStore:
 
     def write_nodes(self, nodes: Iterable[Node]) -> int:
         """Insert nodes; a repeated id is an error, since it would hide a symbol."""
+        nodes = list(nodes)
+        for snapshot_id in {n.snapshot_id for n in nodes}:
+            self._require_snapshot(snapshot_id)
         rows = [_node_row(n) for n in nodes]
         counts = Counter(row[0] for row in rows)
         repeated = sorted(node_id for node_id, count in counts.items() if count > 1)
@@ -107,6 +141,7 @@ class GraphStore:
         return len(rows)
 
     def write_edges(self, snapshot_id: str, edges: Iterable[Edge]) -> int:
+        self._require_snapshot(snapshot_id)
         rows = [
             (
                 snapshot_id,
@@ -127,6 +162,7 @@ class GraphStore:
     def write_raw_calls(
         self, snapshot_id: str, calls: Iterable[RawCall], resolved: bool = False
     ) -> int:
+        self._require_snapshot(snapshot_id)
         rows = [
             (snapshot_id, c.caller_key, c.callee_text, c.name, c.receiver, c.line, int(resolved))
             for c in calls
@@ -136,10 +172,15 @@ class GraphStore:
         return len(rows)
 
     def mark_resolved_calls(self, snapshot_id: str) -> int:
-        """Flag raw calls that a CALLS edge now covers (same caller, same line).
+        """Flag raw calls that a CALLS edge now covers.
 
         Resolvers return edges, not which raw calls they used, so this matches them
-        afterwards; the eval counts the rest as unresolved.
+        afterwards; the eval counts the rest as unresolved. A raw call is covered when
+        its caller has a CALLS edge to a node with the same name (on any line, since a
+        repeated call keeps one edge at its first line), or, for a constructor call
+        such as `Foo()` resolved to `Foo.__init__`, an edge on the same line to an
+        `__init__` or `constructor`. Matching on the line alone would mark `mystery`
+        resolved in `foo(mystery())` when only `foo` was.
         """
         prefix = snapshot_id + "/"
         with self._conn:
@@ -147,9 +188,11 @@ class GraphStore:
                 """
                 UPDATE raw_calls SET resolved = 1
                 WHERE snapshot_id = ? AND resolved = 0 AND EXISTS (
-                    SELECT 1 FROM edges e
+                    SELECT 1 FROM edges e JOIN nodes n ON n.id = e.dst_id
                     WHERE e.snapshot_id = raw_calls.snapshot_id AND e.kind = ?
-                      AND e.src_id = ? || raw_calls.caller_key AND e.line = raw_calls.line
+                      AND e.src_id = ? || raw_calls.caller_key
+                      AND (n.name = raw_calls.name OR (
+                           e.line = raw_calls.line AND n.name IN ('__init__', 'constructor')))
                 )
                 """,
                 (snapshot_id, str(EdgeKind.CALLS), prefix),
@@ -362,22 +405,33 @@ class GraphStore:
     ) -> nx.MultiDiGraph:
         """A NetworkX view of one snapshot, for traversals the SQL lookups make awkward."""
         g = nx.MultiDiGraph(snapshot_id=snapshot_id)
-        for n in self.nodes(snapshot_id):
-            g.add_node(
-                n.id, key=n.key, kind=n.kind, name=n.name, path=n.path, language=n.language
-            )
-        wanted = None if kinds is None else {str(k) for k in kinds}
-        for e in self.edges(snapshot_id):
-            if e.confidence < min_confidence or (wanted is not None and e.kind not in wanted):
-                continue
-            g.add_edge(
-                e.src_id,
-                e.dst_id,
-                kind=e.kind,
-                confidence=e.confidence,
-                resolution=e.resolution,
-                line=e.line,
-            )
+        # Straight from the columns: building full Node and Edge objects first took about
+        # twice as long on a 50,000-node graph.
+        node_rows = self._conn.execute(
+            "SELECT id, key, kind, name, path, language FROM nodes WHERE snapshot_id = ?",
+            (snapshot_id,),
+        )
+        g.add_nodes_from(
+            (r["id"], {"key": r["key"], "kind": NodeKind(r["kind"]), "name": r["name"],
+                       "path": r["path"], "language": r["language"]})
+            for r in node_rows
+        )
+        sql = (
+            "SELECT src_id, dst_id, kind, confidence, resolution, line FROM edges "
+            "WHERE snapshot_id = ? AND confidence >= ?"
+        )
+        params: list[object] = [snapshot_id, min_confidence]
+        if kinds is not None:
+            kind_list = [str(k) for k in kinds]
+            sql += f" AND kind IN ({', '.join('?' * len(kind_list))})"
+            params.extend(kind_list)
+        g.add_edges_from(
+            (r["src_id"], r["dst_id"], {"kind": EdgeKind(r["kind"]),
+                                        "confidence": r["confidence"],
+                                        "resolution": Resolution(r["resolution"]),
+                                        "line": r["line"]})
+            for r in self._conn.execute(sql + " ORDER BY rowid", params)
+        )
         return g
 
     def export_json(self, snapshot_id: str) -> dict[str, object]:

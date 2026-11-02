@@ -1,6 +1,6 @@
 # T08: Hybrid search
 
-**Wave**: 2 (after T18)
+**Wave**: 2 (all of Wave 2 runs in parallel)
 **Branch**: keep the one the cloud environment gives you
 
 ## Goal
@@ -14,7 +14,7 @@ Questions use words, not identifiers: "where are users saved?" should find `User
 - `tests/search/`, `tests/data/search/`
 - `docs/explainers/search.md`
 
-Do not edit `cli.py`; T09 adds `codeatlas search` and `codeatlas ask` on top of this package.
+Do not edit `cli.py`: T18 edits it in parallel. The `python -m codeatlas.search` entry below is enough; the `codeatlas search` command is wired up later.
 
 ## Part 1: embeddings (`search/embed.py`)
 
@@ -36,7 +36,7 @@ Do not edit `cli.py`; T09 adds `codeatlas search` and `codeatlas ask` on top of 
 
 ## Part 3: measure it
 
-`tests/data/search/fixture_queries.json`: 15 questions about the fixture app written in plain words (for example "where is a new user validated?", "which component shows one user?", "what handles the users list route?"), each with the node keys a good answer must include. Write the questions without copying identifiers from the code. A script in `tests/data/search/` or `scripts/` indexes the fixture with T18's pipeline, builds embeddings, and reports recall@5 and MRR for four configurations: BM25 only, vectors only, fused, fused plus graph expansion. Report the table in the pull request and the explainer, and say which questions every configuration misses.
+`tests/data/search/fixture_queries.json`: 15 questions about the fixture app written in plain words (for example "where is a new user validated?", "which component shows one user?", "what handles the users list route?"), each with the node keys a good answer must include. Write the questions without copying identifiers from the code. A script in `tests/data/search/` or `scripts/` indexes the fixture with `build_graph` (the pipeline core, `src/codeatlas/indexer/pipeline/`), builds embeddings, and reports recall@5 and MRR for four configurations: BM25 only, vectors only, fused, fused plus graph expansion. Report the table in the pull request and the explainer, and say which questions every configuration misses.
 
 ## Tests
 

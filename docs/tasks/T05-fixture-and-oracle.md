@@ -111,7 +111,7 @@ Fixture and labels committed; `pytest backend` and `vitest run` pass; the oracle
 
 ```powershell
 python -m pytest tests/eval -q          # expect: 30 passed, 3 deselected
-python -m eval.oracle.score --predicted eval\oracle\references\oracle_polyglot_app_6f36bad408e7.json --truth eval\fixtures\polyglot_app\expected_graph.json --out-dir $env:TEMP\ca-scores
+python -m eval.oracle.score --predicted eval\oracle\references\oracle_polyglot_app_061bf641daff.json --truth eval\fixtures\polyglot_app\expected_graph.json --out-dir $env:TEMP\ca-scores
 ```
 
 The second command scores the SCIP oracle against your hand labels: the `calls` row shows precision 0.953, recall 0.911. After the fixes the oracle file has a new name; use whatever `eval\oracle\references` contains.

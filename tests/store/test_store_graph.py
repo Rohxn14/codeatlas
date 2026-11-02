@@ -59,3 +59,18 @@ def test_callers_and_callees(two_paths: nx.MultiDiGraph) -> None:
     )
     # CONTAINS edges are not calls.
     assert callers(two_paths, "a") == {}
+
+
+def test_depth_limit_uses_scores_from_the_start_of_each_round() -> None:
+    """At depth 2, `a` reaches `d` only through y -> d (0.5); a -> y -> x -> d is 3 edges.
+
+    In round 2, `x` (processed first, as it sorts first) improves `y` to 0.9. If `y`
+    then extended `a` with that new score, `a` would get 0.9 from a three-edge path.
+    """
+    g = nx.MultiDiGraph()
+    calls(g, "y", "d", 0.5)
+    calls(g, "x", "d", 0.9)
+    calls(g, "y", "x", 1.0)
+    calls(g, "a", "y", 1.0)
+    assert reverse_reach(g, ["d"], depth=2)["a"] == pytest.approx(0.5)
+    assert reverse_reach(g, ["d"])["a"] == pytest.approx(0.9)

@@ -45,3 +45,34 @@ def test_axios_get_with_a_path_is_not_a_route() -> None:
     result = JavaScriptAdapter().parse("a.js", source, "s@1")
     assert result.routes == ()
     assert [(h.url_text, h.method) for h in result.http_calls] == [("/x", "GET"), ("/y", "POST")]
+
+
+def _js(source: bytes):
+    from codeatlas.indexer.languages.typescript.adapter import JavaScriptAdapter
+
+    return JavaScriptAdapter().parse("a.js", source, "s@0")
+
+
+def test_plain_value_arguments_are_not_route_handlers() -> None:
+    result = _js(b"""import { api } from "./client";
+api.get("/users", { params: { page: 1 } });
+cache.get("/key", 1);
+cache.get("key", fallback);
+app.get("/ok", listUsers);
+""")
+    assert [(r.method, r.path_pattern) for r in result.routes] == [("GET", "/ok")]
+
+
+def test_base_url_joins_with_exactly_one_slash() -> None:
+    from codeatlas.indexer.languages.typescript.http import join_url
+
+    assert join_url("https://x.io/api/", "/users") == "https://x.io/api/users"
+    assert join_url("/api", "users") == "/api/users"
+    assert join_url("/api", "/users") == "/api/users"
+    assert join_url("/api", "?q=1") == "/api?q=1"
+    assert join_url("/api", "https://other.io/x") == "https://other.io/x"
+    result = _js(b"""import axios from "axios";
+const http = axios.create({ baseURL: "https://x.io/api/" });
+function load() { return http.get("/users"); }
+""")
+    assert [c.url_text for c in result.http_calls] == ["https://x.io/api/users"]

@@ -61,10 +61,6 @@ def is_under(path: str, folder: str) -> bool:
     return not folder or path == folder or path.startswith(folder + "/")
 
 
-def depth(path: str) -> int:
-    return path.count("/") + 1 if path else 0
-
-
 def glob_matches(pattern: str, path: str) -> bool:
     """Workspace-member glob matching: `*` stays inside one folder, `**` crosses folders."""
     return _glob_regex(pattern).fullmatch(path) is not None

@@ -1,4 +1,21 @@
 {
+ "measured": {
+  "predicted": {
+   "id": "polyglot_app@061bf641daff",
+   "commit_sha": "061bf641daff5d2ac2c8baf1f4521a33e8671565",
+   "indexer_version": "scip-python 0.6.8, scip-typescript 0.6.0",
+   "source": "eval/fixtures/polyglot_app"
+  },
+  "truth": {
+   "id": "polyglot_app@expected",
+   "commit_sha": "",
+   "indexer_version": "hand-labelled",
+   "source": "eval/fixtures/polyglot_app"
+  },
+  "truth_errors": [],
+  "predicted_limits_hit": [],
+  "warnings": []
+ },
  "overall": {
   "tp": 41,
   "fp": 2,
@@ -337,7 +354,7 @@
   "guesses_on_unresolvable_calls": []
  },
  "inputs": {
-  "predicted": "eval/oracle/references/oracle_polyglot_app_6f36bad408e7.json",
+  "predicted": "eval/oracle/references/oracle_polyglot_app_061bf641daff.json",
   "truth": "eval/fixtures/polyglot_app/expected_graph.json"
  }
 }

@@ -20,6 +20,7 @@ without calling it), so the result is an upper bound for call recall, not exact 
 
 from __future__ import annotations
 
+from collections import Counter
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from pathlib import PurePosixPath
@@ -157,17 +158,19 @@ def symbol_kind(descriptors: Sequence[Descriptor]) -> str | None:
 # Indexes -------------------------------------------------------------------------------
 
 
-def path_prefix(index: Index, repo_root_uri: str) -> str:
+def path_prefix(index: Index, repo_root_uri: str) -> str | None:
     """Folder of the index's project inside the repo, so its paths become repo-relative.
 
     scip-typescript runs once per tsconfig folder and writes paths relative to it.
+    None when the project root lies outside the repo: its paths cannot be mapped, and
+    the caller records that instead of guessing.
     """
     root = PurePosixPath(_uri_path(repo_root_uri))
     project = PurePosixPath(_uri_path(index.project_root)) if index.project_root else root
     try:
         rel = project.relative_to(root)
     except ValueError:
-        return ""
+        return None
     return "" if str(rel) == "." else f"{rel}/"
 
 
@@ -203,8 +206,14 @@ def collect_references(
     indexes: Sequence[tuple[Index, str]],
     definitions: dict[str, Definition],
     nodes: Iterable[GraphNode] = (),
+    skipped: Counter[str] | None = None,
 ) -> list[Reference]:
-    """One reference per (caller, callee) pair, at the first line it occurs."""
+    """One reference per (caller, callee) pair, at the first line it occurs.
+
+    References outside any function (imports, re-exports, registries) have no caller,
+    so they make no edge; they are counted in `skipped` so the oracle says what it left
+    out.
+    """
     scopes = _scopes(definitions.values(), nodes)
     first: dict[tuple[str, str], int] = {}
     for index, prefix in indexes:
@@ -217,7 +226,9 @@ def collect_references(
                 line = occ.range[0] + 1
                 caller = innermost(scopes.get(path, []), line)
                 if caller is None:
-                    continue  # module level: imports, re-exports, registries
+                    if skipped is not None:
+                        skipped["module_level_references"] += 1
+                    continue
                 pair = (caller, target.key)
                 first[pair] = min(first.get(pair, line), line)
     return [Reference(src, dst, line) for (src, dst), line in sorted(first.items())]
@@ -261,7 +272,8 @@ def oracle_graph(
     """The oracle file: SCIP definitions as nodes and references as `calls` edges."""
     node_list = list(nodes)
     definitions = collect_definitions(indexes)
-    references = collect_references(indexes, definitions, node_list)
+    skipped: Counter[str] = Counter()
+    references = collect_references(indexes, definitions, node_list, skipped)
     out_nodes: dict[str, dict[str, object]] = {}
     for index, prefix in indexes:
         for document in index.documents:
@@ -282,7 +294,7 @@ def oracle_graph(
         for r in references
     ]
     return {"snapshot": snapshot, "nodes": list(out_nodes.values()), "edges": edges,
-            "errors": list(errors)}
+            "errors": list(errors), "skipped": dict(skipped)}
 
 
 def _node_dict(key: str, kind: str, path: str, start: int, end: int) -> dict[str, object]:

@@ -36,9 +36,11 @@ def git_stays_in_tmp_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
     """Stop git from searching above the test's temporary folder.
 
     Without this, a test folder under a home directory that is itself a git repository
-    (common on Windows) is seen as part of that repository.
+    (common on Windows) is seen as part of that repository. Git applies a ceiling only
+    to folders strictly below it, so the ceiling is the parent of `tmp_path`: tests run
+    git in `tmp_path` itself, and a ceiling equal to it would not stop the search.
     """
-    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path.parent))
 
 
 @pytest.fixture

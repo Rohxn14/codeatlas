@@ -2,12 +2,14 @@
 
 import json
 import random
+from dataclasses import replace
 
 import pytest
 
-from codeatlas.llm.cache import LLMCache
+from codeatlas.llm.cache import LLMCache, cache_key
 from codeatlas.llm.client import LLMClient
 from codeatlas.llm.errors import CacheMissError, LLMRequestError, LLMUnavailableError
+from codeatlas.llm.providers.base import ModelInfo
 from codeatlas.llm.providers.gemini import GeminiProvider
 from codeatlas.llm.providers.groq import GroqProvider
 from codeatlas.llm.types import Message
@@ -122,10 +124,55 @@ def test_namespace_separates_cache_entries(script, tmp_path):
     assert b.chat(msgs()).cached is False
 
 
-def test_gone_model_switches_to_newest_of_family(script, tmp_path):
+def test_gone_model_never_switches_to_another_size(script, tmp_path):
+    """D-17: a retired gpt-oss-10b must not silently become gpt-oss-120b."""
     s = script([(200, load("groq_text.json"))], models=load("groq_models.json"))
     provider = GroqProvider("openai/gpt-oss-10b", api_key="t", http_client=s.client())
     make_client([provider], tmp_path).chat(msgs())
-    assert provider.model == "openai/gpt-oss-120b"
-    assert s.chat_requests[0]["body"]["model"] == "openai/gpt-oss-120b"
+    assert provider.model == "openai/gpt-oss-10b"
+    assert s.chat_requests[0]["body"]["model"] == "openai/gpt-oss-10b"
     assert s.model_requests == 1
+
+
+def test_empty_answer_falls_back_and_is_never_cached(script, tmp_path):
+    m = script([(200, load("gemini_max_tokens.json"))], models=load("gemini_models.json"))
+    g = script([(200, load("groq_text.json"))] * 2, models=load("groq_models.json"))
+    client = make_client([gemini(m), groq(g)], tmp_path)
+    reply = client.chat(msgs())
+    assert reply.provider == "groq" and reply.text == "ok"
+    assert len(m.chat_requests) == 1  # an empty answer is not retried on the same provider
+
+
+def test_only_empty_answers_make_the_call_fail(script, tmp_path):
+    m = script([(200, load("gemini_max_tokens.json"))], models=load("gemini_models.json"))
+    g = script([(200, load("groq_max_tokens.json"))], models=load("groq_models.json"))
+    client = make_client([gemini(m), groq(g)], tmp_path)
+    with pytest.raises(LLMUnavailableError, match="empty answer"):
+        client.chat(msgs())
+    assert client.cache.get_chat(cache_key(msgs(), None, 0.0, None, "default")) is None
+
+
+def test_replay_only_without_a_cache_is_refused():
+    with pytest.raises(ValueError, match="replay_only"):
+        LLMClient([], cache=None, cache_mode="replay_only")
+
+
+def test_tool_call_replays_exactly(script, tmp_path):
+    s = script([(200, load("gemini_tool_call.json"))], models=load("gemini_models.json"))
+    client = make_client([gemini(s)], tmp_path)
+    first = client.chat(msgs())
+    second = client.chat(msgs())
+    assert replace(first, cached=True) == second  # id, arguments and signature included
+    assert len(s.chat_requests) == 1
+
+
+def test_retired_model_is_resolved_again_after_a_404(script, tmp_path):
+    s = script([(404, {"error": {"code": 404, "message": "model not found",
+                                 "status": "NOT_FOUND"}}),
+                (200, load("gemini_text.json"))])
+    provider = gemini(s)
+    listings = iter([[ModelInfo("gemini-3.8-flash")], [ModelInfo("gemini-3.9-flash")]])
+    provider.list_models = lambda: next(listings)
+    reply = make_client([provider], tmp_path).chat(msgs())
+    assert reply.text == "ok" and provider.model == "gemini-3.9-flash"
+    assert s.chat_requests[1]["path"].endswith("/models/gemini-3.9-flash:generateContent")

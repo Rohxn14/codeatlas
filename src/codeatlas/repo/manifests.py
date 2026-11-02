@@ -33,6 +33,25 @@ from codeatlas.repo.paths import glob_matches, is_under, join, module_id, parent
 
 IMPLICIT_ECOSYSTEM = "none"
 
+# Decision D-12: where a manifest sits says whether it is a real package of the repo.
+VENDORED_FOLDERS = frozenset({"vendor", "third_party", "node_modules"})
+FIXTURE_FOLDERS = frozenset({"test", "tests", "testdata", "fixtures", "__fixtures__"})
+
+
+def package_role(manifest: str) -> str:
+    """`vendored` (someone else's code, committed), `fixture` (test data), or `package`.
+
+    Test fixtures and vendored libraries carry manifests too: indexing CodeAtlas itself
+    found 31 packages, 30 of them test samples. They stay as nodes, so nothing vanishes,
+    but summaries count real packages only.
+    """
+    folders = [f.lower() for f in manifest.split("/")[:-1]]
+    if any(f in VENDORED_FOLDERS for f in folders):
+        return "vendored"
+    if any(f in FIXTURE_FOLDERS for f in folders) or manifest.startswith("eval/fixtures/"):
+        return "fixture"
+    return "package"
+
 
 @dataclass(slots=True)
 class PackageLayout:
@@ -66,6 +85,8 @@ class ManifestAnalyzer:
             "packages": len(layout.packages),
             "by_ecosystem": dict(sorted(Counter(p.ecosystem for p in layout.packages).items())),
             "internal_dependencies": sum(1 for e in edges if e.kind is EdgeKind.DEPENDS_ON),
+            "by_role": dict(sorted(Counter(package_role(p.manifest) for p in layout.packages)
+                                   .items())),
             "warnings": [w for p in layout.packages for w in p.warnings],
         }
         return nodes, edges
@@ -114,6 +135,7 @@ def package_node(package: Declared, snapshot_id: str, language: str | None = Non
         "manifest": package.manifest or None,
         "root": package.root,
         "entry_points": list(package.entry_points),
+        "role": package_role(package.manifest),
     }
     if package.version:
         attrs["version"] = package.version
@@ -249,14 +271,18 @@ def _dependency_edges(packages: list[Declared], snapshot_id: str) -> list[Edge]:
             by_location[(package.ecosystem, package.manifest)].append(package)
     edges: list[Edge] = []
     for package in packages:
+        if package_role(package.manifest) == "vendored":
+            continue  # a vendored library's own dependencies say nothing about this repo
         targets: dict[str, tuple[str, int]] = {}  # target key -> (via, candidates)
         for path in package.path_dependencies:
-            found = [t for t in by_location[(package.ecosystem, path)] if t is not package]
+            found = [t for t in by_location[(package.ecosystem, path)]
+                     if t is not package and package_role(t.manifest) != "vendored"]
             for target in found:
                 targets[target.key] = ("path", len(found))
         for dependency in package.dependencies:
             name = (package.ecosystem, normalize(package.ecosystem, dependency))
-            found = [t for t in by_name[name] if t is not package]
+            found = [t for t in by_name[name]
+                     if t is not package and package_role(t.manifest) != "vendored"]
             if any(t.key in targets for t in found):
                 continue  # already linked, more precisely, by its path
             for target in found:

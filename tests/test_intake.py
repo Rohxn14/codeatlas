@@ -183,6 +183,17 @@ def test_open_folder_outside_git(tmp_path: Path) -> None:
     assert result.commit_sha is None
 
 
+def test_untracked_folder_inside_a_repository_gets_no_sha(
+    make_repo: Callable[..., Path],
+) -> None:
+    outer = make_repo({"README.md": "the outer repository has a commit\n"})
+    project = outer / "project"
+    project.mkdir()
+    (project / "app.py").write_text("def main():\n    pass\n", encoding="utf-8")
+    result = open_source(str(project), Config())
+    assert result.commit_sha is None  # the outer HEAD does not describe this folder
+
+
 def test_open_missing_folder(tmp_path: Path) -> None:
     with pytest.raises(IntakeError):
         open_source(str(tmp_path / "missing"), Config())

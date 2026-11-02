@@ -16,6 +16,9 @@ from codeatlas.config import CONFIG_FILENAME, config_from_dict
 
 CACHE_MODES = ("off", "read_write", "replay_only")
 PROVIDERS = ("groq", "gemini")
+# "" turns the setting off, so the provider's own default applies.
+GEMINI_THINKING_LEVELS = ("", "minimal", "low", "medium", "high")
+GROQ_REASONING_EFFORTS = ("", "low", "medium", "high")
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,7 +28,12 @@ class LLMConfig:
     providers: tuple[str, ...] = PROVIDERS
     groq_model: str = "openai/gpt-oss-20b"
     gemini_model: str = "gemini-3.8-flash"
-    timeout_seconds: float = 60.0
+    # Thinking tokens count against the output limit, so a low default keeps short
+    # answers from coming back empty; "minimal" suits cheap one-shot calls.
+    gemini_thinking_level: str = "low"
+    groq_reasoning_effort: str = "low"
+    # About the network proxy's cutoff: a longer wait only delays the fallback.
+    timeout_seconds: float = 30.0
     max_tries: int = 3
     cache: str = "read_write"
     cache_namespace: str = "default"
@@ -47,6 +55,8 @@ ENV_KEYS: dict[str, str] = {
     "providers": "CODEATLAS_LLM_PROVIDERS",
     "groq_model": "CODEATLAS_GROQ_MODEL",
     "gemini_model": "CODEATLAS_GEMINI_MODEL",
+    "gemini_thinking_level": "CODEATLAS_GEMINI_THINKING",
+    "groq_reasoning_effort": "CODEATLAS_GROQ_REASONING",
     "timeout_seconds": "CODEATLAS_LLM_TIMEOUT",
     "cache": "CODEATLAS_LLM_CACHE",
     "cache_namespace": "CODEATLAS_LLM_NAMESPACE",
@@ -117,6 +127,10 @@ def _coerce(name: str, value: object, default: object) -> object:
 def _validated(config: LLMConfig) -> LLMConfig:
     if config.cache not in CACHE_MODES:
         raise ValueError(f"llm.cache must be one of {CACHE_MODES}, got {config.cache!r}")
+    if config.gemini_thinking_level not in GEMINI_THINKING_LEVELS:
+        raise ValueError(f"llm.gemini_thinking_level must be one of {GEMINI_THINKING_LEVELS}")
+    if config.groq_reasoning_effort not in GROQ_REASONING_EFFORTS:
+        raise ValueError(f"llm.groq_reasoning_effort must be one of {GROQ_REASONING_EFFORTS}")
     unknown = [p for p in config.providers if p not in PROVIDERS]
     if unknown or not config.providers:
         raise ValueError(f"llm.providers must be a non-empty list from {PROVIDERS}")

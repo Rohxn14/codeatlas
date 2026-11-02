@@ -129,7 +129,8 @@ def test_plain_folder_inside_a_git_repository_is_walked(
 
 
 def test_subfolder_of_a_git_repository_is_walked(make_repo: Callable[..., Path]) -> None:
-    root = make_repo({"pkg/a.py": "x = 1\n", "pkg/untracked_but_new.py": "y = 2\n"})
+    root = make_repo({"pkg/a.py": "x = 1\n"})
+    (root / "pkg" / "untracked_but_new.py").write_text("y = 2\n", encoding="utf-8")
     found = run(root / "pkg")
     assert not found.used_git
     assert sorted(f.path for f in found.files) == ["a.py", "untracked_but_new.py"]
@@ -199,3 +200,23 @@ def test_symlinked_folder_is_recorded_not_followed(tmp_path: Path) -> None:
 )
 def test_language_for(path: str, language: str) -> None:
     assert language_for(path) == language
+
+
+def test_symlinked_root_still_counts_as_top_level(
+    make_repo: Callable[..., Path], tmp_path: Path
+) -> None:
+    root = make_repo({"a.py": "x = 1\n"})
+    link = tmp_path / "link"
+    try:
+        link.symlink_to(root, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlinks are not available here")
+    assert run(link).used_git
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="case-insensitive paths are Windows-only")
+def test_differently_cased_root_still_counts_as_top_level(
+    make_repo: Callable[..., Path],
+) -> None:
+    root = make_repo({"a.py": "x = 1\n"})
+    assert run(Path(str(root).upper())).used_git

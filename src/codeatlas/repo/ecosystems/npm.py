@@ -6,7 +6,14 @@ import json
 
 import yaml
 
-from codeatlas.repo.ecosystems.base import Declared, Found, ManifestError, RepoView, Workspace
+from codeatlas.repo.ecosystems.base import (
+    Declared,
+    Found,
+    ManifestError,
+    RepoView,
+    Workspace,
+    guarded,
+)
 from codeatlas.repo.paths import join, parent
 
 ECOSYSTEM = "npm"
@@ -23,9 +30,12 @@ _PATH_PROTOCOLS = ("file:", "link:")
 def find(view: RepoView) -> Found:
     found = Found()
     for manifest in view.named("package.json"):
-        _package_json(view, manifest, found)
+        guarded(view, ECOSYSTEM, manifest, found,
+                lambda m=manifest: _package_json(view, m, found))
     for manifest in view.named("pnpm-workspace.yaml"):
-        found.workspaces.append(_pnpm_workspace(view, manifest))
+        guarded(view, ECOSYSTEM, manifest, found,
+                lambda m=manifest: found.workspaces.append(_pnpm_workspace(view, m)),
+                workspace_only=True)
     return found
 
 

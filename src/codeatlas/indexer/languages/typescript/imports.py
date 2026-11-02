@@ -82,7 +82,8 @@ def _reexport(node: TSNode, source: bytes, module_key: str) -> list[RawImport]:
 
 
 def _call_import(call: TSNode, source: bytes, module_key: str) -> list[RawImport]:
-    """`require("x")` bound to a name or a destructuring, bare, or `import("x")`."""
+    """`require("x")` or `import("x")` with a literal: bound to a name or a destructuring
+    when it is, otherwise a plain whole-module import, wherever the call sits."""
     if not is_module_call(call, source):
         return []
     target = syntax.literal_string(syntax.arguments(call)[0], source)
@@ -99,9 +100,10 @@ def _call_import(call: TSNode, source: bytes, module_key: str) -> list[RawImport
         if name is not None and name.type == "object_pattern":
             names = _destructured(name, source)
             return [RawImport(module_key, target, names, line=syntax.line(call))]
-    if holder is not None and holder.type == "expression_statement":
-        return [RawImport(module_key, target, line=syntax.line(call))]
-    return []  # e.g. require("x").y: not a binding we can describe as written
+    # Any other place (`require("x").config()`, `app.use(require("./routes"))`,
+    # `module.exports = require("./x")`, `__importDefault(require("x"))`): still a
+    # dependency on "x", just not bound to a name. Dropping it would lose the edge.
+    return [RawImport(module_key, target, line=syntax.line(call))]
 
 
 def _specifiers(node: TSNode, source: bytes) -> Names:

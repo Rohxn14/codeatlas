@@ -14,13 +14,6 @@ SNAPSHOT = "s@0123456789ab"
 _versions = count()
 
 
-@pytest.fixture(autouse=True)
-def no_parent_repository(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Stop git from finding a repository above the test's folders (the owner's home
-    folder is one), so "not a git repository" means what it says."""
-    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))
-
-
 def commit(root: Path, changes: dict[str, str | None]) -> None:
     """Write (or, for None, delete) files and commit them."""
     for rel, text in changes.items():
@@ -124,7 +117,7 @@ def test_lockfiles_vendored_and_generated_files_are_ignored(make_repo: Callable[
     found, report = run(root)
     assert found == {}
     assert report["files_removed"] == {
-        "vendored": 1, "lockfile": 1, "generated": 2, "not_at_head": 0,
+        "vendored": 1, "lockfile": 1, "generated": 2, "not_in_snapshot": 0,
     }
 
 
@@ -135,7 +128,7 @@ def test_deleted_files_are_ignored(make_repo: Callable[..., Path]) -> None:
     commit(root, {"old.py": None})
     found, report = run(root)
     assert set(found) == {("a.py", "b.py"), ("b.py", "a.py")}
-    assert report["files_removed"]["not_at_head"] == 1
+    assert report["files_removed"]["not_in_snapshot"] == 1
 
 
 def test_renamed_file_history_is_not_followed(make_repo: Callable[..., Path]) -> None:
@@ -201,3 +194,29 @@ def test_shallow_clone_is_reported(history: Path, tmp_path: Path) -> None:
 def test_parse_log() -> None:
     text = "\x1eaaa\n\nsrc/a.py\nsrc/b.py\n\x1ebbb\n\x1eccc\n\nREADME.md\n"
     assert parse_log(text) == [["src/a.py", "src/b.py"], [], ["README.md"]]
+
+
+def test_a_commit_of_exactly_the_limit_is_kept(make_repo: Callable[..., Path]) -> None:
+    files = [f"m{i}.py" for i in range(4)]
+    root = make_repo(dict.fromkeys(files, "start\n"))
+    for _ in range(3):
+        commit(root, edit(*files))  # every commit changes 4 files: exactly the limit
+    found, report = run(root, max_files_per_commit=4)
+    assert report["commits_skipped_large"] == 0
+    assert ("m0.py", "m1.py") in found
+
+
+def test_parse_log_reads_crlf_output() -> None:
+    text = "\x1eaaa\r\n\r\na.py\r\nb.py\r\n\x1ebbb\r\n\r\nc.py\r\n"
+    assert parse_log(text) == [["a.py", "b.py"], ["c.py"]]
+
+
+def test_missing_git_is_reported_as_missing(tmp_path: Path, monkeypatch) -> None:
+    import subprocess
+
+    def no_git(*args, **kwargs):
+        raise FileNotFoundError("git")
+
+    monkeypatch.setattr(subprocess, "run", no_git)
+    _, report = run(tmp_path)
+    assert report["status"].startswith("git not found")

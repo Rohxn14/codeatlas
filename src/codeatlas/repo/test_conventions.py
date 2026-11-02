@@ -179,16 +179,27 @@ class TestConventionsAnalyzer:
 
 
 def _split(files: Sequence[FileRecord]) -> tuple[list[TestFile], dict[tuple[str, str], list[str]]]:
-    """Test files, and the other files of each family indexed by (family, stem)."""
+    """Test files, and the candidate source files of each family indexed by (family, stem).
+
+    A test-named file outside every test folder is also a candidate source: a module
+    such as `repo/test_conventions.py` is named like a test, but its own test file
+    (`tests/repo/test_test_conventions.py`) must still be able to pair with it.
+    """
     tests: list[TestFile] = []
     sources: dict[tuple[str, str], list[str]] = defaultdict(list)
     for record in sorted(files, key=lambda r: r.path):
+        if record.language not in FAMILIES:
+            continue
         test = classify(record.path, record.language)
         if test is not None:
             tests.append(test)
-        elif record.language in FAMILIES:
+        if test is None or not _in_test_folder(record.path):
             sources[(FAMILIES[record.language], _stem(basename(record.path)))].append(record.path)
     return tests, sources
+
+
+def _in_test_folder(path: str) -> bool:
+    return any(f.lower() in TEST_FOLDERS for f in path.split("/")[:-1])
 
 
 def _best_candidates(
@@ -199,7 +210,7 @@ def _best_candidates(
         return []
     if test.family == "rust":
         return _rust_targets(test.path, sources, owner.get(test.path))
-    candidates = sources.get((test.family, test.subject), [])
+    candidates = [c for c in sources.get((test.family, test.subject), []) if c != test.path]
     if test.family == "go":  # a Go test file belongs to the package in its own folder
         candidates = [c for c in candidates if parent(c) == parent(test.path)]
     if not candidates:

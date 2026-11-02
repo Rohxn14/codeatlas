@@ -11,6 +11,8 @@ from codeatlas import config as config_module
 from codeatlas.cli import main, scan, skipped_result
 from codeatlas.config import Config
 from codeatlas.indexer.intake import open_source
+from codeatlas.indexer.pipeline import parse as parse_module
+from codeatlas.indexer.pipeline.parse import parse_file
 from codeatlas.indexer.registry import Registry
 from codeatlas.models import Tier
 
@@ -82,14 +84,14 @@ def test_unknown_extension_records_a_reason(tmp_path: Path) -> None:
     (tmp_path / "notes.weird").write_text("hi\n", encoding="utf-8")
     report = scan(str(tmp_path), Config())
     record = report.discovery.files[0]
-    result = cli._parse(open_source(str(tmp_path), Config()), record, Registry(), "s@1")
+    result = parse_file(open_source(str(tmp_path), Config()), record, Registry(), "s@1")
     assert result.nodes[0].attrs["tier_reason"] == cli.UNKNOWN_TYPE_REASON
 
 
 def test_unreadable_file_counts_as_text(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A file that disappears or is locked between discovery and parsing is still counted."""
     (tmp_path / "main.go").write_text("package main\n", encoding="utf-8")
-    real_discover = cli.discover
+    real_discover = parse_module.discover
 
     def denied(_self: Path) -> bytes:
         raise PermissionError("denied")
@@ -99,7 +101,7 @@ def test_unreadable_file_counts_as_text(tmp_path: Path, monkeypatch: pytest.Monk
         monkeypatch.setattr(Path, "read_bytes", denied)
         return found
 
-    monkeypatch.setattr(cli, "discover", discover_then_lock)
+    monkeypatch.setattr(parse_module, "discover", discover_then_lock)
     report = scan(str(tmp_path), Config())
     assert [(r.language, r.tier, r.files) for r in report.rows] == [("go", "text", 1)]
 
@@ -111,13 +113,13 @@ def test_time_limit_starts_after_intake(
     (tmp_path / "a.go").write_text("package a\n", encoding="utf-8")
     clock = [0.0]
     monkeypatch.setattr(config_module.time, "monotonic", lambda: clock[0])
-    real_open = cli.open_source
+    real_open = parse_module.open_source
 
     def slow_open(source: str, config: Config) -> object:
         clock[0] += 10_000  # far beyond max_seconds
         return real_open(source, config)
 
-    monkeypatch.setattr(cli, "open_source", slow_open)
+    monkeypatch.setattr(parse_module, "open_source", slow_open)
     report = scan(str(tmp_path), Config())
     assert report.snapshot.limits_hit == ()
     assert report.rows[0].unparsed == 0

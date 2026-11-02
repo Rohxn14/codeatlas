@@ -66,6 +66,9 @@ class Graph:
     nodes: dict[str, GraphNode]
     edges: list[GraphEdge]
     unresolvable: list[Unresolvable] = field(default_factory=list)
+    # What the producer of this file could not do (an indexer that failed, say): a truth
+    # with errors is partial, and a score against it must say so.
+    errors: list[str] = field(default_factory=list)
 
 
 def path_of_key(key: str) -> str:
@@ -92,7 +95,9 @@ def parse_graph(data: dict[str, object]) -> Graph:
         for u in _list(data, "unresolvable")
     ]
     snapshot = data.get("snapshot")
-    return Graph(snapshot if isinstance(snapshot, dict) else {}, nodes, edges, unresolvable)
+    errors = [str(e) for e in data.get("errors", []) or []]
+    return Graph(snapshot if isinstance(snapshot, dict) else {}, nodes, edges, unresolvable,
+                 errors)
 
 
 def _list(data: dict[str, object], name: str) -> list[dict[str, object]]:

@@ -1,22 +1,24 @@
 # T07: TypeScript and JavaScript resolver (deep tier)
 
-**Wave**: 2 (after T18, parallel with T06 and T16)
+**Wave**: 2 (all of Wave 2 runs in parallel)
 **Branch**: keep the one the cloud environment gives you
 
 ## Goal
 
 Turn the TypeScript and JavaScript adapter's raw imports and calls (T02) into IMPORTS, CALLS, INHERITS and TESTS edges with the contract's resolution levels and confidences, following Node and TypeScript module resolution, and measure precision and recall on the fixture and against the SCIP oracle.
 
-## Work in two phases
+## Plan first, then build
 
-**Phase 1, plan (then stop).** Read this brief, `docs/contract.md` (sections 4, 5 and 7), `eval/fixtures/polyglot_app/LABELS.md` and the T02 adapter's output on the fixture's frontend. Write `docs/plans/T07.md`, at most about one page: how an import specifier becomes a file (one example per kind in the fixture), the rule for each resolution level with one real call from the fixture, your answers to "Decide in your plan", the tests, and what you expect to get wrong. Commit it, push, open a draft pull request titled `T07: TypeScript and JavaScript resolver`, and stop with the message "Plan ready for review". Write no resolver code until the owner replies.
+Before writing code, write `docs/plans/T07.md` (at most about one page) as described below, and commit it as your first commit. Then build without waiting: the owner reviews plans and code together at the end of the day, and the plan is how he follows your reasoning. If a decision in the plan turns out wrong while building, update the plan in the same commit as the change.
 
-**Phase 2, build.** When the owner replies, run `git pull origin main` first, apply the owner's changes to the plan, then build.
+The plan covers: the approach and its data structures; the rule for each resolution level with one real example from the fixture (or your samples); your answers to "Decide in your plan" below, each with one line of why; the tests; and what you expect to get wrong.
+
+The pipeline exists (`src/codeatlas/indexer/pipeline/`; read `docs/explainers/pipeline.md`): your resolver's entry is already in `plugins.py`, so once the class exists `build_graph` runs it. Measure with `python scripts/score_fixture.py`, which indexes the fixture and scores it against the hand labels (`--truth eval/oracle/references/oracle_polyglot_app_061bf641daff.json` scores against the SCIP oracle). Resolvers return edges only: point an edge at `::external:<name>` for something outside the repository and the pipeline creates the EXTERNAL node (contract section 4).
 
 ## Files you may create or edit
 
 - `src/codeatlas/indexer/languages/typescript/resolver/` (new package)
-- Registration: one line in `RESOLVERS` in `src/codeatlas/indexer/pipeline/plugins.py`: `"typescript": "codeatlas.indexer.languages.typescript.resolver:TypeScriptResolver"`, whose `languages` is `{"typescript", "tsx", "javascript"}`. T06 and T16 add lines to the same dictionary in parallel, so change nothing else in that file.
+- Registration is already done: `RESOLVERS` in `src/codeatlas/indexer/pipeline/plugins.py` has the entry `"typescript": "codeatlas.indexer.languages.typescript.resolver:TypeScriptResolver"`. Make that import path work and do not edit `plugins.py`.
 - `tests/indexer/typescript/resolver/`, `tests/data/typescript_resolver/`
 - `docs/plans/T07.md`, `docs/explainers/typescript-resolver.md`
 
@@ -52,7 +54,7 @@ Turn the TypeScript and JavaScript adapter's raw imports and calls (T02) into IM
 
 ## Decide in your plan
 
-1. **Typed receivers**: `const api = new UserApi(); api.getUser(7)`, or a parameter typed `api: UserApi`. Which level and confidence? Choose consistently with T06's plan if you can see it (draft pull request `T06: Python resolver`); otherwise argue for one and flag it for the owner.
+1. **Typed receivers**: `const api = new UserApi(); api.getUser(7)`, or a parameter typed `api: UserApi`. Which level and confidence? T06 answers the same question for Python in parallel, and the owner will make the two agree: argue for one choice and say what you would change if T06 chose differently.
 2. **Name-guess cut-off**: above how many candidates does a name guess give up? Use the owner's answer to Q2 in `docs/decisions.md` if it is there.
 3. **Mixed JS and TS**: may a `.js` file's call resolve to a `.ts` definition (and the reverse) at the name-guess level? The contract keeps guesses inside one language; `typescript`, `tsx` and `javascript` are three grammar names but one language family here.
 
@@ -70,4 +72,4 @@ In the pull request:
 
 ## Done when
 
-Tests pass on Linux and Windows CI; the plan was approved and is committed; the scores are in the pull request; the explainer covers module resolution step by step, each resolution level with an example from the fixture, and what static resolution cannot see (dynamic property access, callbacks, framework magic).
+Tests pass on Linux and Windows CI; the plan is committed; the scores are in the pull request; the explainer covers module resolution step by step, each resolution level with an example from the fixture, and what static resolution cannot see (dynamic property access, callbacks, framework magic).

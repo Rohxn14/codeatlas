@@ -29,6 +29,13 @@ def extract_routes(
     return routes
 
 
+# Argument types that cannot be a route handler.
+_NOT_HANDLERS = frozenset({
+    "object", "string", "number", "template_string", "true", "false", "null",
+    "undefined", "regex",
+})
+
+
 def normalise_path(path: str) -> str:
     return _PARAM.sub(lambda m: "{" + m.group(1) + "}", path)
 
@@ -53,7 +60,9 @@ def _route(
         handlers = args[1:]
     else:
         return None
-    if path is None or not handlers:
+    if path is None or not handlers or handlers[-1].type in _NOT_HANDLERS:
+        # `api.get("/users", { params })` on an axios client, or `cache.get("/k", 1)`:
+        # the last argument of a route is a function, never a plain value.
         return None
     return RawRoute(
         handler_key=_handler_key(handlers[-1], source, symbols),

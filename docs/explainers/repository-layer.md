@@ -19,7 +19,7 @@ the CLI and the acceptance suite: language census, packages per ecosystem, test 
 found and paired, co-change edges, commits read, and what each filter removed.
 
 Each analyzer also keeps a `report` dictionary from its last run (for example the
-co-change status "not a git repository", or the list of unpaired test files).
+co-change status such as "not a git repository" or "git not found", or the list of unpaired test files).
 
 ## Why
 
@@ -44,8 +44,17 @@ co-change status "not a git repository", or the list of unpaired test files).
 - **A broken manifest becomes a warning.** A `package.json` that does not parse still
   marks a package, named after its folder, with the error in `attrs["warnings"]`. A
   broken file that is not itself a package (`pnpm-workspace.yaml`) puts its warning on
-  the package that contains it. If a parser has a bug and raises, its ecosystem is
-  skipped with a warning on the root package; the other ecosystems still run.
+  the package that contains it. If a parser has a bug and raises, only that manifest is
+  affected (`guarded` in `ecosystems/base.py`): its half-done work is discarded and it
+  still becomes its own folder-named package carrying the error, so its files are not
+  handed to the implicit package. A whole ecosystem can no longer vanish because of one
+  bad file.
+- **Packages have a role (decision D-12).** A manifest under `vendor/`, `third_party/`
+  or `node_modules/` is `vendored`; one under a test or fixture folder (`tests/`,
+  `testdata/`, `fixtures/`, `eval/fixtures/`) is a `fixture`; everything else is a
+  `package`. Every one stays a node, but no DEPENDS_ON edge points into vendored code,
+  and the summary reports `real` packages separately: CodeAtlas itself has 31 manifests,
+  30 of them test samples.
 - **An implicit package for whatever no manifest covers.** A repository without
   manifests gets one package at the root, named after the repository, with
   `attrs["implicit"] = True`. The same package also collects files outside every
@@ -63,7 +72,9 @@ co-change status "not a git repository", or the list of unpaired test files).
 
 - **Naming habits read backwards.** `test_user.py` says "I test `user`", so the analyzer
   strips the affix and looks for `user.py`. It is cheap, works without a parser and is
-  right surprisingly often. Its confidence is 0.8, not 1.0, because a name is a hint.
+  right surprisingly often. Its confidence is 0.8, not 1.0, because a name is a hint. A
+  module named like a test but outside every test folder (this layer's own
+  `test_conventions.py`) is also a candidate source, so its real test can pair with it.
 - **Support files are counted but not paired.** `tests/conftest.py` or
   `tests/helpers.py` is a test file, but its name says nothing about what it tests, so
   it is listed as unpaired instead of being matched to some `helpers.py` elsewhere.
@@ -255,7 +266,8 @@ pair those; the impact engine should lean on import edges for them.
 - Test pairing is by file name only; a test of several files pairs with at most the
   ones named like it. Go tests pair only with a same-named file in the same folder.
 - Co-change does not follow renames, so a renamed file starts with no history; its old
-  history is counted under "not at HEAD". A shallow clone has one commit and yields no
+  history is counted under `not_in_snapshot` (which also counts files discovery left
+  out, such as `.venv/`). A shallow clone has one commit and yields no
   edges (the report says `shallow: true`).
 - `summarize` reads module paths out of edge ids, which relies on snapshot ids
   containing no `/` (true for `make_snapshot_id` with a short repository name).

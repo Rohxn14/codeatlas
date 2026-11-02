@@ -80,3 +80,23 @@ def test_embed_empty_and_duplicates():
     assert client.embed([]).shape == (0, 0)
     assert client.embed(["x", "x"]).shape == (2, 3)
     assert fake.batches == [["x"]]
+
+
+def test_thinking_settings_default_low_and_read_the_environment():
+    from codeatlas.llm.config import LLMConfig, apply_env
+
+    config = LLMConfig()
+    assert (config.gemini_thinking_level, config.groq_reasoning_effort) == ("low", "low")
+    assert config.timeout_seconds == 30.0
+    changed = apply_env(config, {"CODEATLAS_GEMINI_THINKING": "minimal",
+                                 "CODEATLAS_GROQ_REASONING": "high"})
+    assert (changed.gemini_thinking_level, changed.groq_reasoning_effort) == ("minimal", "high")
+
+
+def test_unknown_thinking_level_is_rejected():
+    import pytest
+
+    from codeatlas.llm.config import llm_config_from_dict
+
+    with pytest.raises(ValueError, match="gemini_thinking_level"):
+        llm_config_from_dict({"gemini_thinking_level": "max"})

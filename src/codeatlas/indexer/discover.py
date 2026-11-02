@@ -1,10 +1,10 @@
 """Discovery: list every file of a repository with its language, tier and content hash.
 
-Files come from `git ls-files` inside a git work tree (so the repository's own ignore
-rules apply exactly as git applies them), otherwise from a walk that honours
-`.gitignore` files through `pathspec`. Anything that cannot be analysed (a binary, a
-minified bundle, a file over the size limit, a symlink) is listed in `skipped` with its
-reason instead of disappearing.
+Files come from `git ls-files` when the folder is the top level of a git repository
+(so the repository's own ignore rules apply exactly as git applies them), otherwise
+from a walk that honours `.gitignore` files through `pathspec`. Anything that cannot be
+analysed (a binary, a minified bundle, a file over the size limit, a symlink) is listed
+in `skipped` with its reason instead of disappearing.
 """
 
 from __future__ import annotations
@@ -205,9 +205,10 @@ def _git_ls_files(root: Path) -> list[str] | None:
     Git mode is used only when `root` is the top level of its own repository. A folder
     inside someone else's repository (an untracked project in a home folder that is a
     git repository, say) would otherwise lose every file the outer repository ignores
-    or does not track, so it is walked with its own `.gitignore` rules instead.
+    (`--others` lists untracked files, but the outer repository's ignore rules would
+    still hide files), so it is walked with its own `.gitignore` rules instead.
     """
-    if not _is_repo_top_level(root):
+    if not is_repo_top_level(root):
         return None
     done = _run_git(root, "ls-files", "-z", "--cached", "--others", "--exclude-standard")
     if done is None:
@@ -216,7 +217,12 @@ def _git_ls_files(root: Path) -> list[str] | None:
     return sorted(paths)
 
 
-def _is_repo_top_level(root: Path) -> bool:
+def is_repo_top_level(root: Path) -> bool:
+    """True when `root` is the top folder of its own git repository.
+
+    Discovery and intake share this rule, so they always agree on what "the repository"
+    is: files are listed by git, and the snapshot gets a commit SHA, only at the top.
+    """
     done = _run_git(root, "rev-parse", "--show-toplevel")
     if done is None:
         return False

@@ -35,14 +35,19 @@ The code lives in `src/codeatlas/indexer/languages/python/`, one module per conc
   T00's own `_duplicate_suffixes` rather than a copy of it. A test parses every sample
   with both tiers and checks the key sets are equal.
 - **Signature stops at the colon, not at the body.** `def f():  # note` would otherwise
-  carry the comment. The structural tier stops at the body, so the two differ only when
-  a comment follows the colon of a *repeated* name; then the hash, and the key, differ.
-- **Decorators, defaults and class bodies run in the enclosing scope.** Python evaluates
-  them when the `def` or `class` statement runs, not when the function is called. So
-  `@app.get("/x")` on a module-level function is a call made by the module, and
-  `timeout = compute()` in a class body is a call by the module (a class is not a
-  `CALLS` source in the contract). Rejected: attributing them to the decorated function,
-  which would invent calls the function never makes.
+  carry the comment. T00's structural tier copies everything up to the body, including
+  comments on the same line *and* comment lines between the colon and the first
+  statement, so the two tiers give different keys for a repeated name whenever such a
+  comment exists. The review measured 59 of 4,646 site-packages files. T16 fixes this
+  in T00's `_signature`.
+- **Defaults and class bodies run in the enclosing scope; function decorators belong to
+  the function (decision D-11).** Python evaluates defaults and class bodies when the
+  `def` or `class` statement runs, so `timeout = compute()` in a class body is a call by
+  the module (a class is not a `CALLS` source in the contract). A decorator also runs
+  then, but `@logged` above `f` means `f = logged(f)`: changing `logged` changes what
+  `f` does, so the impact engine needs the edge `f → logged`. So every call in a
+  function's decorators, including a bare `@logged` or `@a.b` with no parentheses, is
+  credited to the decorated function. Decorators on a class stay with the module.
 - **Spans include decorators.** A diff that only edits `@router.get("/old")` changes the
   handler, so the impact engine should see it. The structural tier spans only the `def`;
   spans are not part of keys, so this does not affect matching.
@@ -72,8 +77,10 @@ The code lives in `src/codeatlas/indexer/languages/python/`, one module per conc
 3. `mark_tests` changes `FUNCTION` to `TEST` in test files and adds
    `test_id = path::Class::name`, built from the plain names.
 4. `Scopes.caller_key(node)` walks up from any node. It returns a function's key only if
-   it climbs into that function through the function's `body` field; climbing in through
-   parameters or decorators skips it. No function: the module key.
+   it climbs into that function through the function's `body` field, or into a function's
+   decorator (D-11); climbing in through parameters skips it. No function: the module
+   key. A bare decorator (`@logged`) is not a call node, so `collect_calls` adds it
+   separately, credited to the decorated function.
 5. `collect_imports`, `collect_calls`, `collect_routes` and `collect_http_calls` walk the
    same tree. Routes and HTTP calls first collect assignments in the file (router
    prefixes, client variables), then look at decorators or calls.

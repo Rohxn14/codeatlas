@@ -4,7 +4,7 @@ import base64
 
 import pytest
 
-from codeatlas.llm.errors import LLMRequestError, LLMTransientError
+from codeatlas.llm.errors import LLMEmptyResponseError, LLMRequestError, LLMTransientError
 from codeatlas.llm.providers.gemini import GeminiProvider, to_gemini_contents
 from codeatlas.llm.types import Message, ToolCall, ToolSpec
 
@@ -39,9 +39,8 @@ def test_tool_call_and_signature(script):
     s = script([(200, load("gemini_tool_call.json"))])
     reply = provider(s).chat([Message("user", "find it")], [SEARCH], 0.0, None)
     (call,) = reply.tool_calls
-    assert (call.id, call.name, call.arguments) == (
-        "call_0", "search_code", {"query": "parse_args", "limit": 5},
-    )
+    assert (call.name, call.arguments) == ("search_code", {"query": "parse_args", "limit": 5})
+    assert call.id.startswith("call_") and len(call.id) == len("call_") + 12
     assert base64.b64decode(call.signature) == b"sig-1"
     declaration = s.chat_requests[0]["body"]["tools"][0]["functionDeclarations"][0]
     assert declaration["name"] == "search_code"
@@ -92,3 +91,40 @@ def test_list_models_keeps_generate_content_only(script):
     ids = [m.id for m in provider(s).list_models()]
     assert "gemini-3.8-flash" in ids
     assert "text-embedding-005" not in ids
+
+
+def test_made_up_tool_call_ids_differ_across_turns(script):
+    s = script([(200, load("gemini_tool_call.json"))] * 2)
+    p = provider(s)
+    first = p.chat([Message("user", "find it")], [SEARCH], 0.0, None).tool_calls[0]
+    second = p.chat([Message("user", "find it")], [SEARCH], 0.0, None).tool_calls[0]
+    assert first.id != second.id
+    history = [
+        Message("user", "find"),
+        Message("assistant", "", tool_calls=(ToolCall(first.id, "search_code", {}),)),
+        Message("tool", "r1", tool_call_id=first.id),
+        Message("assistant", "", tool_calls=(ToolCall(second.id, "read_file", {}),)),
+        Message("tool", "r2", tool_call_id=second.id),
+    ]
+    _, contents = to_gemini_contents(history)
+    names = [part.function_response.name for c in contents for part in c.parts
+             if part.function_response is not None]
+    assert names == ["search_code", "read_file"]
+
+
+def test_thinking_level_is_sent_and_can_be_turned_off(script):
+    s = script([(200, load("gemini_text.json"))] * 2)
+    GeminiProvider("gemini-3.8-flash", api_key="t", http_client=s.client(),
+                   thinking_level="minimal").chat([Message("user", "hi")], None, 0.0, None)
+    GeminiProvider("gemini-3.8-flash", api_key="t", http_client=s.client(),
+                   thinking_level="").chat([Message("user", "hi")], None, 0.0, None)
+    configs = [r["body"]["generationConfig"] for r in s.chat_requests]
+    # The SDK sends the inner key in snake case; the API accepts either spelling.
+    assert configs[0]["thinkingConfig"] == {"thinking_level": "MINIMAL"}
+    assert "thinkingConfig" not in configs[1]
+
+
+def test_max_tokens_answer_raises_empty_response(script):
+    s = script([(200, load("gemini_max_tokens.json"))])
+    with pytest.raises(LLMEmptyResponseError, match="MAX_TOKENS"):
+        provider(s).chat([Message("user", "hi")], None, 0.0, 10)

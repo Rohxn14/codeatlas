@@ -96,6 +96,10 @@ def _routes_from(
     path = plain_string(argument(call, 0, "rule" if framework == "flask" else "path"), source)
     if path is None:  # a path built at runtime cannot be matched by the linker
         return []
+    if path and not path.startswith("/"):
+        # Not a route: `@mock.patch("os.getcwd")` reaches here because `patch` is an HTTP
+        # verb. FastAPI and Werkzeug require a leading slash; "" is valid under a prefix.
+        return []
     pattern = normalise_path(_join(router.prefix if router else "", path))
     return [
         RawRoute(definition.key, method, pattern, framework, router_name, line(decorator))
