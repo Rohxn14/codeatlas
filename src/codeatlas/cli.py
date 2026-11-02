@@ -1,4 +1,4 @@
-"""Command line: `codeatlas scan <path-or-url> [--json]`.
+"""Command line: `scan`, `index`, `view` and `export`.
 
 `scan` runs intake, discovery and every adapter, then prints a census of what it saw.
 Each discovered file lands in exactly one (language, tier) row, files that could not be
@@ -15,11 +15,14 @@ from collections import Counter
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
+from typing import Any
 
 from codeatlas import __version__
 from codeatlas.config import Config, load_config
 from codeatlas.indexer.discover import Discovery, SkippedPath
 from codeatlas.indexer.intake import IntakeError
+from codeatlas.indexer.pipeline.build import default_db_path
+from codeatlas.indexer.pipeline.index import IndexReport, index_repository, load_report
 from codeatlas.indexer.pipeline.parse import (  # noqa: F401  (re-exported for callers)
     UNKNOWN_TYPE_REASON,
     parse_source,
@@ -32,6 +35,8 @@ from codeatlas.models import (
     ParseResult,
     Snapshot,
 )
+from codeatlas.store import GraphStore
+from codeatlas.view import build_view_data, latest_snapshot_id, write_view
 
 
 @dataclass(slots=True)
@@ -202,6 +207,102 @@ def _table(header: list[str], rows: list[list[object]]) -> list[str]:
     return [fmt(cells[0]), fmt(["-" * w for w in widths]), *(fmt(r) for r in cells[1:])]
 
 
+# index, view, export
+
+
+def render_index_text(report: IndexReport) -> str:
+    """A short summary in the style of `scan`: census, edges, unresolved calls, problems."""
+    snap, files, calls = report.snapshot, report.files, report.raw_calls
+    lines = [
+        f"CodeAtlas {snap['indexer_version']}: {snap['id']}",
+        f"source: {snap['source']}",
+        "",
+        "Files by language and tier",
+    ]
+    tiers = ", ".join(f"{k}: {v}" for k, v in files["by_tier"].items())
+    lines += _table(["language", "files"], [[k, v] for k, v in files["by_language"].items()])
+    lines.append(f"total: {files['total']} files ({tiers}); skipped: {files['skipped']['total']}")
+    lines += ["", "Nodes: " + _pairs(report.nodes["by_kind"])]
+    lines.append(f"Edges: {report.edges['total']}")
+    lines += ["  by kind: " + _pairs(report.edges["by_kind"])]
+    lines += ["  by resolution: " + _pairs(report.edges["by_resolution"])]
+    if report.edges["dropped"]:
+        lines.append("  dropped: " + _pairs(report.edges["dropped"]))
+    lines.append(
+        f"Raw calls: {calls['total']}, resolved {calls['resolved']}, "
+        f"unresolved {calls['unresolved']} ({_pairs(calls['unresolved_by_language']) or 'none'})"
+    )
+    lines += _problem_lines(report.problems)
+    seconds = report.seconds
+    lines.append("Seconds: " + ", ".join(f"{k} {v}" for k, v in seconds.items()))
+    limits = ", ".join(snap["limits_hit"]) or "none"
+    lines += [f"limits hit: {limits}", "", "Next: codeatlas view"]
+    return "\n".join(lines)
+
+
+def _pairs(counts: dict[str, int]) -> str:
+    return ", ".join(f"{k} {v}" for k, v in counts.items())
+
+
+def _problem_lines(problems: dict[str, Any]) -> list[str]:
+    lines = ["Problems:"]
+    errors = problems["files_with_errors"]
+    lines.append(f"  files with parse errors: {len(errors)}")
+    lines += [f"    {e['path']}: {e['errors'][0]}" for e in errors[:10]]
+    lines += [f"  {text}" for text in problems["plugin_and_resolver_failures"]]
+    if problems["languages_without_resolver"]:
+        missing = ", ".join(problems["languages_without_resolver"])
+        lines.append(f"  languages without a resolver: {missing}")
+    return lines
+
+
+def _open_store(args: argparse.Namespace, config: Config) -> tuple[GraphStore, str]:
+    """The store and snapshot id for `view` and `export`; a clear error if there is none."""
+    db_path = Path(args.db) if args.db else default_db_path(config)
+    if not db_path.exists():
+        raise ValueError(f"no database at {db_path}: run `codeatlas index <path-or-url>` first")
+    snapshot_id = args.snapshot or latest_snapshot_id(db_path)
+    if snapshot_id is None:
+        raise ValueError(f"{db_path} holds no snapshot: run `codeatlas index <path-or-url>`")
+    store = GraphStore(db_path)
+    if store.get_snapshot(snapshot_id) is None:
+        store.close()
+        raise ValueError(f"no snapshot {snapshot_id!r} in {db_path}")
+    return store, snapshot_id
+
+
+def _run_index(args: argparse.Namespace, config: Config) -> int:
+    db_path = Path(args.db) if args.db else default_db_path(config)
+    report = index_repository(args.source, config, db_path, force=args.force)
+    print(render_index_text(report))
+    return 0
+
+
+def _run_view(args: argparse.Namespace, config: Config) -> int:
+    store, snapshot_id = _open_store(args, config)
+    with store:
+        saved = load_report(config, snapshot_id)
+        data = build_view_data(store, snapshot_id, saved.to_dict() if saved else None, args.focus)
+    out = Path(args.out) if args.out else Path(config.data_dir) / "view.html"
+    write_view(data, out, open_browser=not args.no_open)
+    omitted = data["omitted"]
+    print(f"wrote {out} ({len(data['nodes'])} nodes, {len(data['edges'])} edges)")
+    if omitted["nodes"]:
+        print(f"left out: {omitted['nodes']} nodes, {omitted['files']} files; use --focus <folder>")
+    return 0
+
+
+def _run_export(args: argparse.Namespace, config: Config) -> int:
+    store, snapshot_id = _open_store(args, config)
+    with store:
+        data = store.export_json(snapshot_id)
+    out = Path(args.out)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(data, indent=1) + "\n", encoding="utf-8")
+    print(f"wrote {out}")
+    return 0
+
+
 # Entry point
 
 
@@ -209,10 +310,32 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="codeatlas", description=__doc__.splitlines()[0])
     parser.add_argument("--version", action="version", version=f"codeatlas {__version__}")
     commands = parser.add_subparsers(dest="command", required=True)
-    scan_cmd = commands.add_parser("scan", help="discover and parse a repository, print a census")
+
+    def add(name: str, help_text: str) -> argparse.ArgumentParser:
+        sub = commands.add_parser(name, help=help_text)
+        sub.add_argument("--config", type=Path, help="path to codeatlas.toml")
+        return sub
+
+    scan_cmd = add("scan", "discover and parse a repository, print a census")
     scan_cmd.add_argument("source", help="a local folder or https://github.com/owner/repo[@ref]")
     scan_cmd.add_argument("--json", action="store_true", help="print the census as JSON")
-    scan_cmd.add_argument("--config", type=Path, help="path to codeatlas.toml")
+
+    index_cmd = add("index", "index a repository into the database and print a summary")
+    index_cmd.add_argument("source", help="a local folder or https://github.com/owner/repo[@ref]")
+    index_cmd.add_argument("--db", type=Path, help="database file")
+    index_cmd.add_argument("--force", action="store_true", help="re-index an indexed commit")
+
+    view_cmd = add("view", "write an HTML page of the graph and open it")
+    view_cmd.add_argument("--db", type=Path, help="database file")
+    view_cmd.add_argument("--snapshot", help="snapshot id (default: the latest)")
+    view_cmd.add_argument("--focus", default="", help="show only files under this path prefix")
+    view_cmd.add_argument("--out", type=Path, help="where to write the page")
+    view_cmd.add_argument("--no-open", action="store_true", help="write the page, do not open it")
+
+    export_cmd = add("export", "write the graph as JSON (contract section 8)")
+    export_cmd.add_argument("--db", type=Path, help="database file")
+    export_cmd.add_argument("--snapshot", help="snapshot id (default: the latest)")
+    export_cmd.add_argument("--out", type=Path, required=True, help="JSON file to write")
     return parser
 
 
@@ -220,8 +343,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
         config = load_config(args.config)
+        if args.command == "index":
+            return _run_index(args, config)
+        if args.command == "view":
+            return _run_view(args, config)
+        if args.command == "export":
+            return _run_export(args, config)
         report = scan(args.source, config)
-    except (IntakeError, OSError, ValueError) as exc:
+    except (IntakeError, OSError, ValueError, KeyError) as exc:
         print(f"codeatlas: {exc}", file=sys.stderr)
         return 2
     if args.json:

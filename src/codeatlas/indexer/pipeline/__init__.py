@@ -5,7 +5,16 @@
 linkers, and writes everything to a `GraphStore`.
 """
 
-from codeatlas.indexer.pipeline.build import BuildResult, build_graph
+from codeatlas.indexer.pipeline.build import AlreadyIndexed, BuildResult, build_graph
+from codeatlas.indexer.pipeline.index import IndexReport, index_repository
 from codeatlas.indexer.pipeline.parse import Parsed, parse_source
 
-__all__ = ["BuildResult", "Parsed", "build_graph", "parse_source"]
+__all__ = [
+    "AlreadyIndexed",
+    "BuildResult",
+    "IndexReport",
+    "Parsed",
+    "build_graph",
+    "index_repository",
+    "parse_source",
+]

@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import hashlib
+import time
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
 from codeatlas import __version__
@@ -26,6 +27,7 @@ class Parsed:
     discovery: Discovery
     snapshot: Snapshot
     results: dict[str, ParseResult]  # path -> result, in discovery order
+    seconds: dict[str, float] = field(default_factory=dict)  # intake, discover, parse
 
 
 def parse_source(source: str, config: Config, registry: Registry | None = None) -> Parsed:
@@ -35,10 +37,13 @@ def parse_source(source: str, config: Config, registry: Registry | None = None) 
     file vanishes from the graph.
     """
     registry = registry or Registry()
+    started = time.perf_counter()
     intake = open_source(source, config)
+    intake_done = time.perf_counter()
     # The limit covers indexing only: a slow clone must not use up the parse budget.
     deadline = Deadline(config.max_seconds)
     discovery = discover(intake.root, config, registry.tier_for, deadline)
+    discover_done = time.perf_counter()
     sha = intake.commit_sha or content_sha(discovery.files)
     snapshot_id = make_snapshot_id(intake.repo, sha)
     results: dict[str, ParseResult] = {}
@@ -62,7 +67,12 @@ def parse_source(source: str, config: Config, registry: Registry | None = None) 
         source=intake.source,
         limits_hit=tuple(sorted(limits)),
     )
-    return Parsed(intake, discovery, snapshot, results)
+    seconds = {
+        "intake": intake_done - started,
+        "discover": discover_done - intake_done,
+        "parse": time.perf_counter() - discover_done,
+    }
+    return Parsed(intake, discovery, snapshot, results, seconds)
 
 
 def parse_file(

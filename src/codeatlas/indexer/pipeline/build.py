@@ -18,6 +18,7 @@ named in the `BuildResult`.
 
 from __future__ import annotations
 
+import time
 from collections import Counter
 from collections.abc import Sequence
 from dataclasses import dataclass, field, replace
@@ -43,6 +44,14 @@ from codeatlas.store import GraphStore
 EXTERNAL_PREFIX = "::external:"
 
 
+class AlreadyIndexed(ValueError):
+    """The snapshot of this commit is stored; `index_repository` returns its saved report."""
+
+    def __init__(self, snapshot_id: str) -> None:
+        super().__init__(f"{snapshot_id} is already indexed; pass replace_existing=True")
+        self.snapshot_id = snapshot_id
+
+
 @dataclass(slots=True)
 class BuildResult:
     """What one build did, for the CLI, the report and the tests."""
@@ -56,6 +65,7 @@ class BuildResult:
     problems: list[str] = field(default_factory=list)
     languages_without_resolver: list[str] = field(default_factory=list)
     analyzers: list[object] = field(default_factory=list)
+    seconds: dict[str, float] = field(default_factory=dict)  # one entry per step, plus total
 
     @property
     def snapshot_id(self) -> str:
@@ -75,27 +85,38 @@ def build_graph(
     `replace_existing`, which deletes it first.
     """
     config = config or Config()
+    started = time.perf_counter()
     parsed = parse_source(source, config, registry)
     result = BuildResult(parsed)
+    result.seconds.update(parsed.seconds)
     snapshot_id = parsed.snapshot.id
     if store.get_snapshot(snapshot_id) is not None:
         if not replace_existing:
-            raise ValueError(f"{snapshot_id} is already indexed; pass replace_existing=True")
+            raise AlreadyIndexed(snapshot_id)
         store.delete_snapshot(snapshot_id)
 
     results = [_record_problems(r) for r in parsed.results.values()]
+    mark = time.perf_counter()
     repo_nodes, repo_edges = _repository_layer(parsed, config, result)
     results = _with_package_keys(results, repo_edges)
     file_nodes = [n for r in results for n in r.nodes]
+    result.seconds["repo_layer"] = time.perf_counter() - mark
+    mark = time.perf_counter()
 
     store.create_snapshot(parsed.snapshot)
     store.write_files(snapshot_id, parsed.discovery.files)
     result.nodes_written = store.write_nodes([*file_nodes, *repo_nodes])
     result.raw_calls = store.write_raw_calls(snapshot_id, [c for r in results for c in r.calls])
 
+    result.seconds["write"] = time.perf_counter() - mark
+    mark = time.perf_counter()
     index = store.symbol_index(snapshot_id)
     resolved = _run_resolvers(results, index, result)
+    result.seconds["resolve"] = time.perf_counter() - mark
+    mark = time.perf_counter()
     link_nodes, linked = _run_linkers(results, index, snapshot_id, result)
+    result.seconds["link"] = time.perf_counter() - mark
+    mark = time.perf_counter()
     if link_nodes:
         result.nodes_written += store.write_nodes(link_nodes)
 
@@ -107,6 +128,9 @@ def build_graph(
         known.update(n.id for n in externals)
     result.edges_written = store.write_edges(snapshot_id, _valid(edges, known, result))
     result.resolved_calls = store.mark_resolved_calls(snapshot_id)
+    result.seconds["write"] += time.perf_counter() - mark
+    # Total covers every step, parsing included (the clone is in `intake`).
+    result.seconds["total"] = time.perf_counter() - started
     return result
 
 
