@@ -55,11 +55,20 @@ so `codeatlas scan` reports TypeScript, TSX and JavaScript files at the deep tie
 - **`require("x")` and `import("x")` with a literal are imports, not calls.** Python's
   `import` is not a call either, and counting them as unresolved calls would only add
   noise. `require(name)` with a variable is still a call: nothing can be said about it.
+  Every literal `require` is an import wherever it sits: bound (`const x = require("x")`),
+  or not (`require("dotenv").config()`, `app.use(require("./routes"))`,
+  `module.exports = require("./x")`); the review found 20% of real requires in the
+  unbound shapes.
 - **Routes refuse what looks like a request.** `axios.get("/users", config)` has the same
   shape as `app.get("/users", handler)`. Names known to be axios clients (`axios` and any
   `axios.create` result) are excluded, the path must be a literal starting with `/`, and
-  at least one handler must follow it, so `app.get("title")` (an Express setting) is not a
-  route.
+  the last argument must not be a plain value (an object, string, number and so on), so
+  `api.get("/users", { params })` on an imported client and `cache.get("/k", 1)` are not
+  routes. `app.get("title")` (an Express setting) fails twice: no leading `/`, and no
+  handler after it; `cache.get("key", fallback)` is rejected by the `/` rule alone.
+- **Class expressions are classes.** `module.exports = class Repo extends Base {}` is a
+  CLASS named `Repo`, and `const Svc = class {}` is a CLASS named by its variable, so
+  their methods and calls are not credited to the module.
 - **Inline and imported handlers use the module key.** A route's `handler_key` is the key
   of a function only when the handler is an identifier naming a top-level function in the
   same file. An inline arrow has no name, and an imported handler's key is only known after

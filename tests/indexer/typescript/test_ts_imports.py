@@ -37,3 +37,21 @@ def test_commonjs_require() -> None:
 def test_commonjs_exports_mark_functions_exported() -> None:
     load = parse_sample("require.cjs").nodes[1]
     assert (load.key, load.attrs["exported"]) == ("web/require.cjs::load", True)
+
+
+def test_unbound_requires_are_still_imports() -> None:
+    """A literal require anywhere is a dependency, bound to a name or not."""
+    from codeatlas.indexer.languages.typescript.adapter import JavaScriptAdapter
+
+    source = b"""require("dotenv").config();
+const log = require("debug")("app");
+app.use(require("./routes"));
+module.exports = require("./x");
+const a = __importDefault(require("axios"));
+"""
+    result = JavaScriptAdapter().parse("a.js", source, "s@0")
+    assert [(i.target, i.line) for i in result.imports] == [
+        ("dotenv", 1), ("debug", 2), ("./routes", 3), ("./x", 4), ("axios", 5),
+    ]
+    assert all(i.alias is None and i.names == () for i in result.imports)
+    assert "require" not in [c.name for c in result.calls]  # an import, not a call

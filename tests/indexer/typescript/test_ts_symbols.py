@@ -153,3 +153,28 @@ def test_repeated_test_names_get_distinct_keys() -> None:
     assert keys[0].startswith("__tests__/a.js::A > works#")
     assert keys[1] == keys[0] + "-2"
     assert {n.attrs["test_id"] for n in result.nodes[1:]} == {"A > works"}
+
+
+def test_non_utf8_bytes_do_not_lose_the_file() -> None:
+    from codeatlas.indexer.languages.typescript.adapter import TypeScriptAdapter
+
+    result = TypeScriptAdapter().parse(
+        "a.ts", b'class A extends B<"caf\xe9"> { run() {} }\n', "s@0"
+    )
+    assert [n.qualname for n in result.nodes[1:]] == ["A", "A.run"]
+
+
+def test_class_expressions_become_classes() -> None:
+    from codeatlas.indexer.languages.typescript.adapter import JavaScriptAdapter
+
+    result = JavaScriptAdapter().parse("a.js", b"""module.exports = class Repo extends Base {
+  save() { helper(); }
+};
+const Svc = class {
+  run() {}
+};
+""", "s@0")
+    kinds = [(n.qualname, n.kind.value) for n in result.nodes[1:]]
+    assert kinds == [("Repo", "class"), ("Repo.save", "function"),
+                     ("Svc", "class"), ("Svc.run", "function")]
+    assert [(c.caller_key, c.name) for c in result.calls] == [("a.js::Repo.save", "helper")]

@@ -162,6 +162,9 @@ class _Walker:
         kind = node.type
         if kind in CLASS_TYPES or (kind == "class" and _is_default_export(node)):
             return self._class(node, context)
+        if kind == "class" and self._name(node) and not _bound_by_declarator(node):
+            # A named class expression: `module.exports = class Repo extends Base {}`.
+            return self._class(node, context)
         if kind == "interface_declaration":
             self._interface(node, context)
         elif kind in FUNCTION_DECLARATIONS:
@@ -185,8 +188,8 @@ class _Walker:
 
     # Classes and interfaces
 
-    def _class(self, node: TSNode, context: _Context) -> _Context:
-        name = self._name(node) or ("default" if _is_default_export(node) else None)
+    def _class(self, node: TSNode, context: _Context, name: str | None = None) -> _Context:
+        name = name or self._name(node) or ("default" if _is_default_export(node) else None)
         if name is None:
             return context
         statement = _statement(node)
@@ -278,6 +281,8 @@ class _Walker:
             return self._function(
                 node, start, name, name, context, statement, exported, span_node=start
             )
+        if value.type == "class":  # `const Svc = class {}`: named by its variable
+            return self._class(value, context, name)
         if value.type == "object" and exported:
             self._object_methods(value, name, context)
         return context
@@ -420,7 +425,8 @@ def _class_bases(node: TSNode, source: bytes) -> list[str]:
                 value = clause.child_by_field_name("value")
                 if value is not None:
                     end = clause.end_byte
-                    bases.append(" ".join(source[value.start_byte : end].decode().split()))
+                    text = source[value.start_byte : end].decode("utf-8", "replace")
+                    bases.append(" ".join(text.split()))
             elif clause.type == "implements_clause":
                 bases.extend(syntax.text(t, source) for t in clause.named_children)
             elif clause.type != "comment":  # JavaScript: `extends Base`
@@ -526,3 +532,8 @@ def _commonjs_names(statement: TSNode, source: bytes) -> set[str]:
             if value is not None and value.type == "identifier":
                 names.add(syntax.text(value, source))
     return names
+
+
+def _bound_by_declarator(node: TSNode) -> bool:
+    """`const Svc = class X {}` is named by `_module_variable`; do not add it twice."""
+    return node.parent is not None and node.parent.type == "variable_declarator"
