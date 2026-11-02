@@ -200,19 +200,43 @@ def _drop_excluded(paths: list[str]) -> tuple[list[str], list[SkippedPath]]:
 
 
 def _git_ls_files(root: Path) -> list[str] | None:
-    """Tracked plus untracked-but-not-ignored files, or None when `root` is not in git."""
-    command = [
-        "git", "-c", "core.fsmonitor=false", "-C", str(root),
-        "ls-files", "-z", "--cached", "--others", "--exclude-standard",
-    ]
+    """Tracked plus untracked-but-not-ignored files, or None to walk the folder instead.
+
+    Git mode is used only when `root` is the top level of its own repository. A folder
+    inside someone else's repository (an untracked project in a home folder that is a
+    git repository, say) would otherwise lose every file the outer repository ignores
+    or does not track, so it is walked with its own `.gitignore` rules instead.
+    """
+    if not _is_repo_top_level(root):
+        return None
+    done = _run_git(root, "ls-files", "-z", "--cached", "--others", "--exclude-standard")
+    if done is None:
+        return None
+    paths = {p for p in done.decode("utf-8", "surrogateescape").split("\0") if p}
+    return sorted(paths)
+
+
+def _is_repo_top_level(root: Path) -> bool:
+    done = _run_git(root, "rev-parse", "--show-toplevel")
+    if done is None:
+        return False
+    top = done.decode("utf-8", "surrogateescape").strip()
+    return bool(top) and _same_path(Path(top), root)
+
+
+def _same_path(a: Path, b: Path) -> bool:
+    """Equal after resolving links, ignoring case where the OS does (Windows)."""
+    return os.path.normcase(a.resolve()) == os.path.normcase(b.resolve())
+
+
+def _run_git(root: Path, *args: str) -> bytes | None:
+    """Stdout of a read-only git command in `root`, or None if git fails or is missing."""
+    command = ["git", "-c", "core.fsmonitor=false", "-C", str(root), *args]
     try:
         done = subprocess.run(command, capture_output=True, timeout=120, check=False)
     except (OSError, subprocess.TimeoutExpired):
         return None
-    if done.returncode != 0:
-        return None
-    paths = {p for p in done.stdout.decode("utf-8", "surrogateescape").split("\0") if p}
-    return sorted(paths)
+    return done.stdout if done.returncode == 0 else None
 
 
 def _walk(root: Path) -> tuple[list[str], list[SkippedPath]]:

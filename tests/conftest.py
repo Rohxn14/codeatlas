@@ -24,6 +24,16 @@ def git(cwd: Path, *args: str) -> str:
     return done.stdout.strip()
 
 
+@pytest.fixture(autouse=True)
+def git_stays_in_tmp_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Stop git from searching above the test's temporary folder.
+
+    Without this, a test folder under a home directory that is itself a git repository
+    (common on Windows) is seen as part of that repository.
+    """
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))
+
+
 @pytest.fixture
 def make_repo(tmp_path: Path) -> Callable[[dict[str, str]], Path]:
     """Create a git repository with the given files committed; returns its folder."""
