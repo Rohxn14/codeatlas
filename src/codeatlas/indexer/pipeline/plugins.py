@@ -10,7 +10,14 @@ from __future__ import annotations
 import importlib
 from dataclasses import dataclass
 
-RESOLVERS: dict[str, str] = {}
+# Filled in ahead of the Wave 2 tasks that build them, so parallel sessions never edit
+# this file. Until a task merges, its entry fails to import and the build reports it as
+# "not loaded", which is true.
+RESOLVERS: dict[str, str] = {
+    "python": "codeatlas.indexer.languages.python.resolver:PythonResolver",  # T06
+    "typescript": "codeatlas.indexer.languages.typescript.resolver:TypeScriptResolver",  # T07
+    "structural": "codeatlas.indexer.structural:StructuralResolver",  # T16
+}
 LINKERS: dict[str, str] = {}
 
 

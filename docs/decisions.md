@@ -17,9 +17,9 @@ Every design decision lands here: the question, the decision, and why. When a pu
 | D-09 | The MCP server is built with the agent tools in T09 | Same tools, one extra entry point; lets the owner practise giving an agent his own tools | 2026-10-29 |
 | D-10 | The SCIP oracle runs on Linux only (cloud sessions, CI or WSL), never on Windows | scip-python crashes on Windows: it builds a RegExp from `path.sep`; the upstream fix (PR #211) was closed unmerged. Patching the installed copy would make the answer key unreproducible | 2026-10-30 |
 
-## Proposed on Oct 30: confirm on Day 2
+## Proposed on Oct 30 and Nov 2: confirm when you review
 
-From the Wave 1 reviews and the Wave 2 plan. For each, write "yes", "no" or your change after **Your call**; then move the ones you accept into the Decided table above. Five of them change `docs/contract.md`: the exact text to add is under "Contract text" below. None of them changes `models.py`.
+From the Wave 1 reviews and the Wave 2 plan. For each, write "yes", "no" or your change after **Your call**; then move the ones you accept into the Decided table above. Five of them change `docs/contract.md`; that text has been added there (Nov 2), and is repeated under "Contract text" below. None of them changes `models.py`.
 
 | # | Proposal | Why | Affects |
 | --- | --- | --- | --- |
@@ -33,7 +33,12 @@ From the Wave 1 reviews and the Wave 2 plan. For each, write "yes", "no" or your
 | D-18 | Wave 2 changes: a new task T18 (pipeline, `codeatlas index`, `view`, `export`) runs first, and `codeatlas index` moves there from T09; T06, T07 and T16 write a plan and stop for review before building; incremental re-indexing moves to the local phase | Nothing joins the Wave 1 parts yet, the owner cannot see results, and every resolver needs the pipeline to score itself. Re-parsing is cheap (583 files in 5.5 s), so incremental indexing saves little now | Wave 2 briefs |
 | D-19 | Something outside the repository has the key `::external:{dotted name}` (empty path, like the implicit package); resolvers return edges to such keys, and the pipeline creates one EXTERNAL node per key | The contract's `Resolver` returns edges only, so resolvers cannot create the EXTERNAL nodes the contract's edge table points at | T18, T06, T07, T16, the contract |
 
-**Your call**: D-11: · D-12: · D-13: · D-14: · D-15: · D-16: · D-17: · D-18: · D-19:
+| D-20 | The question-answering benchmark (SWE-QA, CodeRepoQA) moves to after Nov 4; the agent's `run_tests` tool is not built, since the agent never runs repository code | Credit goes to the acceptance suite, co-change and mutation truth, which T12 needs; `run_tests` would break the safety rule | T09, T10 |
+| D-21 | The pipeline core (`build_graph`) was built in the review session, with every resolver pre-registered in `plugins.py`, so all of Wave 2 runs in parallel | The resolvers, search, agent and harness all need a pipeline to measure themselves; waiting for T18 would cost a day | T18 (smaller), all of Wave 2 |
+
+**Applied on Nov 2, before your review, so Wave 2 could start**: D-11 (T01 fix), D-12 (T15 fix), D-13, D-14, D-19 (pipeline core), D-15, D-16 (contract text), D-17 (T04 fix), D-21. Each is one commit in the "Wave 1 review fixes" pull request and can be reversed. D-18 and D-20 are plan changes.
+
+**Your call**: D-11: · D-12: · D-13: · D-14: · D-15: · D-16: · D-17: · D-18: · D-19: · D-20: · D-21:
 
 ### Contract text (for the decisions you accept)
 

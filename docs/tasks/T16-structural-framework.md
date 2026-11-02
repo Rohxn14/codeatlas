@@ -1,6 +1,6 @@
 # T16: Structural framework, with Java and Go first
 
-**Wave**: 2 (after T18, parallel with T06 and T07)
+**Wave**: 2 (all of Wave 2 runs in parallel)
 **Branch**: keep the one the cloud environment gives you
 
 ## Goal
@@ -13,18 +13,20 @@ Today the structural tier finds definitions and calls in twelve languages but re
 
 One import-scoped resolver serves every language that has a profile, and every other structural language gets name-guess resolution, so each language has some CALLS edges. Java and Go are the first two profiles. The procedure is written down as an add-language skill, so later sessions (T17a, T17b) and the owner add a language by following it.
 
-## Work in two phases
+## Plan first, then build
 
-**Phase 1, plan (then stop).** Read this brief, `docs/contract.md` (sections 3, 5 and 7), `src/codeatlas/indexer/generic/adapter.py`, `src/codeatlas/indexer/queries/README.md`, and T15's manifests code for Go module paths. Write `docs/plans/T16.md`, at most about one page: the capture names imports queries will use, the shape of a resolution profile (as a Protocol or a small dataclass), how the resolver uses it with one Java and one Go example, your answers to "Decide in your plan", the tests, and what you expect to get wrong. Commit, push, open a draft pull request titled `T16: Structural framework (Java, Go)`, and stop with the message "Plan ready for review". Write no framework code until the owner replies.
+Before writing code, write `docs/plans/T16.md` (at most about one page) as described below, and commit it as your first commit. Then build without waiting: the owner reviews plans and code together at the end of the day, and the plan is how he follows your reasoning. If a decision in the plan turns out wrong while building, update the plan in the same commit as the change.
 
-**Phase 2, build.** When the owner replies, run `git pull origin main` first, apply the owner's changes to the plan, then build.
+The plan covers: the approach and its data structures; the rule for each resolution level with one real example from the fixture (or your samples); your answers to "Decide in your plan" below, each with one line of why; the tests; and what you expect to get wrong.
+
+The pipeline exists (`src/codeatlas/indexer/pipeline/`; read `docs/explainers/pipeline.md`): your resolver's entry is already in `plugins.py`, so once the class exists `build_graph` runs it. Measure with `python scripts/score_fixture.py`, which indexes the fixture and scores it against the hand labels (`--truth eval/oracle/references/oracle_polyglot_app_061bf641daff.json` scores against the SCIP oracle). Resolvers return edges only: point an edge at `::external:<name>` for something outside the repository and the pipeline creates the EXTERNAL node (contract section 4).
 
 ## Files you may create or edit
 
 - `src/codeatlas/indexer/structural/` (new package): the resolver and the profiles
 - `src/codeatlas/indexer/generic/adapter.py`: run an imports query when one exists and emit `RawImport`s; fix `_signature` (below). T01 and T02 import `module_node`, `syntax_errors`, `_Definition` and `_duplicate_suffixes` from this file: keep those names and their behaviour.
 - `src/codeatlas/indexer/queries/java/`, `src/codeatlas/indexer/queries/go/`, `src/codeatlas/indexer/queries/README.md`
-- Registration: one line in `RESOLVERS` in `src/codeatlas/indexer/pipeline/plugins.py`: `"structural": "codeatlas.indexer.structural:StructuralResolver"`. T06 and T07 add lines to the same dictionary in parallel, so change nothing else in that file.
+- Registration is already done: `RESOLVERS` in `src/codeatlas/indexer/pipeline/plugins.py` has the entry `"structural": "codeatlas.indexer.structural:StructuralResolver"`. Make that import path work and do not edit `plugins.py`.
 - `.claude/skills/add-language/SKILL.md`
 - `tests/indexer/structural/`, `tests/data/structural/`, and existing tests of the generic adapter where `_signature` changes them
 - `docs/plans/T16.md`, `docs/explainers/structural-tier.md`
@@ -76,4 +78,4 @@ In the pull request: precision and recall per edge kind on the Java and Go sampl
 
 ## Done when
 
-Tests pass on Linux and Windows CI; the plan was approved and is committed; scores are in the pull request; the skill exists; the explainer covers the three pieces, the resolver's steps with a Go worked example, and which languages have which depth.
+Tests pass on Linux and Windows CI; the plan is committed; scores are in the pull request; the skill exists; the explainer covers the three pieces, the resolver's steps with a Go worked example, and which languages have which depth.

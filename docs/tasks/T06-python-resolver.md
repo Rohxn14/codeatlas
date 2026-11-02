@@ -1,30 +1,24 @@
 # T06: Python resolver (deep tier)
 
-**Wave**: 2 (after T18)
+**Wave**: 2 (all of Wave 2 runs in parallel)
 **Branch**: keep the one the cloud environment gives you
 
 ## Goal
 
 Turn the Python adapter's raw imports and calls (T01) into IMPORTS, CALLS, INHERITS and TESTS edges, each with the resolution level and confidence the contract defines, and measure precision and recall on the fixture and against the SCIP oracle. This is the first piece the owner will rewrite as v2 after Nov 4, so the explainer and the plan matter as much as the code.
 
-## Work in two phases
+## Plan first, then build
 
-**Phase 1, plan (then stop).** Read this brief, `docs/contract.md` (sections 4, 5 and 7), `eval/fixtures/polyglot_app/LABELS.md` and the T01 adapter's output on the fixture's backend. Write `docs/plans/T06.md`, at most about one page:
+Before writing code, write `docs/plans/T06.md` (at most about one page) as described below, and commit it as your first commit. Then build without waiting: the owner reviews plans and code together at the end of the day, and the plan is how he follows your reasoning. If a decision in the plan turns out wrong while building, update the plan in the same commit as the change.
 
-- how module names map to files, with one example per kind of import in the fixture;
-- for each resolution level, the rule that picks it, with one real call from the fixture;
-- the decisions listed under "Decide in your plan" below, each with your choice and one line of why;
-- the tests you will write and how you will measure;
-- what you expect to get wrong.
+The plan covers: the approach and its data structures; the rule for each resolution level with one real example from the fixture (or your samples); your answers to "Decide in your plan" below, each with one line of why; the tests; and what you expect to get wrong.
 
-Commit it, push, open a draft pull request titled `T06: Python resolver`, and stop with the message "Plan ready for review". Write no resolver code until the owner replies.
-
-**Phase 2, build.** When the owner replies, first run `git pull origin main` (T18's pipeline may have merged since you started), apply the owner's changes to the plan, then build.
+The pipeline exists (`src/codeatlas/indexer/pipeline/`; read `docs/explainers/pipeline.md`): your resolver's entry is already in `plugins.py`, so once the class exists `build_graph` runs it. Measure with `python scripts/score_fixture.py`, which indexes the fixture and scores it against the hand labels (`--truth eval/oracle/references/oracle_polyglot_app_061bf641daff.json` scores against the SCIP oracle). Resolvers return edges only: point an edge at `::external:<name>` for something outside the repository and the pipeline creates the EXTERNAL node (contract section 4).
 
 ## Files you may create or edit
 
 - `src/codeatlas/indexer/languages/python/resolver/` (new package)
-- Registration: one line in `RESOLVERS` in `src/codeatlas/indexer/pipeline/plugins.py`: `"python": "codeatlas.indexer.languages.python.resolver:PythonResolver"`. T07 and T16 add lines to the same dictionary in parallel, so change nothing else in that file.
+- Registration is already done: `RESOLVERS` in `src/codeatlas/indexer/pipeline/plugins.py` has the entry `"python": "codeatlas.indexer.languages.python.resolver:PythonResolver"`. Make that import path work and do not edit `plugins.py`.
 - `tests/indexer/python/resolver/`, `tests/data/python_resolver/`
 - `docs/plans/T06.md`, `docs/explainers/python-resolver.md`
 
@@ -77,4 +71,4 @@ In the pull request:
 
 ## Done when
 
-Tests pass on Linux and Windows CI; the plan was approved and is committed; the scores are in the pull request; the explainer covers each resolution level with a worked example from the fixture, what the resolver cannot see (dynamic calls, duck typing), and what v2 could do about it. Incremental re-indexing is not part of this task (it moved to the local phase).
+Tests pass on Linux and Windows CI; the plan is committed; the scores are in the pull request; the explainer covers each resolution level with a worked example from the fixture, what the resolver cannot see (dynamic calls, duck typing), and what v2 could do about it. Incremental re-indexing is not part of this task (it moved to the local phase).

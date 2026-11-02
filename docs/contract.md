@@ -48,9 +48,11 @@ Define one constant:
 | module key | `{path}::` (empty qualname) | `backend/users.py::` | the file itself |
 | package key | `{manifest_path}::package:{name}` | `frontend/package.json::package:web-app` | a package declared by a manifest; the prefix keeps it apart from the manifest file's own module node |
 | node id | `{snapshot_id}/{key}` | `polyglot_app@3f2a9c1e5b7d/backend/users.py::UserService.save` | a symbol in one snapshot |
+| route key | `{path}::route:{METHOD} {path_pattern}` | `backend/routes.py::route:GET /api/users/{id}` | a ROUTE node; the path is the handler's file (D-15) |
+| external key | `::external:{name}` | `::external:requests.get` | something outside the repository; resolvers point edges at it and the pipeline creates its EXTERNAL node (D-19) |
 | citation | `{repo}@{sha[:12]}:{path}:{line}` | `polyglot_app@3f2a9c1e5b7d:backend/users.py:42` | answers the agent gives |
 
-**Qualname**: the dotted path inside the file. A method is `Class.method`; a nested function is `outer.inner`. A TypeScript test is its `describe` and `it`/`test` names joined with ` > `, for example `UserApi > fetches a user`.
+**Qualname**: the dotted path inside the file. A method is `Class.method`; a nested function is `outer.inner`. A TypeScript test is its `describe` and `it`/`test` names joined with ` > `, for example `UserApi > fetches a user`. A `#` right after a `.` is part of a name (a TypeScript private member, `A.#secret`); a `#` that follows a name starts the duplicate-name suffix (`Square.label#98f3`) (D-16).
 
 **Why both key and id**: the key survives a new commit, so the impact engine and the evaluation compare symbols across snapshots by key. The id is unique in the store.
 
@@ -89,7 +91,7 @@ Three helper functions, the only logic in `models.py`:
 
 | Member | Value | From → to |
 | --- | --- | --- |
-| `CONTAINS` | `"contains"` | Package → Module; Module → Class, Interface or Function; Class → method |
+| `CONTAINS` | `"contains"` | Package → Module; Module → Class, Interface or Function; Class → method or nested class; Function → nested function (D-14) |
 | `DEPENDS_ON` | `"depends_on"` | Package → Package (a manifest dependency inside the same repository) |
 | `IMPORTS` | `"imports"` | Module → Module, symbol or External |
 | `CALLS` | `"calls"` | Function or Test → Function or External |
@@ -166,7 +168,7 @@ Unresolved calls never become edges; they stay as raw calls, so the evaluation c
 | `owner_key` | `str \| None` | `None` | Key of the class for a method |
 | `attrs` | `dict[str, object]` | `{}` | Kind-specific extras, listed below |
 
-Common `attrs` keys: `decorators` (list of str), `is_async` (bool), `bases` (list of str, as written), `exported` (bool, TS), `test_id` (the runner's id), `http_method`, `path_pattern`, `framework` (routes), `package_key` (modules: the package that contains the file), `ecosystem`, `manifest`, `version` (packages: `npm`, `pypi`, `go`, `cargo`, `maven`, `gradle`, `nuget`, `composer`, ...).
+Common `attrs` keys: `decorators` (list of str), `is_async` (bool), `bases` (list of str, as written), `exported` (bool, TS), `test_id` (the runner's id), `http_method`, `path_pattern`, `framework` (routes), `package_key` (modules: the package that contains the file), `ecosystem`, `manifest`, `version` (packages: `npm`, `pypi`, `go`, `cargo`, `maven`, `gradle`, `nuget`, `composer`, ...), `role` (packages: `package`, `fixture` or `vendored`, D-12), `errors` (list of str: parse problems, on a module node, D-13), `skipped_reason` (str: why a file was not parsed, on a module node).
 
 ### `Edge`
 
