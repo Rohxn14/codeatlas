@@ -214,3 +214,21 @@ def test_nested_function_and_decorator() -> None:
 def test_one_edge_per_pair_at_the_first_line() -> None:
     files = {"x.py": "def a(): pass\n\ndef b():\n    a()\n    a()\n"}
     assert calls(run_resolver(files), "x.py::b") == [("x.py::b", "x.py::a", "direct", 1.0, 4)]
+
+
+def test_overloads_and_redefinitions_are_one_definition() -> None:
+    files = {
+        "o.py": (
+            "from typing import overload\n\n"
+            "class G:\n"
+            "    @overload\n    def command(self, a: int) -> int: ...\n"
+            "    @overload\n    def command(self, a: str) -> str: ...\n"
+            "    def command(self, a): pass\n\n"
+            "def helper(): pass\n"
+            "if True:\n    def helper(): pass\n\n"
+            "def use(x):\n    helper()\n    x.command(1)\n"
+        ),
+    }
+    rows = [r for r in calls(run_resolver(files), "o.py::use") if "external" not in r[1]]
+    assert len(rows) == 2
+    assert {(r[2], r[3]) for r in rows} == {("direct", 1.0), ("import_scoped", 1.0)}

@@ -62,12 +62,25 @@ class CallResolver:
         self.methods: dict[str, list[Node]] = {}
         self.functions: dict[str, list[Node]] = {}
         for table in tables.values():
-            for node in table.by_qualname.values():
-                if node.kind is NodeKind.FUNCTION and node.owner_key:
-                    self.methods.setdefault(node.name, []).append(node)
-                elif node.kind is NodeKind.FUNCTION and "." not in node.qualname:
-                    self.functions.setdefault(node.name, []).append(node)
+            self._add_pools(table)
         self._scope: dict[str, frozenset[str]] = {}
+
+    def _add_pools(self, table: ModuleTable) -> None:
+        """Name -> definitions. Overloads of one method count as a single candidate.
+
+        Three `@overload` stubs and the implementation are one method to a caller; counting
+        them as four would split the confidence and guess at the stubs.
+        """
+        last: dict[tuple[str, str, str], Node] = {}
+        for node in table.by_qualname.values():
+            if node.kind is NodeKind.FUNCTION:
+                parent = node.qualname.rpartition(".")[0]
+                last[(node.name, parent, "m" if node.owner_key else "f")] = node
+        for (name, parent, kind), node in last.items():
+            if kind == "m":
+                self.methods.setdefault(name, []).append(node)
+            elif not parent:
+                self.functions.setdefault(name, []).append(node)
 
     def resolve(self, call: RawCall, caller: Node) -> list[Target]:
         """Targets for one call made inside `caller` (empty means: leave it raw)."""

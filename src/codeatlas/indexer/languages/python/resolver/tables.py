@@ -66,12 +66,18 @@ def build_tables(
 
 
 def _add_definition(table: ModuleTable, node: Node) -> None:
+    """Index a node by qualname, and by plain name for lookups.
+
+    Overloads and conditional redefinitions get a `#hash` suffix in their qualname; a
+    caller writes only the plain name, and Python keeps the last definition, so the last
+    one wins here too.
+    """
     table.by_qualname[node.qualname] = node
-    parent, _, name = node.qualname.rpartition(".")
+    parent = node.qualname.rpartition(".")[0]
     if not parent:
-        table.defs[node.qualname] = node
+        table.defs[node.name] = node
     else:
-        table.nested.setdefault(parent, {})[name] = node
+        table.nested.setdefault(parent, {})[node.name] = node
 
 
 def module_paths(raw: RawImport, importer: str, own_root: str, project: Project) -> list[str]:
