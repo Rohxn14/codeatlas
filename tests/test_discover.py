@@ -81,7 +81,7 @@ def test_languages_and_tiers(tree: Path) -> None:
     by_path = {f.path: f for f in run(tree).files}
     assert (by_path["src/app.py"].language, by_path["src/app.py"].tier) == (
         "python",
-        Tier.STRUCTURAL,
+        Tier.DEEP,
     )
     assert by_path["src/web/App.tsx"].language == "tsx"
     assert by_path["src/web/util.js"].language == "javascript"
@@ -149,7 +149,7 @@ def test_binary_and_large_files_stay_as_text_records_with_reason(tmp_path: Path)
     (tmp_path / "ok.py").write_text("x = 1\n", encoding="utf-8")
     found = run(tmp_path, replace(Config(), max_file_bytes=100))
     tiers = {f.path: f.tier for f in found.files}
-    assert tiers == {"big.py": Tier.TEXT, "image.py": Tier.TEXT, "ok.py": Tier.STRUCTURAL}
+    assert tiers == {"big.py": Tier.TEXT, "image.py": Tier.TEXT, "ok.py": Tier.DEEP}
     assert found.skip_reasons["image.py"] == "binary"
     assert found.skip_reasons["big.py"].startswith("over max_file_bytes")
     assert "ok.py" not in found.skip_reasons
