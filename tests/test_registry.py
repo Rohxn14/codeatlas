@@ -58,7 +58,7 @@ def test_unknown_language_is_text() -> None:
 
 
 def test_typescript_inherits_javascript_patterns() -> None:
-    adapter = Registry().adapter_for("typescript")
+    adapter = Registry(deep={}).adapter_for("typescript")
     result = adapter.parse(
         "a.ts",
         b"interface Repo { save(): void }\nclass Svc { run() { helper(); } }\n",
