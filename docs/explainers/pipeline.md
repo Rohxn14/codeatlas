@@ -4,7 +4,7 @@
 
 `build_graph(source, store)` turns a folder or a GitHub URL into one stored snapshot: every file as a module node, every symbol the adapters found, containment, the repository layer (packages, test pairings, co-change), and whatever the registered resolvers and linkers add. `parse_source` is its first half and is what `codeatlas scan` uses. `scripts/score_fixture.py` runs the whole thing on the polyglot fixture and scores it against the hand labels.
 
-This is the core that Wave 2 builds on. T18 adds the index report, the `codeatlas index`, `view` and `export` commands, and the viewer; the resolvers (T06, T07, T16) and the linker (T11) plug in through `plugins.py`.
+T18 adds `index_repository` (build once, save a report), the commands `codeatlas index`, `view` and `export`, and the HTML viewer. The resolvers (T06, T07, T16) and the linker (T11) plug in through `plugins.py`.
 
 ## Why
 
@@ -30,9 +30,43 @@ Worked example, on a two-file repository: `app/service.py` defines `logged` with
 
 On the fixture today: CONTAINS precision and recall 1.0 (53 of 53), TESTS by naming convention 4 of 19, no CALLS or IMPORTS until T06 and T07 merge.
 
+## The index report (T18)
+
+`index_repository(source, config, db_path, force=False)` opens the store, calls `build_graph`, and counts what the *store* holds (so the report cannot disagree with the database). If `build_graph` raises `AlreadyIndexed` (a `ValueError` subclass, same message as before), the saved report is returned; `force` passes `replace_existing=True`. The commit is only known after intake, so a repeat run still reads the source once but does not parse it. If the report file was deleted, the commit is rebuilt to recreate it.
+
+It is saved as `<data_dir>/reports/<snapshot id with @ and / replaced by _>.json`. The acceptance suite (T10) reads it, so these names are stable:
+
+| Field | Content |
+| --- | --- |
+| `snapshot` | contract section 8 snapshot object |
+| `seconds` | `intake`, `discover`, `parse`, `repo_layer`, `write`, `resolve`, `link`, `total` |
+| `files` | `total`, `by_tier` (the tier that parsed it), `by_language`, `skipped` (`total`, `by_reason`) |
+| `nodes` | `total`, `by_kind` |
+| `edges` | `total`, `by_kind`, `by_resolution`, `dropped` (reason to count) |
+| `raw_calls` | `total`, `resolved`, `unresolved`, `unresolved_by_language` |
+| `problems` | `files_with_errors` (path, errors), `plugin_and_resolver_failures`, `languages_without_resolver` |
+| `repo_layer` | the output of `repo.summarize` |
+
+Timing lives in `BuildResult.seconds` (and `Parsed.seconds` for the first three steps); `write` includes the final edge write.
+
+## The commands
+
+- `codeatlas index <path-or-url> [--db PATH] [--force]`: runs the pipeline, prints a summary like `scan` and `Next: codeatlas view`.
+- `codeatlas view [--db PATH] [--snapshot ID] [--focus PATH_PREFIX] [--out FILE] [--no-open]`: writes `<data_dir>/view.html` (or `--out`) for the latest snapshot and opens it with `webbrowser` unless `--no-open`.
+- `codeatlas export [--db PATH] [--snapshot ID] --out FILE`: `GraphStore.export_json`, the contract section 8 JSON.
+
+The default database is `<data_dir>/codeatlas.db`. `view` and `export` fail with a clear message if there is no database or snapshot. The latest snapshot is the newest `indexed_at` over all repositories in the database.
+
+## The viewer (`view/`)
+
+`view/data.py` reads the store and builds one JSON object: snapshot, census (computed over the whole snapshot), packages with `DEPENDS_ON`, files, nodes, edges (as indexes into the node list), unresolved calls, problems, and `omitted`. `view/page.py` embeds it in one HTML string with its own CSS and JavaScript; `<` is escaped as `\u003c` so repository text cannot close the data tag, and the script uses `textContent` only, since names and docstrings are untrusted. cytoscape.js 3.30.2 from cdnjs draws the neighbourhood (depth 2, at most 150 nodes, edges coloured by kind and faded by confidence). If it does not load, the page says so and the explorer lists carry the same edges.
+
+Size cap: at most 30,000 nodes. Path-less nodes (packages, externals, routes) go in first, then whole files in path order until the cap, so a file is never half shown. Edges need both ends shown. What was left out is counted in `omitted` and shown in a banner with the `--focus <folder>` hint; `--focus` keeps files under one prefix. Unresolved calls are capped at 20,000 and counted the same way.
+
 ## Where
 
 - Reads: `indexer/intake.py`, `indexer/discover.py`, `indexer/registry.py` (adapters), `repo/` (`default_analyzers`).
 - Writes: `store/` (`GraphStore`), and reads back `symbol_index` for resolvers.
 - Contract types: `ParseResult`, `Node`, `Edge`, `Snapshot`, `FileRecord`, the `Resolver` and `Linker` protocols, `NodeKind.EXTERNAL`, `EdgeKind.CONTAINS`.
-- Used by: `codeatlas scan` (parsing only), `scripts/score_fixture.py`, and in Wave 2 the `index` command (T18), every resolver's measurement, search (T08), the agent (T09) and the eval harness (T10).
+- Also reads: `repo.summarize` (report), `GraphStore.export_json` (export).
+- Used by: `codeatlas index`, `view`, `export`, `codeatlas scan` (parsing only), `scripts/score_fixture.py`, and in Wave 2 the `index` command (T18), every resolver's measurement, search (T08), the agent (T09) and the eval harness (T10).
