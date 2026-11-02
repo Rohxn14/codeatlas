@@ -1,0 +1,315 @@
+{
+ "snapshot": {
+  "id": "go@expected",
+  "repo": "go",
+  "commit_sha": "",
+  "indexed_at": "",
+  "indexer_version": "hand-labelled",
+  "source": "tests/data/structural/go",
+  "limits_hit": []
+ },
+ "nodes": [
+  {
+   "key": "expected_graph.json::",
+   "kind": "module",
+   "language": "json",
+   "path": "expected_graph.json",
+   "span": {
+    "start_line": 1,
+    "end_line": 287
+   }
+  },
+  {
+   "key": "go.mod::",
+   "kind": "module",
+   "language": "text",
+   "path": "go.mod",
+   "span": {
+    "start_line": 1,
+    "end_line": 3
+   }
+  },
+  {
+   "key": "main.go::",
+   "kind": "module",
+   "language": "go",
+   "path": "main.go",
+   "span": {
+    "start_line": 1,
+    "end_line": 15
+   }
+  },
+  {
+   "key": "main.go::main",
+   "kind": "function",
+   "language": "go",
+   "path": "main.go",
+   "span": {
+    "start_line": 10,
+    "end_line": 15
+   }
+  },
+  {
+   "key": "report.go::",
+   "kind": "module",
+   "language": "go",
+   "path": "report.go",
+   "span": {
+    "start_line": 1,
+    "end_line": 10
+   }
+  },
+  {
+   "key": "report.go::report",
+   "kind": "function",
+   "language": "go",
+   "path": "report.go",
+   "span": {
+    "start_line": 5,
+    "end_line": 7
+   }
+  },
+  {
+   "key": "report.go::describe",
+   "kind": "function",
+   "language": "go",
+   "path": "report.go",
+   "span": {
+    "start_line": 9,
+    "end_line": 10
+   }
+  },
+  {
+   "key": "money/money.go::",
+   "kind": "module",
+   "language": "go",
+   "path": "money/money.go",
+   "span": {
+    "start_line": 1,
+    "end_line": 5
+   }
+  },
+  {
+   "key": "money/money.go::Format",
+   "kind": "function",
+   "language": "go",
+   "path": "money/money.go",
+   "span": {
+    "start_line": 3,
+    "end_line": 5
+   }
+  },
+  {
+   "key": "money/round.go::",
+   "kind": "module",
+   "language": "go",
+   "path": "money/round.go",
+   "span": {
+    "start_line": 1,
+    "end_line": 5
+   }
+  },
+  {
+   "key": "money/round.go::round",
+   "kind": "function",
+   "language": "go",
+   "path": "money/round.go",
+   "span": {
+    "start_line": 3,
+    "end_line": 5
+   }
+  },
+  {
+   "key": "store/store.go::",
+   "kind": "module",
+   "language": "go",
+   "path": "store/store.go",
+   "span": {
+    "start_line": 1,
+    "end_line": 17
+   }
+  },
+  {
+   "key": "store/store.go::Store",
+   "kind": "class",
+   "language": "go",
+   "path": "store/store.go",
+   "span": {
+    "start_line": 3,
+    "end_line": 5
+   }
+  },
+  {
+   "key": "store/store.go::New",
+   "kind": "function",
+   "language": "go",
+   "path": "store/store.go",
+   "span": {
+    "start_line": 7,
+    "end_line": 9
+   }
+  },
+  {
+   "key": "store/store.go::Store.Add",
+   "kind": "function",
+   "language": "go",
+   "path": "store/store.go",
+   "span": {
+    "start_line": 11,
+    "end_line": 14
+   }
+  },
+  {
+   "key": "store/store.go::Store.check",
+   "kind": "function",
+   "language": "go",
+   "path": "store/store.go",
+   "span": {
+    "start_line": 16,
+    "end_line": 17
+   }
+  },
+  {
+   "key": "store/store_test.go::",
+   "kind": "module",
+   "language": "go",
+   "path": "store/store_test.go",
+   "span": {
+    "start_line": 1,
+    "end_line": 8
+   }
+  },
+  {
+   "key": "store/store_test.go::TestAdd",
+   "kind": "function",
+   "language": "go",
+   "path": "store/store_test.go",
+   "span": {
+    "start_line": 5,
+    "end_line": 8
+   }
+  },
+  {
+   "key": "::external:fmt.Println",
+   "kind": "external",
+   "language": "go",
+   "path": "",
+   "span": {
+    "start_line": 1,
+    "end_line": 1
+   }
+  },
+  {
+   "key": "::external:fmt",
+   "kind": "external",
+   "language": "go",
+   "path": "",
+   "span": {
+    "start_line": 1,
+    "end_line": 1
+   }
+  },
+  {
+   "key": "::external:testing",
+   "kind": "external",
+   "language": "go",
+   "path": "",
+   "span": {
+    "start_line": 1,
+    "end_line": 1
+   }
+  }
+ ],
+ "edges": [
+  {
+   "src_key": "main.go::main",
+   "dst_key": "store/store.go::New",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "main.go::main",
+   "dst_key": "store/store.go::Store.Add",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "main.go::main",
+   "dst_key": "money/money.go::Format",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "main.go::main",
+   "dst_key": "report.go::report",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "report.go::report",
+   "dst_key": "report.go::describe",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "money/money.go::Format",
+   "dst_key": "money/round.go::round",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "store/store.go::Store.Add",
+   "dst_key": "store/store.go::Store.check",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "store/store_test.go::TestAdd",
+   "dst_key": "store/store.go::New",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "store/store_test.go::TestAdd",
+   "dst_key": "store/store.go::Store.Add",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "main.go::",
+   "dst_key": "store/store.go::",
+   "kind": "imports",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "main.go::",
+   "dst_key": "money/money.go::",
+   "kind": "imports",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "report.go::",
+   "dst_key": "store/store.go::",
+   "kind": "imports",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "main.go::main",
+   "dst_key": "::external:fmt.Println",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "main.go::",
+   "dst_key": "::external:fmt",
+   "kind": "imports",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "store/store_test.go::",
+   "dst_key": "::external:testing",
+   "kind": "imports",
+   "confidence": 1.0
+  }
+ ]
+}

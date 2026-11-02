@@ -1,0 +1,303 @@
+{
+ "snapshot": {
+  "id": "java@expected",
+  "repo": "java",
+  "commit_sha": "",
+  "indexed_at": "",
+  "indexer_version": "hand-labelled",
+  "source": "tests/data/structural/java",
+  "limits_hit": []
+ },
+ "nodes": [
+  {
+   "key": "expected_graph.json::",
+   "kind": "module",
+   "language": "json",
+   "path": "expected_graph.json",
+   "span": {
+    "start_line": 1,
+    "end_line": 281
+   }
+  },
+  {
+   "key": "src/main/java/app/Main.java::",
+   "kind": "module",
+   "language": "java",
+   "path": "src/main/java/app/Main.java",
+   "span": {
+    "start_line": 1,
+    "end_line": 18
+   }
+  },
+  {
+   "key": "src/main/java/app/Main.java::Main",
+   "kind": "class",
+   "language": "java",
+   "path": "src/main/java/app/Main.java",
+   "span": {
+    "start_line": 7,
+    "end_line": 18
+   }
+  },
+  {
+   "key": "src/main/java/app/Main.java::Main.run",
+   "kind": "function",
+   "language": "java",
+   "path": "src/main/java/app/Main.java",
+   "span": {
+    "start_line": 8,
+    "end_line": 14
+   }
+  },
+  {
+   "key": "src/main/java/app/Main.java::Main.helper",
+   "kind": "function",
+   "language": "java",
+   "path": "src/main/java/app/Main.java",
+   "span": {
+    "start_line": 16,
+    "end_line": 17
+   }
+  },
+  {
+   "key": "src/main/java/app/model/User.java::",
+   "kind": "module",
+   "language": "java",
+   "path": "src/main/java/app/model/User.java",
+   "span": {
+    "start_line": 1,
+    "end_line": 6
+   }
+  },
+  {
+   "key": "src/main/java/app/model/User.java::User",
+   "kind": "class",
+   "language": "java",
+   "path": "src/main/java/app/model/User.java",
+   "span": {
+    "start_line": 3,
+    "end_line": 6
+   }
+  },
+  {
+   "key": "src/main/java/app/service/UserService.java::",
+   "kind": "module",
+   "language": "java",
+   "path": "src/main/java/app/service/UserService.java",
+   "span": {
+    "start_line": 1,
+    "end_line": 22
+   }
+  },
+  {
+   "key": "src/main/java/app/service/UserService.java::UserService",
+   "kind": "class",
+   "language": "java",
+   "path": "src/main/java/app/service/UserService.java",
+   "span": {
+    "start_line": 6,
+    "end_line": 22
+   }
+  },
+  {
+   "key": "src/main/java/app/service/UserService.java::UserService.save",
+   "kind": "function",
+   "language": "java",
+   "path": "src/main/java/app/service/UserService.java",
+   "span": {
+    "start_line": 7,
+    "end_line": 12
+   }
+  },
+  {
+   "key": "src/main/java/app/service/UserService.java::UserService.validate",
+   "kind": "function",
+   "language": "java",
+   "path": "src/main/java/app/service/UserService.java",
+   "span": {
+    "start_line": 14,
+    "end_line": 15
+   }
+  },
+  {
+   "key": "src/main/java/app/service/UserService.java::UserService.log#65ee",
+   "kind": "function",
+   "language": "java",
+   "path": "src/main/java/app/service/UserService.java",
+   "span": {
+    "start_line": 17,
+    "end_line": 18
+   }
+  },
+  {
+   "key": "src/main/java/app/service/UserService.java::UserService.log#6500",
+   "kind": "function",
+   "language": "java",
+   "path": "src/main/java/app/service/UserService.java",
+   "span": {
+    "start_line": 20,
+    "end_line": 21
+   }
+  },
+  {
+   "key": "src/main/java/app/util/Format.java::",
+   "kind": "module",
+   "language": "java",
+   "path": "src/main/java/app/util/Format.java",
+   "span": {
+    "start_line": 1,
+    "end_line": 7
+   }
+  },
+  {
+   "key": "src/main/java/app/util/Format.java::Format",
+   "kind": "class",
+   "language": "java",
+   "path": "src/main/java/app/util/Format.java",
+   "span": {
+    "start_line": 3,
+    "end_line": 7
+   }
+  },
+  {
+   "key": "src/main/java/app/util/Format.java::Format.pad",
+   "kind": "function",
+   "language": "java",
+   "path": "src/main/java/app/util/Format.java",
+   "span": {
+    "start_line": 4,
+    "end_line": 6
+   }
+  },
+  {
+   "key": "src/main/java/app/util/Strings.java::",
+   "kind": "module",
+   "language": "java",
+   "path": "src/main/java/app/util/Strings.java",
+   "span": {
+    "start_line": 1,
+    "end_line": 7
+   }
+  },
+  {
+   "key": "src/main/java/app/util/Strings.java::Strings",
+   "kind": "class",
+   "language": "java",
+   "path": "src/main/java/app/util/Strings.java",
+   "span": {
+    "start_line": 3,
+    "end_line": 7
+   }
+  },
+  {
+   "key": "src/main/java/app/util/Strings.java::Strings.slug",
+   "kind": "function",
+   "language": "java",
+   "path": "src/main/java/app/util/Strings.java",
+   "span": {
+    "start_line": 4,
+    "end_line": 6
+   }
+  },
+  {
+   "key": "::external:java.util.Objects.requireNonNull",
+   "kind": "external",
+   "language": "java",
+   "path": "",
+   "span": {
+    "start_line": 1,
+    "end_line": 1
+   }
+  },
+  {
+   "key": "::external:java.util.Objects",
+   "kind": "external",
+   "language": "java",
+   "path": "",
+   "span": {
+    "start_line": 1,
+    "end_line": 1
+   }
+  }
+ ],
+ "edges": [
+  {
+   "src_key": "src/main/java/app/Main.java::Main.run",
+   "dst_key": "src/main/java/app/service/UserService.java::UserService.save",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/main/java/app/Main.java::Main.run",
+   "dst_key": "src/main/java/app/util/Strings.java::Strings.slug",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/main/java/app/Main.java::Main.run",
+   "dst_key": "src/main/java/app/util/Format.java::Format.pad",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/main/java/app/Main.java::Main.run",
+   "dst_key": "src/main/java/app/Main.java::Main.helper",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/main/java/app/service/UserService.java::UserService.save",
+   "dst_key": "src/main/java/app/service/UserService.java::UserService.validate",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/main/java/app/service/UserService.java::UserService.save",
+   "dst_key": "src/main/java/app/service/UserService.java::UserService.log#65ee",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/main/java/app/util/Format.java::Format.pad",
+   "dst_key": "src/main/java/app/util/Strings.java::Strings.slug",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/main/java/app/Main.java::",
+   "dst_key": "src/main/java/app/service/UserService.java::",
+   "kind": "imports",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/main/java/app/Main.java::",
+   "dst_key": "src/main/java/app/util/Strings.java::",
+   "kind": "imports",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/main/java/app/Main.java::",
+   "dst_key": "src/main/java/app/util/Format.java::",
+   "kind": "imports",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/main/java/app/service/UserService.java::",
+   "dst_key": "src/main/java/app/model/User.java::",
+   "kind": "imports",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/main/java/app/service/UserService.java::UserService.save",
+   "dst_key": "::external:java.util.Objects.requireNonNull",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/main/java/app/service/UserService.java::",
+   "dst_key": "::external:java.util.Objects",
+   "kind": "imports",
+   "confidence": 1.0
+  }
+ ]
+}
