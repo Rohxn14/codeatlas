@@ -49,7 +49,10 @@ reached, indexing stops, keeps what it has, and names the limit in `Snapshot.lim
   git already knows exactly which files belong to it and applies every `.gitignore`,
   global excludes and `.git/info/exclude` correctly. A folder *inside* some other
   repository is walked instead: an untracked project under a home folder that is itself
-  a git repository would otherwise lose every file the outer repository does not track. Untracked files that are not ignored are included
+  a git repository would otherwise lose every file the outer repository *ignores*.
+  Intake follows the same rule (`is_repo_top_level`): only a repository's top level gets
+  a commit SHA; any other folder is named by a hash of its files' contents. Untracked
+  files that are not ignored are included
   (`--others --exclude-standard`), so a local work in progress is scanned too. Outside git
   the code walks the folder and applies `.gitignore` files with `pathspec`, the same
   matching rules git uses.
