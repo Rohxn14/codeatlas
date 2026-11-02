@@ -33,7 +33,7 @@ An **indexer** walks one git commit (a snapshot). The **repository layer** works
 Sessions run on a small, fixed credit, so spend it on code, not on loops.
 
 - If an external service fails (an API call, a clone, a download, a tool install), try at most twice, then record the exact error in the pull request, continue with mocks or fixtures, and move on.
-- Do not stop to ask the owner about choices the brief leaves open: pick the simplest reasonable option and list it under "Questions for the owner". Stop only for a contract change. Sessions often run overnight, and a question left waiting wastes the night.
+- Do not stop to ask the owner about choices the brief leaves open: pick the simplest reasonable option and list it under "Questions for the owner". Stop only for a contract change, or where your brief asks you to stop after a plan for review. Sessions often run overnight, and a question left waiting wastes the night.
 - Run targeted tests while developing and the full suite once at the end; do not re-read large files you have already read.
 - Do not install tools beyond what `pyproject.toml` and the environment's setup script provide.
 

@@ -58,3 +58,61 @@ T00 is merged, so build on what exists:
 - **Keys for repeated names** must follow T00's rule, so a symbol gets the same key whichever tier parses it: `#` plus a short hash of the signature text, with an ordinal only when two signatures are identical. Import T00's helper for this from `generic/adapter.py` even though it is private, and do not edit that file; mention the import in the pull request.
 - **Tree-sitter positions**: read rows as `node.start_point[0]`, not `.row`; T00 found `.row` breaks on some tree-sitter versions.
 - **Sample files**: pytest does not collect anything under `tests/data/` (`collect_ignore` in `tests/conftest.py`), so snippet files named like tests are safe there.
+
+## Review of PR #6 (Oct 30)
+
+**Verdict**: merge after fixes. **Fixes**: issue #13. Paste it into the T01 session, wait for CI, then merge. Merge this before PR #8 (T02); both add lines to `DEEP_ADAPTERS`, and T02 resolves the conflict.
+
+**What the PR does**: `PythonAdapter`, a deep-tier adapter on tree-sitter, with one module per concern (definitions, tests, imports, calls, routes, HTTP calls). Every item in the brief is extracted and tested with exact assertions, and keys for repeated names reuse T00's own helper. It registers with one `DEEP_ADAPTERS` line and updates five T00 tests that assumed Python was structural (disclosed in the PR).
+
+| Check | Result | Evidence |
+| --- | --- | --- |
+| Scope | WARN | Also edits `tests/test_discover.py` and `tests/test_registry.py`: forced by the registration, minimal, disclosed |
+| Contract untouched | PASS | No diff in `models.py` or `indexer/adapter.py` |
+| Tests | PASS | 178 passed; 34 for the adapter |
+| Lint | PASS | `ruff check .` clean |
+| Mutation spot-check | PASS | 3 of 3 caught: the body check in `Scopes.caller_key`, the router prefix, the relative-import level |
+| Explainer | PASS | What, Why, How, Where; the worked example's output matches when run |
+| Brief coverage | PASS | `scan tests/data/python` reports `python deep`: 9 modules, 10 classes, 41 functions and tests, 50 calls, 1 syntax error |
+| Safety | PASS | Parses bytes only; no subprocess, exec, eval or import of repository code |
+| Silent gaps | WARN | A route whose path is not a literal is dropped without a record (accepted for now, question 9) |
+| Real code | PASS | No exceptions on 4,646 site-packages files (67 s): networkx 583 files in 5.5 s, 54,227 calls; no duplicate keys |
+
+**Must fix** (issue #13, part 1)
+1. `routes.py:87-98`: `patch` is an HTTP verb, so `@mock.patch("os.getcwd")` in a test file becomes a `PATCH` route through the FastAPI fallback. Common in real test suites; it would feed false routes to the linker (T11). Fix: a route path must be `""` or start with `/`.
+
+**Found while cross-checking with T05** (issue #13, part 2, decision D-11 in `docs/day2.md`)
+2. The fixture labels count `@logged` above `create_user` as a call from `create_user` to `logged`. This adapter records nothing for a bare `@logged` and credits `@deco(1)` to the module, so that edge can never exist, and the impact engine would miss that changing a decorator changes every function it wraps. The issue asks the session to credit function decorators to the decorated function.
+
+**Should fix** (issue #13, parts 3 and 4)
+3. `definitions.py:149`: CRLF docstrings keep `\r` on Python 3.11 and 3.12, so the same file gives a different docstring on Windows than on Linux.
+4. The explainer understates when deep and structural keys differ for repeated names: any comment between the colon and the body changes T00's signature text (59 of 4,646 files). The cause is in T00's `_signature`; see "Your small fix" in `docs/day2.md`.
+
+**Your decisions** (write your answer next to each)
+
+| # | Question | Recommendation |
+| --- | --- | --- |
+| 1 | Calls in decorators, defaults and class bodies go to the scope around the definition | Accept for defaults and class bodies; reverse it for function decorators (D-11) |
+| 2 | A test is any `test*` name, plus classes whose bases end in `TestCase` | Accept: pytest's defaults. A subclass of a local `BaseTest(TestCase)` is left to T06 |
+| 3 | Spans include decorators | Accept: editing a decorator should count as editing the function |
+| 4 | No framework evidence means `fastapi` | Accept only with must fix 1 |
+| 5 | Non-literal `methods=` gives `ANY`; `route` without `methods` gives `GET` | Accept |
+| 6 | `url_text` is the text inside the quotes | Accept; the linker brief (T11) must strip host prefixes such as `{BASE}` |
+| 7 | Extras: module docstring, `AsyncClient`, `with ... as`, `__future__` | Accept |
+| 8 | `callee_text` has line breaks removed | Accept |
+| 9 | Non-literal route paths dropped without a record | Accept for now; revisit in T11 |
+
+**Try it yourself** (PowerShell, after `gh pr checkout 6`)
+
+```powershell
+codeatlas scan tests/data/python                 # expect a row: python deep 9 10 0 41 50 1
+python -m pytest -q tests/indexer/python         # expect: 34 passed
+python -c "from pathlib import Path; from codeatlas.indexer.languages.python.adapter import PythonAdapter as A; r = A().parse('app/fastapi_routes.py', Path('tests/data/python/app/fastapi_routes.py').read_bytes(), 's@0'); print(*[(x.method, x.path_pattern) for x in r.routes], sep='\n')"
+```
+
+The last command prints 6 routes, from `('GET', '/health')` to `('GET', '/items/{item_id}')`, with the router's `/api/users` prefix applied in between.
+
+**Read these yourself**
+- `src/codeatlas/indexer/languages/python/definitions.py:152-174` (`Scopes.caller_key`): this one decision sets the caller of every call and HTTP call, and part 2 of the issue changes it.
+- `src/codeatlas/indexer/languages/python/routes.py:73-103`: how the framework is chosen from evidence, and where the fake-route bug comes from.
+- `src/codeatlas/indexer/languages/python/definitions.py:125-136`: how the adapter borrows T00's private key helper, its only coupling to T00's code.

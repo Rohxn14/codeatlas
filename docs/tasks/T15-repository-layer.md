@@ -98,3 +98,64 @@ All tests pass on Linux and Windows CI; the real-repository check is reported; t
 - **Parent repositories**: a test that runs git in a temporary folder must not see a git repository in a parent folder. The owner's home folder is one, and that broke a T00 test on his machine. In your git-based tests, set the environment variable `GIT_CEILING_DIRECTORIES` to the temporary folder's parent, for example in a fixture in `tests/repo/conftest.py`.
 - **Where to plug in**: `src/codeatlas/repo/__init__.py` exists with only a docstring; add `default_analyzers()` there.
 - **Sample files**: pytest does not collect anything under `tests/data/`, so sample repositories with files like `test_user.py` are safe there.
+
+## Review of PR #9 (Oct 30)
+
+**Verdict**: merge after fixes (one must fix, about 15 lines). **Fixes**: issue #16. Paste it into the T15 session (cross out part 5 first if you reject decision D-12), wait for CI, then merge.
+
+**What the PR does**: three `RepoAnalyzer`s that need no parser. Manifests become PACKAGE, CONTAINS and DEPENDS_ON for 8 ecosystems, parsed statically; test files are paired with source files by name (TESTS at 0.8, ties share it); `git log` gives directional CO_CHANGES edges, with each filter's removals counted. `summarize()` and `default_analyzers()` tie them together. Well built, thorough tests, an unusually good explainer.
+
+| Check | Result | Evidence |
+| --- | --- | --- |
+| Scope | PASS | 91 files, all inside the brief |
+| Contract untouched | PASS | No diff in `models.py` or `indexer/adapter.py` |
+| Tests | PASS | 239 passed (95 new); all 95 still pass with temp folders inside a parent git repository |
+| Lint | PASS | `ruff check .` clean |
+| Mutation spot-check | WARN | 11 of 14 caught; three survivors become tests in issue part 3 |
+| Explainer | PASS | A worked example per analyzer and a table of what each filter can wrongly remove |
+| Brief coverage | PASS | Every ecosystem, every pairing row, ambiguity, malformed manifests, every filter, a non-git folder, 4 real repositories |
+| Safety | PASS | Only read-only git (`rev-parse`, `log`); YAML with `safe_load`; `setup.py` read by regex, and a test proves it never runs |
+| Silent gaps | WARN | One bad manifest wipes out its ecosystem (must fix 1); an unreadable Go file is skipped without a record |
+
+**On this repository**: 71 files, 1 package (`codeatlas`, entry point `codeatlas = codeatlas.cli:main`), 5 of 14 test files paired, 0 co-change edges (only 7 commits; none pair reaches the support of 3). All three analyzers together take 0.03 s. Co-change becomes interesting on a repository with real history, such as click.
+
+**Must fix** (issue #16, part 1)
+1. `manifests.py:84-91`: an exception in one manifest drops every package of its ecosystem; the reviewer showed two `composer.json` files vanishing because one had a bad value. Catch errors per manifest, so the bad one still becomes a package carrying its warning.
+
+**Should fix** (issue #16, parts 2 to 4)
+1. Record why something was skipped (an unreadable file, git missing or timing out); today a missing git on Windows reads as "not a git repository".
+2. Tests for the three mutation survivors and CRLF `git log` output; one shared ceiling fixture in `tests/repo/conftest.py`.
+3. `repo/test_conventions.py` is itself classified as a test, so its test file can never pair with it.
+
+**Your decisions** (the PR's twelve, then two from the review; write your answer next to each)
+
+| # | Question | Recommendation |
+| --- | --- | --- |
+| 1 | `summarize` takes an optional `analyzers` parameter | Accept |
+| 2 | The implicit package also takes leftover files | Accept |
+| 3 | Every manifest is a package | Accept, with decision A |
+| 4 | Broken or nameless manifests still make a package | Accept |
+| 5 | Implicit package key `::package:<repo>` with an empty path | Accept; T18 checks the store and viewer handle it |
+| 6 | A shared name splits DEPENDS_ON confidence | Accept |
+| 7 | `source_commits` is a count | Accept |
+| 8 | Co-change only at a repository's top level | Accept |
+| 9 | Filter settings are constructor arguments | Accept; move them into `[history]` config later |
+| 10 | Pairing choices beyond the table | Accept, with should fix 3 |
+| 11 | Gradle projects named by project path | Accept |
+| 12 | Extra attrs (PSR-4 map, Go module path) | Accept; T16 confirms the shape |
+| A | Fixture and vendored manifests count as packages: this repository shows 31 packages, 30 from `tests/data/repo`, and a committed `vendor/` makes a library "internal" | Add `attrs["role"]` (package, fixture, vendored); no DEPENDS_ON into vendored; count real packages separately (D-12, issue part 5) |
+| B | Should Python test detection read `[tool.pytest] testpaths`? | No; should fix 3 is simpler |
+
+**Try it yourself** (PowerShell, after `gh pr checkout 9`)
+
+```powershell
+python -m pytest -q tests/repo
+python -c 'from pathlib import Path; from codeatlas.config import Config; from codeatlas.indexer.discover import discover; from codeatlas.indexer.registry import Registry; from codeatlas.models import make_snapshot_id; from codeatlas.repo import default_analyzers, summarize; r = Path.cwd(); f = discover(r, Config(), Registry().tier_for).files; a = default_analyzers(); out = [x.analyze(r, f, make_snapshot_id(r.name, 12 * str(0))) for x in a]; n = [y for o in out for y in o[0]]; e = [y for o in out for y in o[1]]; [print(v) for v in list(summarize(f, n, e, a).values())[1:]]'
+```
+
+Expect `95 passed`, then three lines: packages (31 in total, 30 from the test fixtures: decision A in action), test pairing (51 test files, 8 paired), and co-change (0 edges; the commit counts follow your local history).
+
+**Read these yourself**
+- `src/codeatlas/repo/cochange.py:92-159` (`_count`, `_edges`): the filter order and directional confidence the impact engine (T12) will weigh; compare with your answer to Q5.
+- `src/codeatlas/repo/test_conventions.py:194-222` (`_best_candidates`, `_rank`): this ranking decides every TESTS edge and every tie.
+- `src/codeatlas/repo/manifests.py:74-106, 177-198`: file ownership, the implicit package, and the guard behind must fix 1.

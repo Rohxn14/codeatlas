@@ -56,3 +56,53 @@ Deep Python or TypeScript extraction, the store, resolution of any kind, LLM cod
 ## Done when
 
 `codeatlas scan` works on this repository itself and on the generic test data; in the pull request, report whether `codeatlas scan https://github.com/pallets/click` worked from the cloud session (a failure there is information, not a blocker); CI is green on Linux and Windows; both explainers are written.
+
+## Review of PR #4 (Oct 30): git mode only at the repository root
+
+This follow-up fixes the bug you found on Windows: discovery listed files with git whenever any parent folder was a repository, so an untracked folder inside your home repository lost files.
+
+**Verdict**: merge after fixes. **Fixes**: issue #11. Paste it into the session that built PR #4, wait for CI to go green again, then merge.
+
+**What the PR does**: discovery uses `git ls-files` only when `git rev-parse --show-toplevel` is the scanned folder itself; any other folder (an untracked folder inside another repository, or a subfolder of a real one) is walked with the `.gitignore` files at or below it. An autouse test fixture sets `GIT_CEILING_DIRECTORIES`, and three tests are added. It merges cleanly with main's `collect_ignore` change in `tests/conftest.py`.
+
+| Check | Result | Evidence |
+| --- | --- | --- |
+| Scope | PASS | 4 files: `discover.py`, the explainer, `tests/conftest.py`, `tests/test_discover.py` |
+| Contract untouched | PASS | No diff in `models.py` or `indexer/adapter.py` |
+| Tests | WARN | 147 passed; with pytest's temp folder inside a repository that has a commit, `test_open_folder_outside_git` still fails (must fix 1) |
+| Lint | PASS | `ruff check .` clean |
+| Mutation spot-check | PASS | Deleting the top-level guard (`discover.py:210-211`) fails both new tests; changing `_same_path` to `a == b` survives (should fix 3) |
+| Explainer | PASS | Updated, with two wrong or stale sentences (should fix 2) |
+| Safety | PASS | Only read-only git (`rev-parse`, `ls-files`) |
+| Silent gaps | PASS | Every fallback walks the folder, which drops less; the CLI header says which mode ran |
+
+**Must fix** (issue #11, part 1)
+1. `tests/conftest.py:30`: git applies a ceiling only to folders strictly above it, so a ceiling at `tmp_path` does not stop `git -C tmp_path` from finding a parent repository. Set it to `tmp_path.parent`. Your home repository had no commits, which is why only one test failed on your machine; with a commit, more would. (You have since renamed it to `.git-disabled`, so your machine is safe either way.)
+
+**Should fix** (issue #11, parts 2 to 4)
+1. `intake.py:104`: a walked folder still records the outer repository's HEAD as its commit, so its snapshot id would be wrong. Record a SHA only at a repository's top level, using one shared helper.
+2. Docstrings and the explainer say the old bug lost files the outer repository "does not track"; it lost only files the outer repository *ignores* (`--others` lists untracked files).
+3. `_same_path` (`discover.py:227-229`), where Windows paths could go wrong, has no test.
+4. `tests/test_discover.py:132`: the file named `untracked_but_new.py` is actually committed.
+
+**Your decisions** (write your answer next to each)
+
+| # | Question | Recommendation |
+| --- | --- | --- |
+| 1 | Walk a subfolder of a repository too, instead of using git? | Accept: it never loses files. Watch for build folders (`target/`, `out/`) using up `max_files` |
+| 2 | Should the snapshot SHA follow the same top-level rule? | Yes (should fix 1) |
+| 3 | Keep the ceiling fixture autouse? | Yes, with the ceiling at `tmp_path.parent` |
+
+**Try it yourself** (PowerShell, after `gh pr checkout 4`)
+
+```powershell
+$d="$env:TEMP\ca-demo"; mkdir "$d\outer\project" -Force | Out-Null; git -C "$d\outer" init -q
+Set-Content "$d\outer\.gitignore" "*"; Set-Content "$d\outer\project\app.py" "def main(): pass"
+codeatlas scan "$d\outer\project"
+```
+
+Expected: the header says `(files listed by walk)` and the census has a row `python ... 1`. On the old main it said `listed by git` and the census was empty: the bug you hit.
+
+**Read these yourself**
+- `src/codeatlas/indexer/discover.py:202-239`: the top-level rule and `_same_path`, the part most likely to behave differently on Windows.
+- `src/codeatlas/cli.py:89-94` with `src/codeatlas/indexer/intake.py:101-104`: how the snapshot id is chosen, and why should fix 1 matters once the store keys everything by it.
