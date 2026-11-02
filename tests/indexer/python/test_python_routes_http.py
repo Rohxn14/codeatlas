@@ -91,3 +91,20 @@ def test_client_variables_are_scoped_to_their_function() -> None:
     )
     calls = PythonAdapter().parse("c.py", source, SNAPSHOT).http_calls
     assert [(c.caller_key, c.url_text) for c in calls] == [("c.py::a", "/a")]
+
+
+def test_mock_patch_decorators_are_not_routes() -> None:
+    """`patch` is an HTTP verb, but a route path always starts with "/"."""
+    source = b"""import unittest.mock
+from unittest import mock
+
+@mock.patch("os.getcwd")
+def test_cwd(getcwd):
+    pass
+
+@unittest.mock.patch("pkg.module.thing")
+def test_thing(thing):
+    pass
+"""
+    result = PythonAdapter().parse("tests/test_x.py", source, "s@0")
+    assert result.routes == ()
