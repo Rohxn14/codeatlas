@@ -10,7 +10,14 @@ from __future__ import annotations
 import re
 from collections.abc import Iterator
 
-from codeatlas.repo.ecosystems.base import Declared, Found, ManifestError, RepoView, Workspace
+from codeatlas.repo.ecosystems.base import (
+    Declared,
+    Found,
+    ManifestError,
+    RepoView,
+    Workspace,
+    guarded,
+)
 from codeatlas.repo.paths import is_under, join, parent
 
 ECOSYSTEM = "go"
@@ -22,12 +29,15 @@ _HEAD_BYTES = 16_384
 def find(view: RepoView) -> Found:
     found = Found()
     for manifest in view.named("go.mod"):
-        found.packages.append(_go_mod(view, manifest))
+        guarded(view, ECOSYSTEM, manifest, found,
+                lambda m=manifest: found.packages.append(_go_mod(view, m)))
     roots = [p.root for p in found.packages]
     for package in found.packages:
-        package.entry_points = _main_folders(view, package.root, roots)
+        package.entry_points = _main_folders(view, package.root, roots, package.warnings)
     for manifest in view.named("go.work"):
-        found.workspaces.append(_go_work(view, manifest))
+        guarded(view, ECOSYSTEM, manifest, found,
+                lambda m=manifest: found.workspaces.append(_go_work(view, m)),
+                workspace_only=True)
     return found
 
 
@@ -85,8 +95,14 @@ def _go_mod(view: RepoView, manifest: str) -> Declared:
     return package
 
 
-def _main_folders(view: RepoView, root: str, module_roots: list[str]) -> list[str]:
-    """Folders of this module (not of a nested one) with a non-test `package main` file."""
+def _main_folders(
+    view: RepoView, root: str, module_roots: list[str], warnings: list[str]
+) -> list[str]:
+    """Folders of this module (not of a nested one) with a non-test `package main` file.
+
+    A file that cannot be read is named in `warnings`, so a missing entry point has a
+    visible reason.
+    """
     nested = [r for r in module_roots if r != root and is_under(r, root)]
     folders: set[str] = set()
     for path in view.under(root):
@@ -98,7 +114,9 @@ def _main_folders(view: RepoView, root: str, module_roots: list[str]) -> list[st
         try:
             with view.root.joinpath(*path.split("/")).open("rb") as handle:
                 head = handle.read(_HEAD_BYTES)
-        except OSError:
+        except OSError as exc:
+            warnings.append(f"{path}: cannot read to look for package main: "
+                            f"{exc.strerror or exc}")
             continue
         if _PACKAGE_MAIN.search(head):
             folders.add(folder)

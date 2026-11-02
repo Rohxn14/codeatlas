@@ -9,7 +9,14 @@ from __future__ import annotations
 
 import json
 
-from codeatlas.repo.ecosystems.base import Declared, Found, ManifestError, RepoView, Workspace
+from codeatlas.repo.ecosystems.base import (
+    Declared,
+    Found,
+    ManifestError,
+    RepoView,
+    Workspace,
+    guarded,
+)
 from codeatlas.repo.paths import join, parent
 
 ECOSYSTEM = "composer"
@@ -23,7 +30,8 @@ def normalize(name: str) -> str:
 def find(view: RepoView) -> Found:
     found = Found()
     for manifest in view.named("composer.json"):
-        _composer(view, manifest, found)
+        guarded(view, ECOSYSTEM, manifest, found,
+                lambda m=manifest: _composer(view, m, found))
     return found
 
 
@@ -76,7 +84,11 @@ def _psr4(data: dict[str, object], root: str) -> dict[str, list[str]]:
         if not isinstance(psr4, dict):
             continue
         for prefix, folders in psr4.items():
-            for folder in [folders] if isinstance(folders, str) else folders or []:
+            if isinstance(folders, str):
+                folders = [folders]
+            elif not isinstance(folders, list):
+                continue  # `"App\\": 5` is not a folder list; skip it, keep the rest
+            for folder in folders:
                 target = join(root, folder) if isinstance(folder, str) else None
                 if target is not None and target not in mapping.setdefault(prefix, []):
                     mapping[prefix].append(target)

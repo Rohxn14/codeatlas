@@ -53,8 +53,11 @@ def _packages(nodes: Sequence[Node], edges: Sequence[Edge]) -> dict[str, object]
         found = package.attrs.get("warnings")
         if isinstance(found, list):
             warnings.extend(found)
+    by_role = Counter(str(p.attrs.get("role", "package")) for p in packages)
     return {
         "total": len(packages),
+        "real": by_role.get("package", 0),
+        "by_role": dict(sorted(by_role.items())),
         "by_ecosystem": dict(sorted(by_ecosystem.items())),
         "implicit": any(p.attrs.get("implicit") for p in packages),
         "internal_dependencies": sum(1 for e in edges if e.kind is EdgeKind.DEPENDS_ON),

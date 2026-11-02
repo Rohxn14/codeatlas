@@ -9,7 +9,14 @@ from __future__ import annotations
 
 import tomllib
 
-from codeatlas.repo.ecosystems.base import Declared, Found, ManifestError, RepoView, Workspace
+from codeatlas.repo.ecosystems.base import (
+    Declared,
+    Found,
+    ManifestError,
+    RepoView,
+    Workspace,
+    guarded,
+)
 from codeatlas.repo.paths import basename, child, join, parent
 
 ECOSYSTEM = "cargo"
@@ -24,7 +31,8 @@ def normalize(name: str) -> str:
 def find(view: RepoView) -> Found:
     found = Found()
     for manifest in view.named("Cargo.toml"):
-        _cargo_toml(view, manifest, found)
+        guarded(view, ECOSYSTEM, manifest, found,
+                lambda m=manifest: _cargo_toml(view, m, found))
     return found
 
 

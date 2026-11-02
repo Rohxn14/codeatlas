@@ -96,7 +96,7 @@ class CoChangeAnalyzer:
         changed: Counter[str] = Counter()
         together: Counter[tuple[str, str]] = Counter()
         removed: dict[str, set[str]] = {
-            "vendored": set(), "lockfile": set(), "generated": set(), "not_at_head": set(),
+            "vendored": set(), "lockfile": set(), "generated": set(), "not_in_snapshot": set(),
         }
         large = 0
         for paths in commits:
@@ -132,7 +132,7 @@ class CoChangeAnalyzer:
         if lowered.endswith(self.generated_suffixes) or ".generated." in lowered:
             return "generated"
         if path not in present:
-            return "not_at_head"
+            return "not_in_snapshot"
         return None
 
     def _edges(
@@ -166,9 +166,9 @@ def read_history(repo_root: Path, max_commits: int) -> History:
     sit inside another repository (a home folder under git, say) has no history of its
     own, and borrowing the outer one would invent co-changes.
     """
-    top = _git(repo_root, "rev-parse", "--show-toplevel")
+    top, why = _run_git(repo_root, "rev-parse", "--show-toplevel")
     if top is None:
-        return History(status="not a git repository")
+        return History(status=why)
     try:
         same = os.path.samefile(top.strip(), repo_root)
     except OSError:
@@ -178,12 +178,12 @@ def read_history(repo_root: Path, max_commits: int) -> History:
     if _git(repo_root, "rev-parse", "--verify", "--quiet", "HEAD") is None:
         return History(status="no commits")
     shallow = (_git(repo_root, "rev-parse", "--is-shallow-repository") or "").strip() == "true"
-    log = _git(
+    log, why = _run_git(
         repo_root, "log", "--no-merges", "--no-renames", "--name-only", "--no-color",
         f"--format={_COMMIT_MARK}%H", f"--max-count={max_commits}", "HEAD", "--",
     )
     if log is None:
-        return History(status="git log failed", shallow=shallow)
+        return History(status=f"git log failed: {why}", shallow=shallow)
     return History(commits=parse_log(log), shallow=shallow)
 
 
@@ -197,7 +197,15 @@ def parse_log(text: str) -> list[list[str]]:
 
 
 def _git(repo_root: Path, *args: str) -> str | None:
-    """stdout of a read-only git command, or None if git is missing or the command fails.
+    """stdout of a read-only git command, or None if git is missing or the command fails."""
+    return _run_git(repo_root, *args)[0]
+
+
+def _run_git(repo_root: Path, *args: str) -> tuple[str | None, str]:
+    """(stdout, "") on success, or (None, why it failed) so the summary can say why.
+
+    "git not found" (common on a Windows machine without git on PATH) must not read as
+    "not a git repository".
 
     `core.quotePath=off` prints non-ASCII paths as they are instead of octal escapes, so
     they match the snapshot's paths; `log.showSignature=false` keeps signature checks out
@@ -210,8 +218,16 @@ def _git(repo_root: Path, *args: str) -> str | None:
     ]
     try:
         done = subprocess.run(command, capture_output=True, timeout=_GIT_TIMEOUT, check=False)
-    except (OSError, subprocess.TimeoutExpired):
-        return None
+    except FileNotFoundError:
+        return None, "git not found: install git or put it on PATH"
+    except subprocess.TimeoutExpired:
+        return None, f"git timed out after {_GIT_TIMEOUT} s"
+    except OSError as exc:
+        return None, f"git could not start: {exc}"
     if done.returncode != 0:
-        return None
-    return done.stdout.decode("utf-8", "surrogateescape")
+        stderr = done.stderr.decode("utf-8", "replace").strip()
+        first = stderr.splitlines()[0] if stderr else f"exit status {done.returncode}"
+        if "not a git repository" in first:
+            return None, "not a git repository"
+        return None, first
+    return done.stdout.decode("utf-8", "surrogateescape"), ""

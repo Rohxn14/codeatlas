@@ -216,3 +216,15 @@ def test_sample_monorepos_pair_their_tests() -> None:
     assert found == {("lib/lib_test.go", "lib/lib.go", 0.8)}
     found, _ = pairs(SAMPLES / "php")
     assert found == {("tests/UserTest.php", "src/User.php", 0.8)}
+
+
+def test_go_test_pairs_only_in_its_own_folder(tmp_path: Path) -> None:
+    found, _ = pairs(tree(tmp_path, ["a/user_test.go", "b/user.go"]))
+    assert found == set()
+
+
+def test_test_named_module_outside_test_folders_can_be_tested(tmp_path: Path) -> None:
+    found, _ = pairs(tree(tmp_path, [
+        "src/pkg/test_conventions.py", "tests/pkg/test_test_conventions.py",
+    ]))
+    assert found == {("tests/pkg/test_test_conventions.py", "src/pkg/test_conventions.py", 0.8)}

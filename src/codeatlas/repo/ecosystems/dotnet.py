@@ -10,7 +10,14 @@ from __future__ import annotations
 import re
 import xml.etree.ElementTree as ET
 
-from codeatlas.repo.ecosystems.base import Declared, Found, ManifestError, RepoView, Workspace
+from codeatlas.repo.ecosystems.base import (
+    Declared,
+    Found,
+    ManifestError,
+    RepoView,
+    Workspace,
+    guarded,
+)
 from codeatlas.repo.paths import basename, join, parent
 
 ECOSYSTEM = "nuget"
@@ -27,9 +34,12 @@ def normalize(name: str) -> str:
 def find(view: RepoView) -> Found:
     found = Found()
     for manifest in view.with_suffix(*_PROJECT_SUFFIXES):
-        found.packages.append(_project(view, manifest))
+        guarded(view, ECOSYSTEM, manifest, found,
+                lambda m=manifest: found.packages.append(_project(view, m)))
     for solution in view.with_suffix(".sln", ".slnx"):
-        found.workspaces.append(_solution(view, solution))
+        guarded(view, ECOSYSTEM, solution, found,
+                lambda s=solution: found.workspaces.append(_solution(view, s)),
+                workspace_only=True)
     return found
 
 

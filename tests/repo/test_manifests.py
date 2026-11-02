@@ -142,6 +142,7 @@ def test_package_key_id_and_attrs() -> None:
         "manifest": "packages/api/package.json",
         "root": "packages/api",
         "entry_points": ["packages/api/src/index.js"],
+        "role": "package",
         "version": "1.2.0",
         "workspace": "package.json",
     }
@@ -341,3 +342,56 @@ def test_join(base: str, relative: str, expected: str | None) -> None:
 )
 def test_glob_matches(pattern: str, path: str, matches: bool) -> None:
     assert glob_matches(pattern, path) is matches
+
+
+def test_one_bad_manifest_costs_only_itself(tmp_path: Path) -> None:
+    root = write_tree(tmp_path, {
+        "good/composer.json": '{"name": "acme/good", "autoload": {"psr-4": {"Good\\\\": "src/"}}}',
+        "good/src/A.php": "<?php\n",
+        "bad/composer.json": '{"name": "acme/bad", "autoload": {"psr-4": {"App\\\\": 5}}}',
+        "bad/src/B.php": "<?php\n",
+    })
+    nodes, edges = analyze(root)
+    packages = by_name([n for n in nodes if n.kind is NodeKind.PACKAGE])
+    assert {"acme/good", "acme/bad"} <= set(packages)
+    assert owners(nodes, edges)["bad/src/B.php"] == "acme/bad"
+    assert packages["acme/bad"].attrs["autoload_psr4"] == {}  # the bad value is skipped
+
+
+def test_a_parser_bug_still_yields_the_manifests_package(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from codeatlas.repo.ecosystems import php
+
+    def broken(view, manifest, found):
+        found.packages.append(None)  # half-done work is discarded
+        raise RuntimeError("parser bug")
+
+    monkeypatch.setattr(php, "_composer", broken)
+    root = write_tree(tmp_path, {"lib/composer.json": "{}", "lib/x.php": "<?php\n"})
+    nodes, _ = analyze(root)
+    (lib,) = [n for n in nodes if n.kind is NodeKind.PACKAGE and n.name == "lib"]
+    assert any("parser bug" in w for w in lib.attrs["warnings"])
+
+
+def test_path_dependency_wins_over_the_same_name(tmp_path: Path) -> None:
+    root = write_tree(tmp_path, {
+        "app/package.json": '{"name": "app", "dependencies": {"lib": "file:../lib"}}',
+        "lib/package.json": '{"name": "lib"}',
+    })
+    _, edges = analyze(root)
+    (depends,) = [e for e in edges if e.kind is EdgeKind.DEPENDS_ON]
+    assert depends.attrs == {"via": "path"}
+
+
+def test_package_roles(tmp_path: Path) -> None:
+    root = write_tree(tmp_path, {
+        "composer.json": '{"name": "acme/app", "require": {"monolog/monolog": "^3"}}',
+        "vendor/monolog/monolog/composer.json": '{"name": "monolog/monolog"}',
+        "tests/data/demo/package.json": '{"name": "demo"}',
+        "src/A.php": "<?php\n",
+    })
+    nodes, edges = analyze(root)
+    roles = {n.name: n.attrs["role"] for n in nodes if n.kind is NodeKind.PACKAGE}
+    assert roles == {"acme/app": "package", "monolog/monolog": "vendored", "demo": "fixture"}
+    assert [e for e in edges if e.kind is EdgeKind.DEPENDS_ON] == []  # none into vendor/
