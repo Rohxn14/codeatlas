@@ -1,0 +1,7 @@
+{
+  "error": {
+    "message": "Rate limit reached for model openai/gpt-oss-20b",
+    "type": "tokens",
+    "code": "rate_limit_exceeded"
+  }
+}

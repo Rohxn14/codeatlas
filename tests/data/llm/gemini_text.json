@@ -1,0 +1,27 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "role": "model",
+        "parts": [
+          {
+            "text": "thinking...",
+            "thought": true
+          },
+          {
+            "text": "ok"
+          }
+        ]
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 10,
+    "candidatesTokenCount": 2,
+    "thoughtsTokenCount": 5,
+    "totalTokenCount": 17
+  },
+  "modelVersion": "gemini-3.8-flash"
+}

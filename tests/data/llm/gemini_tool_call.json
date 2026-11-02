@@ -1,0 +1,29 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "role": "model",
+        "parts": [
+          {
+            "functionCall": {
+              "name": "search_code",
+              "args": {
+                "query": "parse_args",
+                "limit": 5
+              }
+            },
+            "thoughtSignature": "c2lnLTE="
+          }
+        ]
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 70,
+    "candidatesTokenCount": 15,
+    "totalTokenCount": 85
+  },
+  "modelVersion": "gemini-3.8-flash"
+}

@@ -1,0 +1,31 @@
+{
+  "id": "chatcmpl-2",
+  "object": "chat.completion",
+  "created": 1761000000,
+  "model": "openai/gpt-oss-20b",
+  "choices": [
+    {
+      "index": 0,
+      "finish_reason": "tool_calls",
+      "message": {
+        "role": "assistant",
+        "content": null,
+        "tool_calls": [
+          {
+            "id": "call_abc",
+            "type": "function",
+            "function": {
+              "name": "search_code",
+              "arguments": "{\"query\": \"parse_args\", \"limit\": 5}"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 80,
+    "completion_tokens": 20,
+    "total_tokens": 100
+  }
+}
