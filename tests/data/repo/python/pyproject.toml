@@ -1,0 +1,10 @@
+[project]
+name = "acme"
+version = "1.0.0"
+dependencies = ["Acme_Core>=0.2", "requests[socks]>=2"]
+
+[project.scripts]
+acme = "acme.cli:main"
+
+[tool.uv.workspace]
+members = ["libs/*"]

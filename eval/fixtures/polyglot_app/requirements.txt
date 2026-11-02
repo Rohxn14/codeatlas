@@ -1,0 +1,4 @@
+# The fixture's own dependencies, for running its backend tests. Not CodeAtlas dependencies.
+fastapi>=0.110
+httpx>=0.27
+pytest>=8.0

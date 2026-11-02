@@ -1,0 +1,343 @@
+{
+ "overall": {
+  "tp": 41,
+  "fp": 2,
+  "fn": 124,
+  "precision": 0.9534883720930233,
+  "recall": 0.24848484848484848,
+  "f1": 0.3942307692307693
+ },
+ "by_kind": {
+  "calls": {
+   "tp": 41,
+   "fp": 2,
+   "fn": 4,
+   "precision": 0.9534883720930233,
+   "recall": 0.9111111111111111,
+   "f1": 0.9318181818181819
+  },
+  "calls_http": {
+   "tp": 0,
+   "fp": 0,
+   "fn": 6,
+   "precision": null,
+   "recall": 0.0,
+   "f1": null
+  },
+  "contains": {
+   "tp": 0,
+   "fp": 0,
+   "fn": 53,
+   "precision": null,
+   "recall": 0.0,
+   "f1": null
+  },
+  "handles": {
+   "tp": 0,
+   "fp": 0,
+   "fn": 3,
+   "precision": null,
+   "recall": 0.0,
+   "f1": null
+  },
+  "imports": {
+   "tp": 0,
+   "fp": 0,
+   "fn": 37,
+   "precision": null,
+   "recall": 0.0,
+   "f1": null
+  },
+  "inherits": {
+   "tp": 0,
+   "fp": 0,
+   "fn": 2,
+   "precision": null,
+   "recall": 0.0,
+   "f1": null
+  },
+  "tests": {
+   "tp": 0,
+   "fp": 0,
+   "fn": 19,
+   "precision": null,
+   "recall": 0.0,
+   "f1": null
+  }
+ },
+ "by_language": {
+  "python": {
+   "tp": 28,
+   "fp": 1,
+   "fn": 76,
+   "precision": 0.9655172413793104,
+   "recall": 0.2692307692307692,
+   "f1": 0.4210526315789473
+  },
+  "tsx": {
+   "tp": 3,
+   "fp": 1,
+   "fn": 11,
+   "precision": 0.75,
+   "recall": 0.21428571428571427,
+   "f1": 0.3333333333333333
+  },
+  "typescript": {
+   "tp": 10,
+   "fp": 0,
+   "fn": 37,
+   "precision": 1.0,
+   "recall": 0.2127659574468085,
+   "f1": 0.3508771929824561
+  }
+ },
+ "by_resolution": {
+  "scip": {
+   "tp": 41,
+   "fp": 2,
+   "precision": 0.9534883720930233,
+   "recall_share": 0.9111111111111111
+  }
+ },
+ "calibration_calls": [
+  {
+   "bin": "0.0-0.3",
+   "count": 0,
+   "true": 0,
+   "share_true": null,
+   "mean_confidence": null
+  },
+  {
+   "bin": "0.3-0.6",
+   "count": 0,
+   "true": 0,
+   "share_true": null,
+   "mean_confidence": null
+  },
+  {
+   "bin": "0.6-0.9",
+   "count": 0,
+   "true": 0,
+   "share_true": null,
+   "mean_confidence": null
+  },
+  {
+   "bin": "0.9-1.0",
+   "count": 43,
+   "true": 41,
+   "share_true": 0.9534883720930233,
+   "mean_confidence": 1.0
+  }
+ ],
+ "worst_false_positives": [
+  {
+   "kind": "calls",
+   "src_key": "backend/decorators.py::logged",
+   "dst_key": "backend/decorators.py::logged.wrapper",
+   "file": "backend/decorators.py",
+   "line": 12,
+   "confidence": 1.0,
+   "resolution": "scip"
+  },
+  {
+   "kind": "calls",
+   "src_key": "frontend/tests/UserList.test.tsx::UserList > renders one UserCard per user",
+   "dst_key": "frontend/src/components/UserCard.tsx::UserCard",
+   "file": "frontend/tests/UserList.test.tsx",
+   "line": 14,
+   "confidence": 1.0,
+   "resolution": "scip"
+  }
+ ],
+ "worst_false_negatives": [
+  {
+   "kind": "calls",
+   "src_key": "backend/tests/test_services.py::make_service",
+   "dst_key": "backend/repo.py::Repo.__init__",
+   "file": "backend/tests/test_services.py",
+   "line": 10,
+   "confidence": 1.0,
+   "resolution": "label"
+  },
+  {
+   "kind": "calls",
+   "src_key": "backend/tests/test_services.py::make_service",
+   "dst_key": "backend/services.py::UserService.__init__",
+   "file": "backend/tests/test_services.py",
+   "line": 10,
+   "confidence": 1.0,
+   "resolution": "label"
+  },
+  {
+   "kind": "calls",
+   "src_key": "backend/tests/test_services.py::test_find_by_name",
+   "dst_key": "backend/repo.py::Repo.__init__",
+   "file": "backend/tests/test_services.py",
+   "line": 32,
+   "confidence": 1.0,
+   "resolution": "label"
+  },
+  {
+   "kind": "calls",
+   "src_key": "backend/tests/test_services.py::test_find_by_name",
+   "dst_key": "backend/services.py::UserService.__init__",
+   "file": "backend/tests/test_services.py",
+   "line": 33,
+   "confidence": 1.0,
+   "resolution": "label"
+  },
+  {
+   "kind": "calls_http",
+   "src_key": "backend/tests/test_routes.py::test_routes_create_list_and_get",
+   "dst_key": "backend/routes.py::route:POST /api/users",
+   "file": "backend/tests/test_routes.py",
+   "line": 8,
+   "confidence": 1.0,
+   "resolution": "label"
+  },
+  {
+   "kind": "calls_http",
+   "src_key": "backend/tests/test_routes.py::test_routes_create_list_and_get",
+   "dst_key": "backend/routes.py::route:GET /api/users/{id}",
+   "file": "backend/tests/test_routes.py",
+   "line": 11,
+   "confidence": 1.0,
+   "resolution": "label"
+  },
+  {
+   "kind": "calls_http",
+   "src_key": "backend/tests/test_routes.py::test_routes_create_list_and_get",
+   "dst_key": "backend/routes.py::route:GET /api/users",
+   "file": "backend/tests/test_routes.py",
+   "line": 12,
+   "confidence": 1.0,
+   "resolution": "label"
+  },
+  {
+   "kind": "calls_http",
+   "src_key": "frontend/src/api/client.ts::fetchUsers",
+   "dst_key": "backend/routes.py::route:GET /api/users",
+   "file": "frontend/src/api/client.ts",
+   "line": 5,
+   "confidence": 1.0,
+   "resolution": "label"
+  },
+  {
+   "kind": "calls_http",
+   "src_key": "frontend/src/api/client.ts::fetchUser",
+   "dst_key": "backend/routes.py::route:GET /api/users/{id}",
+   "file": "frontend/src/api/client.ts",
+   "line": 10,
+   "confidence": 1.0,
+   "resolution": "label"
+  },
+  {
+   "kind": "calls_http",
+   "src_key": "frontend/src/api/client.ts::createUser",
+   "dst_key": "backend/routes.py::route:POST /api/users",
+   "file": "frontend/src/api/client.ts",
+   "line": 15,
+   "confidence": 1.0,
+   "resolution": "label"
+  },
+  {
+   "kind": "contains",
+   "src_key": "backend/app.py::",
+   "dst_key": "backend/app.py::create_app",
+   "file": "backend/app.py",
+   "line": 6,
+   "confidence": 1.0,
+   "resolution": "label"
+  },
+  {
+   "kind": "contains",
+   "src_key": "backend/decorators.py::",
+   "dst_key": "backend/decorators.py::logged",
+   "file": "backend/decorators.py",
+   "line": 6,
+   "confidence": 1.0,
+   "resolution": "label"
+  },
+  {
+   "kind": "contains",
+   "src_key": "backend/decorators.py::logged",
+   "dst_key": "backend/decorators.py::logged.wrapper",
+   "file": "backend/decorators.py",
+   "line": 7,
+   "confidence": 1.0,
+   "resolution": "label"
+  },
+  {
+   "kind": "contains",
+   "src_key": "backend/handlers.py::",
+   "dst_key": "backend/handlers.py::handle_list",
+   "file": "backend/handlers.py",
+   "line": 5,
+   "confidence": 1.0,
+   "resolution": "label"
+  },
+  {
+   "kind": "contains",
+   "src_key": "backend/handlers.py::",
+   "dst_key": "backend/handlers.py::handle_create",
+   "file": "backend/handlers.py",
+   "line": 9,
+   "confidence": 1.0,
+   "resolution": "label"
+  },
+  {
+   "kind": "contains",
+   "src_key": "backend/handlers.py::",
+   "dst_key": "backend/handlers.py::dispatch",
+   "file": "backend/handlers.py",
+   "line": 16,
+   "confidence": 1.0,
+   "resolution": "label"
+  },
+  {
+   "kind": "contains",
+   "src_key": "backend/handlers.py::",
+   "dst_key": "backend/handlers.py::call_service",
+   "file": "backend/handlers.py",
+   "line": 20,
+   "confidence": 1.0,
+   "resolution": "label"
+  },
+  {
+   "kind": "contains",
+   "src_key": "backend/models.py::",
+   "dst_key": "backend/models.py::User",
+   "file": "backend/models.py",
+   "line": 4,
+   "confidence": 1.0,
+   "resolution": "label"
+  },
+  {
+   "kind": "contains",
+   "src_key": "backend/models.py::",
+   "dst_key": "backend/models.py::user_to_dict",
+   "file": "backend/models.py",
+   "line": 10,
+   "confidence": 1.0,
+   "resolution": "label"
+  },
+  {
+   "kind": "contains",
+   "src_key": "backend/repo.py::",
+   "dst_key": "backend/repo.py::Repo",
+   "file": "backend/repo.py",
+   "line": 1,
+   "confidence": 1.0,
+   "resolution": "label"
+  }
+ ],
+ "not_scored": {
+  "kind_not_in_truth": {},
+  "endpoint_not_in_truth": {},
+  "guesses_on_unresolvable_calls": []
+ },
+ "inputs": {
+  "predicted": "eval/oracle/references/oracle_polyglot_app_6f36bad408e7.json",
+  "truth": "eval/fixtures/polyglot_app/expected_graph.json"
+ }
+}

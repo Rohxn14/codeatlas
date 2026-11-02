@@ -1,0 +1,2 @@
+{"name": "web", "bin": {"web": "bin/web.js"},
+ "dependencies": {"ui": "workspace:^", "legacy": "file:../../libs/legacy"}}
