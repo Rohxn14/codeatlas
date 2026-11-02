@@ -10,7 +10,14 @@ types from third-party packages resolve only if `node_modules` is already there;
 between the repository's own files do not need them.
 
 Output: `oracle_<repo>_<sha12>.json` in the graph export shape, edges of kind `calls`
-with resolution `scip`, plus an `errors` list naming any indexer that failed.
+with resolution `scip`, plus an `errors` list naming any indexer that failed. For a
+folder inside a git repository (such as `eval/fixtures/polyglot_app`), `<sha12>` is
+the folder's own tree hash, so the name changes only when the folder's files do.
+
+Linux only (decision D-10): scip-python crashes on Windows, because it builds a regular
+expression from `path.sep` and a lone backslash is not a valid pattern; the upstream
+fix (scip-python PR #211) was closed unmerged. On Windows this runner says so and stops.
+Use a cloud session, CI or WSL. The scorer (`eval.oracle.score`) works everywhere.
 """
 
 from __future__ import annotations
@@ -32,6 +39,12 @@ from eval.oracle.scip import Index, read_index
 
 DEFAULT_OUT = Path(__file__).parent / "references"
 INSTALL_HINT = "npm install -g @sourcegraph/scip-python @sourcegraph/scip-typescript"
+WINDOWS_MESSAGE = (
+    "The SCIP oracle runs only on Linux (decision D-10). scip-python crashes on Windows: "
+    "it builds a regular expression from path.sep, and the upstream fix (scip-python "
+    "PR #211) was closed unmerged. Run this in a cloud session, in CI or in WSL. "
+    "Scoring with `python -m eval.oracle.score` works on Windows."
+)
 TIMEOUT_SECONDS = 1800
 _SKIP_DIRS = frozenset({"node_modules", "__pycache__", "venv", "dist", "build"})
 
@@ -47,10 +60,16 @@ class Job:
 
 
 def tool_version(tool: str) -> str | None:
-    """The tool's `--version` output, or None when it is not installed."""
-    if shutil.which(tool) is None:
+    """The tool's `--version` output, or None when it is not installed or will not start."""
+    path = shutil.which(tool)
+    if path is None:
         return None
-    done = subprocess.run([tool, "--version"], capture_output=True, text=True, timeout=60)
+    try:
+        # The path `which` found, not the bare name: npm installs `.cmd` wrappers that
+        # a bare name cannot start.
+        done = subprocess.run([path, "--version"], capture_output=True, text=True, timeout=60)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
     return done.stdout.strip() or done.stderr.strip() or "unknown"
 
 
@@ -92,12 +111,14 @@ def plan_jobs(repo: Path, files: Sequence[str], name: str, sha12: str, work: Pat
 
 def run_job(job: Job) -> str | None:
     """Run one indexer; returns an error message, or None on success."""
-    command = [job.tool, *job.args, "--output", str(job.output)]
+    command = [shutil.which(job.tool) or job.tool, *job.args, "--output", str(job.output)]
     try:
         done = subprocess.run(command, cwd=job.cwd, capture_output=True, text=True,
                               timeout=TIMEOUT_SECONDS)
     except subprocess.TimeoutExpired:
         return f"{job.tool} in {job.cwd}: timed out after {TIMEOUT_SECONDS}s"
+    except OSError as exc:
+        return f"{job.tool} in {job.cwd}: could not start: {exc}"
     if done.returncode != 0 or not job.output.exists():
         tail = (done.stderr or done.stdout).strip().splitlines()[-5:]
         return f"{job.tool} in {job.cwd}: exit {done.returncode}: " + " | ".join(tail)
@@ -105,15 +126,40 @@ def run_job(job: Job) -> str | None:
 
 
 def head_sha(repo: Path) -> str:
-    done = subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo, capture_output=True,
-                          text=True)
-    return done.stdout.strip() if done.returncode == 0 else "unknown"
+    return _git(repo, "rev-parse", "HEAD") or "unknown"
+
+
+def describe_source(repo: Path) -> tuple[str, str]:
+    """(version id, source) for the oracle file's name and snapshot.
+
+    At a repository's top level: its HEAD commit and its folder name. For a folder
+    inside a repository: the folder's tree hash (`git rev-parse HEAD:<folder>`), which
+    changes only when the folder's committed files do, and its repo-relative path. The
+    HEAD of the enclosing repository would change with every unrelated commit.
+    """
+    top = _git(repo, "rev-parse", "--show-toplevel")
+    if top is None:
+        return "unknown", repo.name
+    rel = repo.resolve().relative_to(Path(top).resolve()).as_posix()
+    if rel == ".":
+        return head_sha(repo), repo.name
+    return _git(repo, "rev-parse", f"HEAD:{rel}") or "unknown", rel
+
+
+def _git(repo: Path, *args: str) -> str | None:
+    """stdout of a read-only git command, or None."""
+    try:
+        done = subprocess.run(["git", *args], cwd=repo, capture_output=True, text=True,
+                              timeout=60)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    return done.stdout.strip() if done.returncode == 0 and done.stdout.strip() else None
 
 
 def build_oracle(
     repo: Path, name: str, nodes_file: Path | None, keep_scip: Path | None
 ) -> dict[str, object]:
-    sha = head_sha(repo)
+    sha, source = describe_source(repo)
     files = source_files(repo)
     errors: list[str] = []
     indexes: list[tuple[Index, str]] = []
@@ -128,8 +174,17 @@ def build_oracle(
             if error:
                 errors.append(error)
                 continue
-            index = read_index(job.output)
-            indexes.append((index, path_prefix(index, repo.resolve().as_uri())))
+            try:
+                index = read_index(job.output)
+            except ValueError as exc:  # a truncated or corrupt .scip file
+                errors.append(f"{job.tool} in {job.cwd}: unreadable output: {exc}")
+                continue
+            prefix = path_prefix(index, repo.resolve().as_uri())
+            if prefix is None:
+                errors.append(f"{job.tool} in {job.cwd}: project root {index.project_root} "
+                              "is outside the repository; its references were not used")
+                continue
+            indexes.append((index, prefix))
     nodes = load_graph(nodes_file).nodes.values() if nodes_file else ()
     snapshot = {
         "id": f"{name}@{sha[:12]}", "repo": name, "commit_sha": sha,
@@ -137,7 +192,7 @@ def build_oracle(
         "indexer_version": ", ".join(
             f"{t} {tool_version(t) or 'missing'}" for t in ("scip-python", "scip-typescript")
         ),
-        "source": str(repo), "limits_hit": [],
+        "source": source, "limits_hit": [],
     }
     return oracle_graph(snapshot, indexes, nodes, errors)
 
@@ -151,6 +206,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--out-dir", type=Path, default=DEFAULT_OUT)
     parser.add_argument("--keep-scip", type=Path, help="folder to keep the .scip files in")
     args = parser.parse_args(argv)
+    if sys.platform == "win32":
+        print(WINDOWS_MESSAGE, file=sys.stderr)
+        return 2
 
     repo = args.repo.resolve()
     name = args.name or repo.name

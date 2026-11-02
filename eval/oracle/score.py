@@ -187,6 +187,7 @@ def score(predicted: Graph, truth: Graph) -> dict[str, object]:
     totals = grouped(pred, truth_edges, lambda e: "all")["all"] if truth_edges else prf(0, 0, 0)
     false_positives, false_negatives = worst(pred, truth_edges)
     return {
+        "measured": measured(predicted, truth),
         "overall": totals,
         "by_kind": grouped(pred, truth_edges, lambda e: e.kind),
         "by_language": grouped(pred, truth_edges, language),
@@ -200,6 +201,24 @@ def score(predicted: Graph, truth: Graph) -> dict[str, object]:
             "guesses_on_unresolvable_calls": [_describe(e) for e in split.on_unresolvable],
         },
     }
+
+
+def measured(predicted: Graph, truth: Graph) -> dict[str, object]:
+    """What was compared, and anything that makes the comparison partial.
+
+    A truth file with errors (an indexer that failed) or a prediction that hit an
+    indexing limit covers only part of the code, so perfect scores against it can be
+    meaningless; `warnings` says so in the result and on screen.
+    """
+    def snap(graph: Graph) -> dict[str, object]:
+        keys = ("id", "commit_sha", "indexer_version", "source")
+        return {k: graph.snapshot.get(k) for k in keys if k in graph.snapshot}
+
+    limits = predicted.snapshot.get("limits_hit") or []
+    warnings = [f"truth is partial: {e}" for e in truth.errors]
+    warnings += [f"prediction hit a limit: {limit}" for limit in limits]
+    return {"predicted": snap(predicted), "truth": snap(truth), "truth_errors": truth.errors,
+            "predicted_limits_hit": list(limits), "warnings": warnings}
 
 
 # Report --------------------------------------------------------------------------------
@@ -220,7 +239,10 @@ def _table(title: str, rows: dict[str, dict[str, object]], columns: Sequence[str
 def render(result: dict[str, Any]) -> str:
     """The result as plain-text tables for the terminal."""
     metrics = ("precision", "recall", "f1", "tp", "fp", "fn")
-    lines = _table("overall", {"all": result["overall"]}, metrics)
+    lines = [f"WARNING: {w}" for w in result.get("measured", {}).get("warnings", [])]
+    if lines:
+        lines.append("")
+    lines += _table("overall", {"all": result["overall"]}, metrics)
     for name in ("by_kind", "by_language"):
         lines += ["", *_table(name, result[name], metrics)]
     lines += ["", *_table("by_resolution", result["by_resolution"],

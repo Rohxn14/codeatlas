@@ -48,7 +48,7 @@ def test_prefix_makes_project_paths_repo_relative():
     index = Index("file:///work/app/frontend", "scip-typescript", ())
     assert path_prefix(index, "file:///work/app") == "frontend/"
     assert path_prefix(Index("file:///work/app", "", ()), "file:///work/app") == ""
-    assert path_prefix(Index("file:///elsewhere", "", ()), "file:///work/app") == ""
+    assert path_prefix(Index("file:///elsewhere", "", ()), "file:///work/app") is None
 
 
 def ts_index() -> Index:
@@ -94,3 +94,22 @@ def test_innermost_prefers_smaller_spans_then_node_list_scopes():
     assert innermost(scopes, 6) == "node"
     assert innermost(scopes, 12) == "outer"
     assert innermost(scopes, 30) is None
+
+
+
+def test_module_level_references_are_counted_not_lost():
+    from collections import Counter
+    from dataclasses import replace
+
+    from eval.oracle.scip import Document, Occurrence
+
+    index = sample()
+    definitions = collect_definitions([(index, "")])
+    save = next(sym for sym, d in definitions.items() if d.key == REPO + "Repo.save")
+    # A file that calls Repo.save at module level, outside any function.
+    script = Document("main.py", "python", (Occurrence((20, 0, 20, 4), save, 0),))
+    index = replace(index, documents=(*index.documents, script))
+    skipped: Counter[str] = Counter()
+    refs = collect_references([(index, "")], collect_definitions([(index, "")]), (), skipped)
+    assert len(refs) == 2  # the two in function bodies, as before
+    assert skipped["module_level_references"] >= 1

@@ -1,11 +1,11 @@
 {
  "snapshot": {
-  "id": "polyglot_app@6f36bad408e7",
+  "id": "polyglot_app@061bf641daff",
   "repo": "polyglot_app",
-  "commit_sha": "6f36bad408e75a4c7f0e38aa377c93e42f4d9234",
-  "indexed_at": "2026-10-30T14:13:30Z",
-  "indexer_version": "scip-python 0.6.8, scip-typescript 0.5.2",
-  "source": "/home/user/codeatlas/eval/fixtures/polyglot_app",
+  "commit_sha": "061bf641daff5d2ac2c8baf1f4521a33e8671565",
+  "indexed_at": "2026-11-02T09:23:55Z",
+  "indexer_version": "scip-python 0.6.8, scip-typescript 0.6.0",
+  "source": "eval/fixtures/polyglot_app",
   "limits_hit": []
  },
  "nodes": [
@@ -1116,5 +1116,8 @@
    "line": 45
   }
  ],
- "errors": []
+ "errors": [],
+ "skipped": {
+  "module_level_references": 19
+ }
 }

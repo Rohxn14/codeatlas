@@ -59,7 +59,10 @@ edges. It misses the 4 constructor calls and adds 2 references that are not call
 ## How
 
 **Oracle**, step by step (`python -m eval.oracle.run eval/fixtures/polyglot_app --nodes
-eval/fixtures/polyglot_app/expected_graph.json`):
+eval/fixtures/polyglot_app/expected_graph.json`). On Windows the runner stops at once with
+a message: scip-python cannot run there (decision D-10; upstream PR #211 was closed
+unmerged), so the oracle is built in a cloud session, CI or WSL, and the committed file is
+used on Windows.
 
 1. List the source files, skipping `node_modules`, virtual environments and hidden folders.
 2. If there is Python, run `scip-python index --project-name <repo> --project-version
@@ -71,7 +74,9 @@ eval/fixtures/polyglot_app/expected_graph.json`):
    keyed `path::qualname`.
 5. For every reference to an in-repo function, find the innermost caller scope. Emit one
    edge per caller and callee pair, at the first line it appears. References at module
-   level (imports, re-exports, `HANDLERS = {...}`) have no caller and are dropped.
+   level (imports, re-exports, `HANDLERS = {...}`) have no caller and make no edge; they
+   are counted under `skipped` in the output (19 for the fixture), so nothing is lost
+   without a trace.
 
 Worked example from the fixture. `backend/user_repo.py` holds this occurrence:
 
