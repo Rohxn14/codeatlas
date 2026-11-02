@@ -24,7 +24,7 @@ Behind that call it:
 | File | Role |
 | --- | --- |
 | `types.py` | `Message`, `ToolSpec`, `ToolCall`, `LLMResponse`: the provider-independent shapes |
-| `errors.py` | `LLMRequestError` (400-class, raise), `LLMTransientError` (429/5xx/timeout, retry), `LLMUnavailableError`, `CacheMissError` |
+| `errors.py` | `LLMRequestError` (400-class, raise), `LLMTransientError` (429/5xx/timeout, retry), `LLMEmptyResponseError` (no text and no tool calls, fall back), `LLMUnavailableError`, `CacheMissError` |
 | `config.py` | `LLMConfig` and `load_llm_config`: `[llm]` table, then environment overrides |
 | `cache.py` | canonical cache key, `LLMCache` (chat answers and embedding vectors) |
 | `providers/base.py` | the `Provider` protocol and the "model is gone" fallback rule |
@@ -40,13 +40,17 @@ Behind that call it:
 
 **Classify errors by what to do next, not by provider.** A 429, 5xx or timeout says "try again later" (transient). A 400-class error says "this request is wrong", and Gemini would reject it too, so it is raised at once. That includes a 401: a bad key is a configuration problem, and falling back would hide it.
 
+**An empty answer is a failure, not an answer.** Gemini's thinking tokens count against the output limit: a two-word prompt once spent 163 of 175 tokens thinking. When thinking uses the whole budget, or a safety filter blocks the answer, the response has no text and no tool calls. Returning `""` would look like success and, worse, be cached and replayed for good. So both adapters raise `LLMEmptyResponseError` with the finish or block reason, the client moves straight to the next provider (the same request would come back empty again), and nothing is cached.
+
+**Thinking is turned down by default.** `gemini_thinking_level` (sent as `ThinkingConfig.thinking_level`) and `groq_reasoning_effort` (sent as `reasoning_effort`) both default to `low`; `"minimal"` suits cheap one-shot Gemini calls, and `""` leaves the provider's default. They stay out of the cache key, like the model.
+
 **Cache key without the provider or model.** The brief asks for a provider-independent key: messages, tools, temperature, max tokens and a namespace. So an answer recorded from Groq replays even when Groq is down, which is what reproducible evaluations need. The cost: changing the model does not invalidate old answers. Use a new `cache_namespace` for that (see Questions in the PR). Gemini's thought signatures are also left out of the key, because they are opaque bytes that change on every live run and would make replays miss.
 
 **Canonical JSON.** `json.dumps(sort_keys=True, separators=(",", ":"))` means `{"a":1,"b":2}` and `{"b":2,"a":1}` hash the same. Temperature is converted to `float`, so `0` and `0.0` agree too.
 
 **Thought signatures (Gemini 3).** Gemini 3 returns an opaque `thought_signature` with each function call, and it rejects a later turn that sends the call back without one. `ToolCall` therefore has an optional `signature` (base64). For calls that Groq made, which have no signature, the adapter sends the placeholder value Google documents for this case (`skip_thought_signature_validator`). Without this, falling back to Gemini in the middle of an agent loop would fail with a 400.
 
-**Lazy model check.** "If the configured model is gone, pick the newest of its family" needs a network call. Doing it in the constructor would make `LLMClient.from_config()` slow and network-bound even when everything is cached. So it runs once per provider, just before that provider's first real call. If the listing fails, the configured model is kept, and the chat call then reports the real error.
+**Lazy model check.** "If the configured model is gone, pick the newest of its family" needs a network call. A size such as `20b` is part of the family (decision D-17), so `gpt-oss-20b` never silently becomes `gpt-oss-120b`, which has different limits and cost. A model retired *after* the first check shows up as a 404; the client then looks the model up once more and retries if a different one is found. Doing it in the constructor would make `LLMClient.from_config()` slow and network-bound even when everything is cached. So it runs once per provider, just before that provider's first real call. If the listing fails, the configured model is kept, and the chat call then reports the real error.
 
 **Missing keys are not an error.** In the cloud environment the proxy attaches keys, so the environment variables are often empty. Both SDKs refuse to start without a key, so a placeholder is passed. If nothing replaces it, the request fails with a 401, which surfaces as `LLMRequestError`.
 
@@ -89,9 +93,9 @@ If Groq's second try had returned 200, the caller would get Groq's answer after 
 
 Groq lists `openai/gpt-oss-20b` (created 1754407957), `openai/gpt-oss-120b` (1754408224) and `openai/gpt-oss-safeguard-20b`. Suppose the config says `openai/gpt-oss-10b`, which is not listed.
 
-- `model_family("openai/gpt-oss-10b")` blanks every number: `openai/gpt-oss-#b`.
-- The same family: `gpt-oss-20b` and `gpt-oss-120b`. `safeguard` gives a different family string.
-- Newest by `created`, then by version numbers: `openai/gpt-oss-120b`.
+- `model_family("openai/gpt-oss-10b")` blanks version numbers but keeps sizes: `openai/gpt-oss-10b`.
+- No listed model has that family: `gpt-oss-20b` and `gpt-oss-120b` are other sizes, and `safeguard` is another name. So the configured model is kept, a warning lists what is available, and the chat call reports the real error.
+- With versions it works as before: `llama-3.1-8b-instant` missing among `llama-3.3-8b-instant` and `llama-3.3-70b-instant` picks `llama-3.3-8b-instant`.
 
 Gemini lists no dates, so `gemini-3.8-flash` missing among `gemini-3.7-flash` and `gemini-3.9-flash` picks `3.9`. `gemini-3.9-flash-lite` is a different family because of `-lite`.
 
@@ -111,7 +115,9 @@ The fastembed model loads on first use, so a fully cached call never downloads w
 providers = ["groq", "gemini"]
 groq_model = "openai/gpt-oss-20b"
 gemini_model = "gemini-3.8-flash"
-timeout_seconds = 60
+gemini_thinking_level = "low"  # "" | minimal | low | medium | high
+groq_reasoning_effort = "low"  # "" | low | medium | high
+timeout_seconds = 30
 max_tries = 3
 cache = "read_write"          # off | read_write | replay_only
 cache_namespace = "default"
@@ -119,7 +125,7 @@ embedding_model = "BAAI/bge-small-en-v1.5"
 embedding_batch_size = 64
 ```
 
-Environment variables override these: `CODEATLAS_LLM_PROVIDERS` (comma-separated), `CODEATLAS_GROQ_MODEL`, `CODEATLAS_GEMINI_MODEL`, `CODEATLAS_LLM_TIMEOUT`, `CODEATLAS_LLM_CACHE`, `CODEATLAS_LLM_NAMESPACE`, `CODEATLAS_EMBEDDING_MODEL`. Keys come from `GROQ_API_KEY` and `GEMINI_API_KEY` when set. Files go under `[paths] data_dir`: `llm_cache.sqlite` and `llm_usage.jsonl`.
+Environment variables override these: `CODEATLAS_LLM_PROVIDERS` (comma-separated), `CODEATLAS_GROQ_MODEL`, `CODEATLAS_GEMINI_MODEL`, `CODEATLAS_GEMINI_THINKING`, `CODEATLAS_GROQ_REASONING`, `CODEATLAS_LLM_TIMEOUT`, `CODEATLAS_LLM_CACHE`, `CODEATLAS_LLM_NAMESPACE`, `CODEATLAS_EMBEDDING_MODEL`. Keys come from `GROQ_API_KEY` and `GEMINI_API_KEY` when set. Files go under `[paths] data_dir`: `llm_cache.sqlite` and `llm_usage.jsonl`.
 
 ## Where
 

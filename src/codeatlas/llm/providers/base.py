@@ -45,10 +45,15 @@ class Provider(Protocol):
 def model_family(model_id: str) -> str:
     """A model's name with every version number blanked: `gemini-3.8-flash` -> `gemini-#-flash`.
 
-    Sizes count as numbers too, so `gpt-oss-20b` and `gpt-oss-120b` are one family;
-    suffixes such as `-lite` or `-preview` make a different family.
+    A size such as `20b` stays as written (decision D-17): `gpt-oss-20b` and
+    `gpt-oss-120b` are different families, since a bigger model has different limits
+    and cost. Suffixes such as `-lite` or `-preview` also make a different family.
     """
-    return re.sub(r"\d+(?:\.\d+)*", "#", model_id)
+    return _VERSION.sub("#", model_id)
+
+
+# A number, unless it is a size: digits followed by "b" and then the end or a non-letter.
+_VERSION = re.compile(r"(?<![\d.])\d+(?:\.\d+)*(?![\d.]|[bB](?![a-zA-Z]))")
 
 
 def _version(model_id: str) -> tuple[int, ...]:
@@ -83,8 +88,9 @@ def resolve_model(provider: Provider) -> None:
         return
     chosen = choose_model(provider.model, available)
     if chosen is None:
-        log.warning("%s: model %s is not listed and has no family match; keeping it",
-                    provider.name, provider.model)
+        listed = ", ".join(sorted(m.id for m in available)[:20])
+        log.warning("%s: model %s is not listed and has no same-family match; keeping it. "
+                    "Listed: %s", provider.name, provider.model, listed)
     elif chosen != provider.model:
         log.warning("%s: model %s is gone; switching to %s", provider.name, provider.model,
                     chosen)

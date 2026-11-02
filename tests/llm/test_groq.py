@@ -2,7 +2,7 @@
 
 import pytest
 
-from codeatlas.llm.errors import LLMRequestError, LLMTransientError
+from codeatlas.llm.errors import LLMEmptyResponseError, LLMRequestError, LLMTransientError
 from codeatlas.llm.providers.groq import GroqProvider
 from codeatlas.llm.types import Message, ToolCall, ToolSpec
 
@@ -77,3 +77,18 @@ def test_list_models(script):
     s = script([], models=load("groq_models.json"))
     ids = [m.id for m in provider(s).list_models()]
     assert "openai/gpt-oss-20b" in ids
+
+
+def test_reasoning_effort_is_sent_and_can_be_turned_off(script):
+    s = script([(200, load("groq_text.json"))] * 2)
+    provider(s).chat([Message("user", "hi")], None, 0.0, None)
+    GroqProvider("openai/gpt-oss-20b", api_key="t", http_client=s.client(),
+                 reasoning_effort="").chat([Message("user", "hi")], None, 0.0, None)
+    assert s.chat_requests[0]["body"]["reasoning_effort"] == "low"
+    assert "reasoning_effort" not in s.chat_requests[1]["body"]
+
+
+def test_length_cut_answer_raises_empty_response(script):
+    s = script([(200, load("groq_max_tokens.json"))])
+    with pytest.raises(LLMEmptyResponseError, match="length"):
+        provider(s).chat([Message("user", "hi")], None, 0.0, 10)

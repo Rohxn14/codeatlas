@@ -10,7 +10,7 @@ from typing import Any
 import groq
 import httpx
 
-from codeatlas.llm.errors import LLMRequestError, LLMTransientError
+from codeatlas.llm.errors import LLMEmptyResponseError, LLMRequestError, LLMTransientError
 from codeatlas.llm.providers.base import PLACEHOLDER_KEY, ModelInfo
 from codeatlas.llm.types import LLMResponse, Message, ToolCall, ToolSpec
 
@@ -27,11 +27,13 @@ class GroqProvider:
     def __init__(
         self,
         model: str,
-        timeout: float = 60.0,
+        timeout: float = 30.0,
         api_key: str | None = None,
         http_client: httpx.Client | None = None,
+        reasoning_effort: str = "low",
     ) -> None:
         self.model = model
+        self.reasoning_effort = reasoning_effort
         self._client = groq.Groq(
             api_key=api_key or os.environ.get("GROQ_API_KEY") or PLACEHOLDER_KEY,
             timeout=timeout,
@@ -55,6 +57,8 @@ class GroqProvider:
             kwargs["tools"] = [to_groq_tool(t) for t in tools]
         if max_tokens is not None:
             kwargs["max_completion_tokens"] = max_tokens
+        if self.reasoning_effort:  # gpt-oss models accept low, medium or high
+            kwargs["reasoning_effort"] = self.reasoning_effort
         try:
             completion = self._client.chat.completions.create(**kwargs)
         except groq.APIError as exc:
@@ -98,7 +102,8 @@ def to_groq_tool(tool: ToolSpec) -> dict[str, Any]:
 
 def from_groq_completion(data: dict[str, Any], model: str) -> LLMResponse:
     """Read the first choice of a chat completion (as a plain dict)."""
-    message = data["choices"][0]["message"]
+    choice = data["choices"][0]
+    message = choice["message"]
     calls = tuple(
         ToolCall(
             id=raw["id"],
@@ -107,6 +112,8 @@ def from_groq_completion(data: dict[str, Any], model: str) -> LLMResponse:
         )
         for raw in message.get("tool_calls") or ()
     )
+    if not (message.get("content") or "") and not calls:
+        raise LLMEmptyResponseError("groq", f"finish reason {choice.get('finish_reason')}")
     usage = data.get("usage") or {}
     return LLMResponse(
         text=message.get("content") or "",

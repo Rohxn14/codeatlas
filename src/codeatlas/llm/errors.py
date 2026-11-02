@@ -25,6 +25,20 @@ class LLMTransientError(LLMError):
         self.status = status
 
 
+class LLMEmptyResponseError(LLMError):
+    """The provider answered with no text and no tool calls.
+
+    This happens when thinking uses up the output budget (MAX_TOKENS), or a safety
+    filter blocks the answer. An empty answer must never be cached, since replaying it
+    would hide the failure for good; the client tries the next provider instead.
+    """
+
+    def __init__(self, provider: str, reason: str | None) -> None:
+        super().__init__(f"{provider} returned an empty answer ({reason or 'no reason given'})")
+        self.provider = provider
+        self.reason = reason
+
+
 class LLMUnavailableError(LLMError):
     """Every provider was tried and each one failed with a transient error."""
 

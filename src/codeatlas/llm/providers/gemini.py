@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import base64
 import os
+import uuid
 from collections.abc import Sequence
 from typing import Any
 
@@ -16,7 +17,7 @@ import httpx
 from google import genai
 from google.genai import errors, types
 
-from codeatlas.llm.errors import LLMRequestError, LLMTransientError
+from codeatlas.llm.errors import LLMEmptyResponseError, LLMRequestError, LLMTransientError
 from codeatlas.llm.providers.base import PLACEHOLDER_KEY, ModelInfo
 from codeatlas.llm.types import LLMResponse, Message, ToolCall, ToolSpec
 
@@ -33,11 +34,13 @@ class GeminiProvider:
     def __init__(
         self,
         model: str,
-        timeout: float = 60.0,
+        timeout: float = 30.0,
         api_key: str | None = None,
         http_client: httpx.Client | None = None,
+        thinking_level: str = "low",
     ) -> None:
         self.model = model
+        self.thinking_level = thinking_level
         self._client = genai.Client(
             api_key=api_key or os.environ.get("GEMINI_API_KEY") or PLACEHOLDER_KEY,
             http_options=types.HttpOptions(timeout=int(timeout * 1000), httpx_client=http_client),
@@ -56,6 +59,11 @@ class GeminiProvider:
             temperature=temperature,
             max_output_tokens=max_tokens,
             tools=[to_gemini_tool(tools)] if tools else None,
+            thinking_config=(
+                types.ThinkingConfig(thinking_level=self.thinking_level.upper())
+                if self.thinking_level
+                else None
+            ),
         )
         try:
             response = self._client.models.generate_content(
@@ -142,7 +150,10 @@ def from_gemini_response(response: types.GenerateContentResponse, model: str) ->
             signature = part.thought_signature
             calls.append(
                 ToolCall(
-                    id=fc.id or f"call_{len(calls)}",
+                    # Gemini often sends no id. A made-up id must be unique across turns:
+                    # `call_0` on every turn would pair later tool results with the wrong
+                    # function. Replays stay stable because the cache stores the id.
+                    id=fc.id or f"call_{uuid.uuid4().hex[:12]}",
                     name=fc.name or "",
                     arguments=dict(fc.args or {}),
                     signature=base64.b64encode(signature).decode("ascii") if signature else None,
@@ -150,6 +161,8 @@ def from_gemini_response(response: types.GenerateContentResponse, model: str) ->
             )
         elif part.text and not part.thought:
             texts.append(part.text)
+    if not texts and not calls:
+        raise LLMEmptyResponseError("gemini", _empty_reason(response, candidate))
     usage = response.usage_metadata
     return LLMResponse(
         text="".join(texts),
@@ -159,6 +172,16 @@ def from_gemini_response(response: types.GenerateContentResponse, model: str) ->
         input_tokens=(usage.prompt_token_count or 0) if usage else 0,
         output_tokens=_output_tokens(usage),
     )
+
+
+def _empty_reason(response: types.GenerateContentResponse, candidate: Any) -> str:
+    """Why there is nothing to show: a blocked prompt, or the candidate's finish reason."""
+    feedback = response.prompt_feedback
+    if feedback is not None and feedback.block_reason:
+        return f"prompt blocked: {feedback.block_reason}"
+    if candidate is None:
+        return "no candidates"
+    return f"finish reason {candidate.finish_reason}" if candidate.finish_reason else "no parts"
 
 
 def _output_tokens(usage: types.GenerateContentResponseUsageMetadata | None) -> int:

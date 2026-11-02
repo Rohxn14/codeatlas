@@ -19,7 +19,7 @@ WEATHER = ToolSpec(
 def test_round_trip(provider, tmp_path):
     config = LLMConfig(providers=(provider,), cache="off", data_dir=str(tmp_path))
     client = LLMClient.from_config(config)
-    reply = client.chat([Message("user", "Reply with the single word: pong")], max_tokens=200)
+    reply = client.chat([Message("user", "Reply with the single word: pong")], max_tokens=1024)
     assert reply.provider == provider
     assert "pong" in reply.text.lower()
     tool_reply = client.chat(
