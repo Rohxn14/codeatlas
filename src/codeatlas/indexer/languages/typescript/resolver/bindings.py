@@ -47,7 +47,9 @@ def build_context(
     return ctx
 
 
-def _internal(ctx: FileContext, raw: RawImport, path: str, exports: Exports, add: AddImport) -> None:
+def _internal(
+    ctx: FileContext, raw: RawImport, path: str, exports: Exports, add: AddImport
+) -> None:
     source, module = ctx.info.module_key, f"{path}::"
     ctx.imported_files.add(path)
     if raw.is_reexport:
@@ -61,7 +63,8 @@ def _internal(ctx: FileContext, raw: RawImport, path: str, exports: Exports, add
             continue
         ctx.imported_files.add(found.path)
         kind = "module" if found.is_module else "symbol"
-        ctx.bindings[alias or original] = Binding(kind, found.path if found.is_module else found.key)
+        target = found.path if found.is_module else found.key
+        ctx.bindings[alias or original] = Binding(kind, target)
         add(source, found.key, raw.line)
     if raw.alias is not None:
         ctx.bindings[raw.alias] = Binding("namespace", path)
@@ -70,7 +73,9 @@ def _internal(ctx: FileContext, raw: RawImport, path: str, exports: Exports, add
         add(source, module, raw.line)
 
 
-def _reexport(ctx: FileContext, raw: RawImport, path: str, exports: Exports, add: AddImport) -> None:
+def _reexport(
+    ctx: FileContext, raw: RawImport, path: str, exports: Exports, add: AddImport
+) -> None:
     """The barrel gets an IMPORTS edge to each symbol it re-exports (the real definition)."""
     source, module = ctx.info.module_key, f"{path}::"
     hits: list[Found] = []

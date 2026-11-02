@@ -64,7 +64,7 @@ class TypeScriptResolver:
     def _reader_from_index(self, index: SymbolIndex) -> ReadFile:
         root = _root_of(index)
         if root is None:
-            self.problems.append("repository root unknown: tsconfig paths and package exports skipped")
+            self.problems.append("repository root unknown: tsconfig and package.json skipped")
             return lambda _path: None
 
         def read(path: str) -> bytes | None:

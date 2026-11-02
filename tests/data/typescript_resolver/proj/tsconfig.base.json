@@ -1,0 +1,10 @@
+{
+  // shared settings: comments and trailing commas are legal in tsconfig
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@lib/*": ["src/lib/*"], /* wildcard */
+      "@exact": ["src/lib/thing.ts"],
+    },
+  },
+}

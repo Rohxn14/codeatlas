@@ -78,7 +78,7 @@ class ModuleResolver:
     def _by_package(self, specifier: str) -> str | None:
         name, _, subpath = _split_package(specifier)
         for node in self._index.by_name(name):
-            if node.kind is NodeKind.PACKAGE and node.name == name and node.path.endswith("package.json"):
+            if node.kind is NodeKind.PACKAGE and node.name == name and _is_manifest(node.path):
                 return self._package_file(paths.parent(node.path), subpath)
         return None
 
@@ -99,7 +99,8 @@ class ModuleResolver:
         ]
         for entry in entries:
             if isinstance(entry, str):
-                found = self.find_file(paths.join(root, entry)) or self._source_of_build(root, entry)
+                found = self.find_file(paths.join(root, entry))
+                found = found or self._source_of_build(root, entry)
                 if found:
                     return found
         return self.find_file(paths.join(root, "index")) or self.find_file(
@@ -123,6 +124,10 @@ class ModuleResolver:
         except ValueError:
             return {}
         return parsed if isinstance(parsed, dict) else {}
+
+
+def _is_manifest(path: str) -> bool:
+    return path.rsplit("/", 1)[-1] == "package.json"
 
 
 def _split_package(specifier: str) -> tuple[str, str, str]:

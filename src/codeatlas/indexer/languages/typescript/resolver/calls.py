@@ -16,7 +16,16 @@ SELF_METHOD_CONFIDENCE = 0.9
 MAX_BASE_DEPTH = 6
 
 GLOBALS = frozenset(
-    ["console", "JSON", "Math", "Object", "Array", "Promise", "Date", "Number", "String", "Boolean", "Symbol", "Map", "Set", "WeakMap", "WeakSet", "Error", "RegExp", "Reflect", "Intl", "BigInt", "Buffer", "process", "window", "document", "navigator", "location", "localStorage", "sessionStorage", "globalThis", "setTimeout", "setInterval", "clearTimeout", "clearInterval", "setImmediate", "queueMicrotask", "structuredClone", "fetch", "parseInt", "parseFloat", "isNaN", "isFinite", "encodeURIComponent", "decodeURIComponent", "encodeURI", "decodeURI", "atob", "btoa", "alert", "URL", "URLSearchParams", "AbortController", "TextEncoder", "TextDecoder", "requestAnimationFrame", "describe", "it", "test", "expect", "beforeEach", "afterEach", "beforeAll", "afterAll", "jest", "vi", "require"]
+    """
+    console JSON Math Object Array Promise Date Number String Boolean Symbol Map Set
+    WeakMap WeakSet Error RegExp Reflect Intl BigInt Buffer process window document
+    navigator location localStorage sessionStorage globalThis setTimeout setInterval
+    clearTimeout clearInterval setImmediate queueMicrotask structuredClone fetch
+    parseInt parseFloat isNaN isFinite encodeURIComponent decodeURIComponent encodeURI
+    decodeURI atob btoa alert URL URLSearchParams AbortController TextEncoder
+    TextDecoder requestAnimationFrame describe it test expect beforeEach afterEach
+    beforeAll afterAll jest vi require
+    """.split()  # noqa: SIM905  (a readable word list beats a 700-character literal)
 )
 _CHAIN = re.compile(r"^[A-Za-z_$][\w$]*(?:\??\.[A-Za-z_$#][\w$]*)*$")
 
@@ -206,4 +215,5 @@ class CallResolver:
 
 
 def _global(call: RawCall) -> list[Hit]:
-    return [Hit(external_key(f"globals.{call.callee_text.replace('?.', '.')}"), Resolution.DIRECT, 1.0)]
+    name = f"globals.{call.callee_text.replace('?.', '.')}"
+    return [Hit(external_key(name), Resolution.DIRECT, 1.0)]
