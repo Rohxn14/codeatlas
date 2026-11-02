@@ -9,28 +9,28 @@ reason and file count, so the totals show that nothing was dropped.
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import sys
 from collections import Counter
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass, field
-from datetime import UTC, datetime
 from pathlib import Path
 
 from codeatlas import __version__
-from codeatlas.config import Config, Deadline, load_config
-from codeatlas.indexer.discover import TEXT_LANGUAGE, Discovery, SkippedPath, discover
-from codeatlas.indexer.generic.adapter import TextAdapter, module_node
-from codeatlas.indexer.intake import IntakeError, IntakeResult, open_source
+from codeatlas.config import Config, load_config
+from codeatlas.indexer.discover import Discovery, SkippedPath
+from codeatlas.indexer.intake import IntakeError
+from codeatlas.indexer.pipeline.parse import (  # noqa: F401  (re-exported for callers)
+    UNKNOWN_TYPE_REASON,
+    parse_source,
+    skipped_result,
+)
 from codeatlas.indexer.registry import Registry
 from codeatlas.models import (
     FileRecord,
     NodeKind,
     ParseResult,
     Snapshot,
-    Tier,
-    make_snapshot_id,
 )
 
 
@@ -87,74 +87,16 @@ class ScanReport:
 def scan(source: str, config: Config, registry: Registry | None = None) -> ScanReport:
     """Intake, discovery and parsing of one source, stopping at the configured limits."""
     registry = registry or Registry()
-    intake = open_source(source, config)
-    # The limit covers indexing only: a slow clone must not use up the parse budget.
-    deadline = Deadline(config.max_seconds)
-    discovery = discover(intake.root, config, registry.tier_for, deadline)
-    sha = intake.commit_sha or _content_sha(discovery.files)
-    snapshot_id = make_snapshot_id(intake.repo, sha)
-    results: dict[str, ParseResult] = {}
-    limits = set(discovery.limits_hit)
-    for record in discovery.files:
-        if deadline.expired():
-            limits.add("max_seconds")
-            break
-        reason = discovery.skip_reasons.get(record.path)
-        results[record.path] = (
-            skipped_result(record, reason, snapshot_id)
-            if reason
-            else _parse(intake, record, registry, snapshot_id)
-        )
-    snapshot = Snapshot(
-        id=snapshot_id,
-        repo=intake.repo,
-        commit_sha=sha,
-        indexed_at=datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        indexer_version=__version__,
-        source=intake.source,
-        limits_hit=tuple(sorted(limits)),
-    )
+    parsed = parse_source(source, config, registry)
     return ScanReport(
-        snapshot=snapshot,
-        root=intake.root,
-        used_git=discovery.used_git,
-        reused_clone=intake.reused_clone,
-        rows=_rows(discovery.files, results),
-        discovery=discovery,
+        snapshot=parsed.snapshot,
+        root=parsed.intake.root,
+        used_git=parsed.discovery.used_git,
+        reused_clone=parsed.intake.reused_clone,
+        rows=_rows(parsed.discovery.files, parsed.results),
+        discovery=parsed.discovery,
         tier_reasons=registry.fallback_reasons(),
     )
-
-
-UNKNOWN_TYPE_REASON = "unknown file type: no language matches this file name or extension"
-
-
-def _parse(
-    intake: IntakeResult, record: FileRecord, registry: Registry, snapshot_id: str
-) -> ParseResult:
-    adapter = (
-        TextAdapter(TEXT_LANGUAGE, UNKNOWN_TYPE_REASON)
-        if record.language == TEXT_LANGUAGE
-        else registry.adapter_for(record.language)
-    )
-    try:
-        source = intake.root.joinpath(*record.path.split("/")).read_bytes()
-    except OSError as exc:
-        return skipped_result(record, f"unreadable: {exc}", snapshot_id)
-    return adapter.parse(record.path, source, snapshot_id)
-
-
-def skipped_result(record: FileRecord, reason: str, snapshot_id: str) -> ParseResult:
-    """A TEXT-tier module node for a file that is not parsed, carrying the reason."""
-    module = module_node(record.path, record.language, b"", snapshot_id, {"skipped_reason": reason})
-    return ParseResult(record.path, record.language, Tier.TEXT, (module,))
-
-
-def _content_sha(files: Sequence[FileRecord]) -> str:
-    """A stand-in commit SHA for a folder outside git: a hash of every file's hash."""
-    digest = hashlib.sha1(usedforsecurity=False)
-    for record in files:
-        digest.update(f"{record.path}\0{record.sha256}\n".encode())
-    return digest.hexdigest()
 
 
 def _rows(files: Sequence[FileRecord], results: dict[str, ParseResult]) -> list[LanguageRow]:
