@@ -24,14 +24,24 @@ If the language needs something the shared code cannot express, say so in the PR
    print(r.tier, [(n.key, n.kind.value) for n in r.nodes], r.calls)
    ```
    Tier must be `structural`. Definitions and calls must show up for functions, methods,
-   classes and a call with and without a receiver. If calls are missing (Rust `Point::new()`
-   was), add `queries/<language>/extra.scm`; never edit upstream.
+   classes and a call with and without a receiver. If calls are missing (Rust `Point::new()`,
+   all of C#, PHP `foo()` and Ruby's bare `validate` were), add `queries/<language>/extra.scm`;
+   never edit upstream. Why calls go missing: the adapter reads only `@reference.call` (C#
+   upstream says `@reference.send`), and it drops every pattern with a predicate such as
+   `#is-not? local` (Ruby's bare words). Also check what the language does with *modules*
+   or *namespaces*: Ruby `module` produces no node, so its methods look top-level.
 
 2. **Write `queries/<language>/imports.scm`.** Capture names are defined once in
    `queries/README.md`: `@import` (the statement), `@import.target`, `@import.name`,
    `@import.alias`, `@import.wildcard`, `@package.name`. Print the syntax tree of a sample
    (`Parser(...).parse(src).root_node`) to see node types. One pattern per statement shape;
-   make sure two patterns cannot match the same statement (a trailing `.` anchor works).
+   make sure two patterns cannot match the same statement (a trailing `.` anchor works, and
+   so does a negated field: `(using_directive !name ...)`). Useful query features seen so
+   far: an optional capture (`alias: (name)? @import.alias`), `#match?` on a capture, and
+   one `@import` per clause for grouped imports (PHP `use A\{B, C}`: target `A`, name `B`).
+   If the language's import is an ordinary call (Ruby `require`), capture the method name
+   as `@import.name` so the profile can tell `require` from `require_relative`; this is the
+   one place `@import.name` is not an imported name.
    Test on snippets in `tests/indexer/structural/test_imports_queries.py`: every shape the
    language has, a file with no imports, and the `package` capture.
    Go example: one pattern for `import_spec` with an optional `name:` (alias, `.`, `_`).
@@ -48,25 +58,44 @@ If the language needs something the shared code cannot express, say so in the PR
      the Package nodes T15 made: `ctx.index.by_key(file.package_key).attrs["module_path"]`.
    - `package_scope(ctx, file) -> list[str]`: files callable without an import. Go: the
      directory. Java: the same `package`.
-   Three class flags adjust the shared rules: `unqualified_is_toplevel` (a bare `F()` is
-   never a method), `unqualified_uses_package`, `has_class_chain`. Set what the language
-   needs and nothing more.
+   Class flags adjust the shared rules; set what the language needs and nothing more:
+   `unqualified_is_toplevel` (a bare `F()` is never a method, so the class chain is also
+   skipped for bare calls: PHP), `unqualified_uses_package`, `has_class_chain`,
+   `type_receivers` (`Foo.bar()` with `Foo` a class in scope looks only at `Foo`'s methods,
+   with no import binding; C#, PHP, Ruby) and `self_receivers` (what means "this object":
+   `this`, PHP `$this`/`self`/`static`). Leave `parent`/`super` out unless the language
+   resolves inheritance, or `parent::m()` finds the child's own `m`.
+   Imports that are file paths (PHP `require`, Ruby `require_relative`) use
+   `join_relative(directory, path)` from `profile.py`. A language without import bindings
+   (Ruby) returns `binding=None, names=None`: files are reached, nothing is named.
 
 4. **Write a sample project** in `tests/data/structural/<language>/`: two or three
    packages, an aliased or wildcard import, same-package calls, a test file, one call into
    the standard library. Then `expected_graph.json` in the scorer's format (see
    `eval/fixtures/polyglot_app/expected_graph.json`): nodes from an export, but **edges
    written by hand** from reading the code, including EXTERNAL targets. Generating the
-   edges from the resolver's output would test nothing.
+   edges from the resolver's output would test nothing. Write the sample, export once to
+   see the node keys (duplicate names get `#hash` keys), then write edges as
+   `calls|imports <src key> -> <dst key>`; an EXTERNAL node is
+   `{"key": "::external:<name>", "kind": "external", "language": ..., "path": ""}`. Label
+   the true edges even when you know the resolver misses them (a bare Ruby word that ends a
+   method): the test then states the miss. Include two classes with the same method name
+   called on an untyped receiver, so the imprecision is written down.
 
 5. **Test.** Unit tests for `reach` (one test per import shape, plus external), the
    package scope, and the sample scored with `eval.oracle.score` (see `tests/indexer/structural/test_structural_resolver.py`). Give every test file a name unique across `tests/`, such as `test_php_profile.py`: pytest imports test files by base name, so two `test_resolver.py` files break the whole suite.
-   Write down any expected imprecision as an assertion, with the reason.
+   Write down any expected imprecision as an assertion, with the reason. Add the file
+   extension to `_language` in `tests/indexer/structural/helpers.py` if it is missing; its
+   `resolve()` only sets Go package keys, so build your own `package_key` when a profile
+   reads Package nodes (see `test_php_profile.py`).
 
 6. **Score.**
    `python scripts/score_fixture.py` must not regress. Then index two real repositories
    of the language (shallow `git clone`, at most two attempts each) with `build_graph` and
-   report: time, CALLS by level, the share of raw calls left unresolved.
+   report: time, CALLS by level, the share of raw calls left unresolved (`BuildResult` has
+   `raw_calls` and `resolved_calls`). For "before", check out the base commit with
+   `git worktree add <dir> <sha>` and run the same script with `PYTHONPATH=<dir>/src`.
+   Pick small repositories from `eval/suite/repos.yaml`: a medium C# repository took 6 s.
 
 7. **Document.** Add the language to the table in `docs/explainers/structural-tier.md`
    (depth: profile or name guess), and mention anything it gets wrong.
