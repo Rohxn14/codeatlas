@@ -79,3 +79,21 @@ In the pull request: precision and recall per edge kind on the Java and Go sampl
 ## Done when
 
 Tests pass on Linux and Windows CI; the plan is committed; scores are in the pull request; the skill exists; the explainer covers the three pieces, the resolver's steps with a Go worked example, and which languages have which depth.
+
+## Review of PR #25 (Nov 3)
+
+**Verdict**: merge after small fixes; done in the "Wave 2 review fixes" pull request.
+
+**Scores**: the Go sample scores 1.0 on calls (10/10) and imports (5/5); Java calls precision 0.89 and recall 1.0, imports 5/5. The reviewer checked all 28 labelled edges against the sample code: all right.
+
+**Real code**: spf13/cobra in 0.41 s (30% of calls unresolved); jsoup, 216 Java files, in 5.5 s (26% unresolved). No exceptions.
+
+**Must fix (done)**: the deep Python adapter still kept comments inside a header (`def f(\n a,  # c\n):`), so repeated definitions got different keys in the two tiers despite T16's `_signature` fix. The deep signature now drops comments the same way, and the test has a repeated, commented pair that fails without the fix.
+
+**Also fixed**: an untyped receiver matching more than 5 methods in reached files stays raw (jsoup had calls with 78 candidates at 0.013 each); `import static org.junit.Assert.assertEquals` makes the bare call an external edge (jsoup's most common unresolved names); calls are looked up by path once; `.github/x.go` keeps its folder name; a 5-candidate guess is tested; the skill asks for unique test file names.
+
+**Still open**: `is_test_file` hard-codes `_test.go` in shared code (a profile hook would be cleaner); Go external test packages (`package x_test`) count as the same package.
+
+**Your decisions**: the cut-off of 5 for untyped fan-out (done, recommended); write 5 into Q2 so T17a inherits it.
+
+**Read these yourself**: `structural/resolver.py` (`_in_scope`, `_from_imports`: scope order and the fan-out cap); `structural/java.py` (`_single`, static imports); `.claude/skills/add-language/SKILL.md` (you will follow it for one language yourself).

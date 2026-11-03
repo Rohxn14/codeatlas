@@ -36,9 +36,12 @@ From the Wave 1 reviews and the Wave 2 plan. For each, write "yes", "no" or your
 | D-20 | The question-answering benchmark (SWE-QA, CodeRepoQA) moves to after Nov 4; the agent's `run_tests` tool is not built, since the agent never runs repository code | Credit goes to the acceptance suite, co-change and mutation truth, which T12 needs; `run_tests` would break the safety rule | T09, T10 |
 | D-21 | The pipeline core (`build_graph`) was built in the review session, with every resolver pre-registered in `plugins.py`, so all of Wave 2 runs in parallel | The resolvers, search, agent and harness all need a pipeline to measure themselves; waiting for T18 would cost a day | T18 (smaller), all of Wave 2 |
 
+| D-22 | Typed receivers resolve at `SELF_METHOD` 0.9 in both deep languages: a declared type (`service: UserService`, `new UserApi()`) names the class, and a subclass may still override, so not 1.0. T06 already does this; T07 treats every receiver as unknown until the TypeScript adapter records types | The two resolvers disagree today, so the same code pattern gets different confidences in Python and TypeScript, and the impact engine compares them | T06 (done), T02 and T07 (later) |
+| D-23 | TESTS edges keep only direct, self-method and import-scoped links; name guesses (at most 0.3) do not become TESTS edges | On networkx, 15,000 TESTS edges came from guesses, and the impact engine selects tests through TESTS edges | T06, T07, T12 |
+
 **Applied on Nov 2, before your review, so Wave 2 could start**: D-11 (T01 fix), D-12 (T15 fix), D-13, D-14, D-19 (pipeline core), D-15, D-16 (contract text), D-17 (T04 fix), D-21. Each is one commit in the "Wave 1 review fixes" pull request and can be reversed. D-18 and D-20 are plan changes.
 
-**Your call**: D-11: · D-12: · D-13: · D-14: · D-15: · D-16: · D-17: · D-18: · D-19: · D-20: · D-21:
+**Your call**: D-11: · D-12: · D-13: · D-14: · D-15: · D-16: · D-17: · D-18: · D-19: · D-20: · D-21: · D-22: · D-23:
 
 ### Contract text (for the decisions you accept)
 

@@ -72,3 +72,24 @@ In the pull request:
 ## Done when
 
 Tests pass on Linux and Windows CI; the plan is committed; the scores are in the pull request; the explainer covers each resolution level with a worked example from the fixture, what the resolver cannot see (dynamic calls, duck typing), and what v2 could do about it. Incremental re-indexing is not part of this task (it moved to the local phase).
+
+## Review of PR #24 (Nov 3)
+
+**Verdict**: had one must-fix bug, now fixed in the "Wave 2 review fixes" pull request.
+
+**Scores (Python)**: against your labels, IMPORTS 18/18, CALLS 32/32, INHERITS 1/1, TESTS 12/12, all at precision and recall 1.0. Against the SCIP oracle, calls precision 0.875 and recall 0.966; the 4 "false positives" are constructor calls the labels send to `__init__` and SCIP to the class, and the one miss is `return wrapper`, which the labels say is not a call. The perfect label score partly reflects that the session could see the labels; the oracle and real code are the honest test.
+
+**Real code**: networkx (583 files) in 15 s, no exception. CALLS by level: direct 18,155, external 16,699, name guess 6,665, import-scoped 781, self-method 778. 21% of raw calls stay unresolved; the top ones are `add_edge` on an untyped graph parameter (more than 5 candidates) and built-in container methods on the no-guess list.
+
+**Must fix (done)**: `from lib import Foo` then `class Foo(Foo.Base)` (valid Python) recursed forever, and the pipeline then dropped every Python edge of the repository. Bases are now resolved with the class's own name out of scope, as Python does, and the MRO has an in-progress guard. The same fix stops `class Foo(Foo)` from inheriting itself.
+
+**Also fixed**: inside a package, `import logging` no longer resolves to a sibling `logging.py` (Python 3 has no implicit relative imports); re-export hops use one constant.
+
+**Still open**: TESTS edges copy name guesses (about 15,000 on networkx at 0.2 to 0.3); `Mro.complete` is set but not used; the plan's file list is stale.
+
+**Your decisions**:
+1. Typed receivers at `SELF_METHOD` 0.9: T07 chose `IMPORT_SCOPED` 1/n for TypeScript. Make them agree (proposal D-22 in `docs/wave3.md`; recommended: 0.9 for both, once the TS adapter records types).
+2. TESTS edges from name guesses: recommended to keep only direct, self-method and import-scoped TESTS, since the impact engine will trust them.
+3. The name-guess cut-off of 5: all three resolvers use it; answer Q2 in `docs/decisions.md` with it.
+
+**Read these yourself**: `resolver/names.py` (`_start`, `mro`, `base_scope_hide`: the bug and its fix); `resolver/calls.py` (the order the levels are tried in); `resolver/project.py` (`find_module`, the import roots).

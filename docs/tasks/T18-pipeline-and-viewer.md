@@ -78,3 +78,25 @@ For a large repository, cap the embedded data (for example 30,000 nodes) and say
 ## Done when
 
 All tests pass on Linux and Windows CI. In the pull request, report `codeatlas index` and `codeatlas view` on this repository, on the fixture and on `https://github.com/pallets/click` (time, counts, problems), with a screenshot of the viewer if the session can take one (with a headless browser, if one is available; do not install one), and the output of `python scripts/score_fixture.py`. Before T06 and T07 merge, CALLS recall will be near zero; that is expected. The explainer gains the report fields, the three commands and how the viewer is built.
+
+## Review of PR #20 (Nov 3)
+
+**Verdict**: fine as merged, with follow-up fixes, now done in the "Wave 2 review fixes" pull request.
+
+**What it does**: `index_repository` builds a commit once, saves a JSON report and returns it on repeat runs (`--force` rebuilds); `codeatlas index`, `view` and `export`; a single-file HTML viewer that draws the graph with cytoscape.js and falls back to plain lists.
+
+**Real runs**: the fixture indexes in 0.14 s (28 files, 217 edges, 72 of 124 raw calls resolved). `pallets/click` cloned and indexed in 6.6 s (178 files, 2,590 nodes, 11,890 edges, 5,772 of 7,278 calls resolved), and `view` wrote a 2.2 MB page whose graph draws with no JavaScript errors.
+
+| Check | Result |
+| --- | --- |
+| Scope, contract, tests, lint, safety | PASS |
+| Mutation spot-check | WARN: `--force` and the `--focus` prefix rule were untested |
+| Silent gaps | FAIL: folders discovery never entered (such as `node_modules/`) appeared in `scan` but not in the report or the viewer |
+
+**Fixed in the review-fixes PR**: the report's new `files.not_entered` (printed and shown in the viewer); `--focus` accepts `backend\` and `./backend/`, and `view` exits 2 when the focus matches nothing; the size cap gives path-less nodes at most half the room and skips a too-big file instead of hiding every later one; a strict `--force` test; the explainer no longer claims a repeat run skips parsing.
+
+**Still open** (small): the viewer loads cytoscape with a blocking script tag, so a hanging CDN blanks the page; no SRI hash on the script; a repeat `index` prints the saved report without saying it is saved; reports live under `data_dir` even with a custom `--db`.
+
+**Your decisions**: keep the cap order (whole files in path order); accept the `AlreadyIndexed` subclass; "latest" snapshot means newest across repositories (print which one); put reports next to the database (recommended, not yet done).
+
+**Read these yourself**: `src/codeatlas/view/data.py` (`_select`, focus and cap); `src/codeatlas/indexer/pipeline/index.py` (`index_repository`, repeat and force); `src/codeatlas/view/page.py` (how the page draws, and its fallback).

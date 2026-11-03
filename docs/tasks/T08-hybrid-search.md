@@ -45,3 +45,19 @@ Offline: a fake embedder with deterministic vectors (for example a hash of words
 ## Done when
 
 Tests pass on Linux and Windows CI; the four-configuration table on the fixture is in the pull request, using the real bge-small model in the cloud session (the setup script pre-downloads it; if it is missing, say so and report BM25 only); the explainer covers the five steps with a worked example query on the fixture and why fusion uses ranks rather than raw scores.
+
+## Review of PR #21 (Nov 3)
+
+**Verdict**: merge after small fixes; done in the "Wave 2 review fixes" pull request.
+
+**The PR's table** (bge-small, before the resolvers): recall@5 BM25 0.267, vectors 0.733, fused 0.600, fused plus graph 0.600. Vectors alone beat fusion on this fixture, and the PR says so. The reviewer could not download bge-small here (HTTP 403 from Hugging Face through this proxy), so the vector rows could not be re-run; the BM25 row reproduced exactly.
+
+**Main finding (fixed)**: graph neighbours were appended after the top k and never re-sorted, so "fused plus graph" recall@5 always equalled "fused": the graph hop could not change what the agent sees first. Now neighbours compete for the k places.
+
+**Also fixed**: expansion skips EXTERNAL and path-less nodes (no `:1-1 vitest.expect` spans in the context pack); a model that cannot be loaded falls back to BM25 with a note instead of crashing; row norms are computed once and the candidate pool uses `argpartition` (the reviewer measured 106 ms per query at 50,000 vectors, mostly sorting).
+
+**Still open**: re-run `scripts/eval_search.py` with bge-small in a cloud session, now that the graph hop counts and the resolvers exist; three questions leak identifier words (`remembers`, `next`, `name`); `context_pack` merges only the first overlapping span.
+
+**Your decisions**: let graph hits compete for the top k (done, recommended); keep equal-weight fusion until the 40-repository suite gives more questions (recommended); expand CONTAINS only from a class to its methods, not to whole files (recommended, not done).
+
+**Read these yourself**: `search/hybrid.py` (`search` and `_expand`); `search/hybrid.py` (`context_pack`); `tests/data/search/fixture_queries.json` (check the questions say what you mean).
