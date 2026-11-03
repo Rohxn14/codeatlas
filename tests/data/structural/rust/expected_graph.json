@@ -1,0 +1,527 @@
+{
+ "snapshot": {
+  "id": "rust@expected",
+  "repo": "rust",
+  "commit_sha": "",
+  "indexed_at": "",
+  "indexer_version": "hand-labelled",
+  "source": "tests/data/structural/rust",
+  "limits_hit": []
+ },
+ "nodes": [
+  {
+   "key": "Cargo.toml::",
+   "kind": "module",
+   "language": "toml",
+   "path": "Cargo.toml",
+   "span": {
+    "start_line": 1,
+    "end_line": 2
+   }
+  },
+  {
+   "key": "money/Cargo.toml::",
+   "kind": "module",
+   "language": "toml",
+   "path": "money/Cargo.toml",
+   "span": {
+    "start_line": 1,
+    "end_line": 4
+   }
+  },
+  {
+   "key": "money/src/format.rs::",
+   "kind": "module",
+   "language": "rust",
+   "path": "money/src/format.rs",
+   "span": {
+    "start_line": 1,
+    "end_line": 17
+   }
+  },
+  {
+   "key": "money/src/format.rs::Formatter",
+   "kind": "class",
+   "language": "rust",
+   "path": "money/src/format.rs",
+   "span": {
+    "start_line": 1,
+    "end_line": 3
+   }
+  },
+  {
+   "key": "money/src/format.rs::Formatter.new",
+   "kind": "function",
+   "language": "rust",
+   "path": "money/src/format.rs",
+   "span": {
+    "start_line": 6,
+    "end_line": 8
+   }
+  },
+  {
+   "key": "money/src/format.rs::Formatter.format",
+   "kind": "function",
+   "language": "rust",
+   "path": "money/src/format.rs",
+   "span": {
+    "start_line": 10,
+    "end_line": 12
+   }
+  },
+  {
+   "key": "money/src/format.rs::round",
+   "kind": "function",
+   "language": "rust",
+   "path": "money/src/format.rs",
+   "span": {
+    "start_line": 15,
+    "end_line": 17
+   }
+  },
+  {
+   "key": "money/src/lib.rs::",
+   "kind": "module",
+   "language": "rust",
+   "path": "money/src/lib.rs",
+   "span": {
+    "start_line": 1,
+    "end_line": 3
+   }
+  },
+  {
+   "key": "money/tests/format_test.rs::",
+   "kind": "module",
+   "language": "rust",
+   "path": "money/tests/format_test.rs",
+   "span": {
+    "start_line": 1,
+    "end_line": 7
+   }
+  },
+  {
+   "key": "money/tests/format_test.rs::formats_whole_numbers",
+   "kind": "function",
+   "language": "rust",
+   "path": "money/tests/format_test.rs",
+   "span": {
+    "start_line": 4,
+    "end_line": 7
+   }
+  },
+  {
+   "key": "shop/Cargo.toml::",
+   "kind": "module",
+   "language": "toml",
+   "path": "shop/Cargo.toml",
+   "span": {
+    "start_line": 1,
+    "end_line": 7
+   }
+  },
+  {
+   "key": "shop/src/main.rs::",
+   "kind": "module",
+   "language": "rust",
+   "path": "shop/src/main.rs",
+   "span": {
+    "start_line": 1,
+    "end_line": 20
+   }
+  },
+  {
+   "key": "shop/src/main.rs::main",
+   "kind": "function",
+   "language": "rust",
+   "path": "shop/src/main.rs",
+   "span": {
+    "start_line": 9,
+    "end_line": 18
+   }
+  },
+  {
+   "key": "shop/src/main.rs::helper",
+   "kind": "function",
+   "language": "rust",
+   "path": "shop/src/main.rs",
+   "span": {
+    "start_line": 20,
+    "end_line": 20
+   }
+  },
+  {
+   "key": "shop/src/report.rs::",
+   "kind": "module",
+   "language": "rust",
+   "path": "shop/src/report.rs",
+   "span": {
+    "start_line": 1,
+    "end_line": 11
+   }
+  },
+  {
+   "key": "shop/src/report.rs::print",
+   "kind": "function",
+   "language": "rust",
+   "path": "shop/src/report.rs",
+   "span": {
+    "start_line": 4,
+    "end_line": 7
+   }
+  },
+  {
+   "key": "shop/src/report.rs::tax",
+   "kind": "function",
+   "language": "rust",
+   "path": "shop/src/report.rs",
+   "span": {
+    "start_line": 9,
+    "end_line": 11
+   }
+  },
+  {
+   "key": "shop/src/store/item.rs::",
+   "kind": "module",
+   "language": "rust",
+   "path": "shop/src/store/item.rs",
+   "span": {
+    "start_line": 1,
+    "end_line": 17
+   }
+  },
+  {
+   "key": "shop/src/store/item.rs::Item",
+   "kind": "class",
+   "language": "rust",
+   "path": "shop/src/store/item.rs",
+   "span": {
+    "start_line": 1,
+    "end_line": 3
+   }
+  },
+  {
+   "key": "shop/src/store/item.rs::Item.new",
+   "kind": "function",
+   "language": "rust",
+   "path": "shop/src/store/item.rs",
+   "span": {
+    "start_line": 6,
+    "end_line": 8
+   }
+  },
+  {
+   "key": "shop/src/store/item.rs::Item.price",
+   "kind": "function",
+   "language": "rust",
+   "path": "shop/src/store/item.rs",
+   "span": {
+    "start_line": 10,
+    "end_line": 12
+   }
+  },
+  {
+   "key": "shop/src/store/item.rs::Item.base",
+   "kind": "function",
+   "language": "rust",
+   "path": "shop/src/store/item.rs",
+   "span": {
+    "start_line": 14,
+    "end_line": 16
+   }
+  },
+  {
+   "key": "shop/src/store/mod.rs::",
+   "kind": "module",
+   "language": "rust",
+   "path": "shop/src/store/mod.rs",
+   "span": {
+    "start_line": 1,
+    "end_line": 35
+   }
+  },
+  {
+   "key": "shop/src/store/mod.rs::Store",
+   "kind": "class",
+   "language": "rust",
+   "path": "shop/src/store/mod.rs",
+   "span": {
+    "start_line": 5,
+    "end_line": 7
+   }
+  },
+  {
+   "key": "shop/src/store/mod.rs::Store.new",
+   "kind": "function",
+   "language": "rust",
+   "path": "shop/src/store/mod.rs",
+   "span": {
+    "start_line": 10,
+    "end_line": 12
+   }
+  },
+  {
+   "key": "shop/src/store/mod.rs::Store.add",
+   "kind": "function",
+   "language": "rust",
+   "path": "shop/src/store/mod.rs",
+   "span": {
+    "start_line": 14,
+    "end_line": 17
+   }
+  },
+  {
+   "key": "shop/src/store/mod.rs::Store.recount",
+   "kind": "function",
+   "language": "rust",
+   "path": "shop/src/store/mod.rs",
+   "span": {
+    "start_line": 19,
+    "end_line": 19
+   }
+  },
+  {
+   "key": "shop/src/store/mod.rs::Store.total",
+   "kind": "function",
+   "language": "rust",
+   "path": "shop/src/store/mod.rs",
+   "span": {
+    "start_line": 21,
+    "end_line": 23
+   }
+  },
+  {
+   "key": "shop/src/store/mod.rs::tests.adds_an_item",
+   "kind": "function",
+   "language": "rust",
+   "path": "shop/src/store/mod.rs",
+   "span": {
+    "start_line": 31,
+    "end_line": 34
+   }
+  },
+  {
+   "key": "::external:std::collections::HashMap.new",
+   "kind": "external",
+   "language": "rust",
+   "path": "",
+   "span": {
+    "start_line": 1,
+    "end_line": 1
+   }
+  },
+  {
+   "key": "::external:std::collections::HashMap",
+   "kind": "external",
+   "language": "rust",
+   "path": "",
+   "span": {
+    "start_line": 1,
+    "end_line": 1
+   }
+  },
+  {
+   "key": "::external:Vec.new",
+   "kind": "external",
+   "language": "rust",
+   "path": "",
+   "span": {
+    "start_line": 1,
+    "end_line": 1
+   }
+  }
+ ],
+ "edges": [
+  {
+   "src_key": "money/src/lib.rs::",
+   "dst_key": "money/src/format.rs::",
+   "kind": "imports",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "money/src/format.rs::Formatter.format",
+   "dst_key": "money/src/format.rs::round",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "money/tests/format_test.rs::",
+   "dst_key": "money/src/format.rs::",
+   "kind": "imports",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "money/tests/format_test.rs::formats_whole_numbers",
+   "dst_key": "money/src/format.rs::Formatter.new",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "money/tests/format_test.rs::formats_whole_numbers",
+   "dst_key": "money/src/format.rs::Formatter.format",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "shop/src/main.rs::",
+   "dst_key": "shop/src/report.rs::",
+   "kind": "imports",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "shop/src/main.rs::",
+   "dst_key": "shop/src/store/mod.rs::",
+   "kind": "imports",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "shop/src/main.rs::",
+   "dst_key": "shop/src/store/item.rs::",
+   "kind": "imports",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "shop/src/main.rs::",
+   "dst_key": "::external:std::collections::HashMap",
+   "kind": "imports",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "shop/src/main.rs::",
+   "dst_key": "money/src/format.rs::",
+   "kind": "imports",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "shop/src/main.rs::main",
+   "dst_key": "shop/src/store/mod.rs::Store.new",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "shop/src/main.rs::main",
+   "dst_key": "shop/src/store/mod.rs::Store.add",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "shop/src/main.rs::main",
+   "dst_key": "shop/src/store/item.rs::Item.new",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "shop/src/main.rs::main",
+   "dst_key": "money/src/format.rs::Formatter.new",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "shop/src/main.rs::main",
+   "dst_key": "money/src/format.rs::Formatter.format",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "shop/src/main.rs::main",
+   "dst_key": "shop/src/store/mod.rs::Store.total",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "shop/src/main.rs::main",
+   "dst_key": "shop/src/report.rs::print",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "shop/src/main.rs::main",
+   "dst_key": "::external:std::collections::HashMap.new",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "shop/src/main.rs::main",
+   "dst_key": "shop/src/main.rs::helper",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "shop/src/report.rs::",
+   "dst_key": "shop/src/store/mod.rs::",
+   "kind": "imports",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "shop/src/report.rs::",
+   "dst_key": "money/src/format.rs::",
+   "kind": "imports",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "shop/src/report.rs::print",
+   "dst_key": "money/src/format.rs::round",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "shop/src/report.rs::print",
+   "dst_key": "shop/src/store/mod.rs::Store.total",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "shop/src/store/mod.rs::",
+   "dst_key": "shop/src/store/item.rs::",
+   "kind": "imports",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "shop/src/store/mod.rs::Store.new",
+   "dst_key": "::external:Vec.new",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "shop/src/store/mod.rs::Store.add",
+   "dst_key": "shop/src/store/mod.rs::Store.recount",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "shop/src/store/mod.rs::Store.total",
+   "dst_key": "shop/src/store/item.rs::Item.price",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "shop/src/store/mod.rs::tests.adds_an_item",
+   "dst_key": "shop/src/store/mod.rs::Store.new",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "shop/src/store/mod.rs::tests.adds_an_item",
+   "dst_key": "shop/src/store/mod.rs::Store.add",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "shop/src/store/mod.rs::tests.adds_an_item",
+   "dst_key": "shop/src/store/item.rs::Item.new",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "shop/src/store/item.rs::Item.price",
+   "dst_key": "shop/src/store/item.rs::Item.base",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "shop/src/store/item.rs::Item.price",
+   "dst_key": "shop/src/report.rs::tax",
+   "kind": "calls",
+   "confidence": 1.0
+  }
+ ]
+}

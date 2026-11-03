@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass, field
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 
 from codeatlas.indexer.adapter import SymbolIndex
 from codeatlas.models import Node, NodeKind, ParseResult, RawImport
@@ -54,10 +54,13 @@ class Context:
     )
     owner_of: dict[str, FileInfo] = field(default_factory=dict)  # node key -> its file
     cache: dict[str, object] = field(default_factory=dict)  # per-run scratch for profiles
+    root: Path | None = None  # the checkout, for profiles that read build files as text
 
     @classmethod
-    def build(cls, results: list[ParseResult], index: SymbolIndex | None) -> Context:
-        ctx = cls(index)
+    def build(
+        cls, results: list[ParseResult], index: SymbolIndex | None, root: Path | None = None
+    ) -> Context:
+        ctx = cls(index, root=root)
         for result in sorted(results, key=lambda r: r.path):
             if result.nodes:
                 ctx._add(result)
@@ -92,6 +95,15 @@ class Context:
 
     def file_of(self, node: Node) -> FileInfo | None:
         return self.files.get(node.path)
+
+    def read(self, path: str) -> bytes | None:
+        """A repository file's bytes, or None without a root or when it cannot be read."""
+        if self.root is None:
+            return None
+        try:
+            return (self.root / path).read_bytes()
+        except OSError:
+            return None
 
 
 def _text(value: object) -> str | None:

@@ -10,9 +10,11 @@ from __future__ import annotations
 import re
 from collections.abc import Sequence
 from dataclasses import dataclass, field
+from pathlib import Path
 
 from codeatlas.indexer.adapter import SymbolIndex
 from codeatlas.indexer.registry import GRAMMARS
+from codeatlas.indexer.structural.c import CppProfile, CProfile
 from codeatlas.indexer.structural.context import Context, FileInfo
 from codeatlas.indexer.structural.csharp import CSharpProfile
 from codeatlas.indexer.structural.go import GoProfile
@@ -20,6 +22,7 @@ from codeatlas.indexer.structural.java import JavaProfile
 from codeatlas.indexer.structural.php import PhpProfile
 from codeatlas.indexer.structural.profile import Profile, Reach
 from codeatlas.indexer.structural.ruby import RubyProfile
+from codeatlas.indexer.structural.rust import RustProfile
 from codeatlas.models import (
     DEEP_LANGUAGES,
     Edge,
@@ -36,7 +39,8 @@ MAX_GUESS_CONFIDENCE = 0.3
 MAX_IMPORT_FILES = 10  # IMPORTS edges for a package nobody calls into
 
 PROFILES: tuple[Profile, ...] = (
-    JavaProfile(), GoProfile(), CSharpProfile(), PhpProfile(), RubyProfile()
+    JavaProfile(), GoProfile(), CSharpProfile(), PhpProfile(), RubyProfile(),
+    CProfile(), CppProfile(), RustProfile(),
 )
 _PROFILE_BY_LANGUAGE: dict[str, Profile] = {
     language: profile for profile in PROFILES for language in profile.languages
@@ -57,8 +61,15 @@ class StructuralResolver:
 
     languages: frozenset[str] = frozenset(GRAMMARS) - DEEP_LANGUAGES
 
+    def __init__(self) -> None:
+        self._root: Path | None = None
+
+    def set_repo_root(self, path: Path) -> None:
+        """The checkout: the C profile reads `CMakeLists.txt` and sources from it."""
+        self._root = Path(path)
+
     def resolve(self, results: Sequence[ParseResult], index: SymbolIndex) -> list[Edge]:
-        ctx = Context.build(list(results), index)
+        ctx = Context.build(list(results), index, self._root)
         calls_of = {r.path: r.calls for r in results}
         edges: list[Edge] = []
         for info in ctx.files.values():
@@ -74,7 +85,7 @@ class StructuralResolver:
 def _file_state(ctx: Context, info: FileInfo, profile: Profile | None) -> _FileState:
     if profile is None:
         return _FileState([], {})
-    reaches = [profile.reach(ctx, info, imp) for imp in info.imports]
+    reaches = [r for imp in info.imports for r in profile.reaches(ctx, info, imp)]
     bindings = {r.binding: r for r in reaches if r.binding}
     return _FileState(reaches, bindings, [set() for _ in reaches])
 
@@ -88,15 +99,20 @@ def _resolve_call(
     source = make_node_id(info.module.snapshot_id, call.caller_key)
     if profile is not None:
         reach = state.bindings.get(call.receiver or "")
+        if reach is None and call.receiver is not None:
+            reach = profile.qualify(ctx, info, call)
         if reach is not None:
-            found = _through_import(ctx, state, reach, call)
+            found = _through_import(ctx, info, profile, state, reach, call)
             if found is not None:
                 return _call_edges(source, found, call, Resolution.IMPORT_SCOPED)
         else:
             scoped = _in_scope(ctx, info, profile, state, call)
             if scoped:
                 return _call_edges(source, scoped, call, Resolution.IMPORT_SCOPED)
-    return _call_edges(source, _guess(ctx, info, call), call, Resolution.NAME_GUESS)
+    guessed = _guess(ctx, info, call)
+    if profile is not None and guessed.nodes:
+        guessed = _Targets(tuple(profile.narrow(ctx, info, call, list(guessed.nodes))))
+    return _call_edges(source, guessed, call, Resolution.NAME_GUESS)
 
 
 @dataclass(frozen=True, slots=True)
@@ -111,7 +127,8 @@ class _Targets:
 
 
 def _through_import(
-    ctx: Context, state: _FileState, reach: Reach, call: RawCall
+    ctx: Context, info: FileInfo, profile: Profile, state: _FileState, reach: Reach,
+    call: RawCall,
 ) -> _Targets | None:
     """`pkg.F()` / `C.m()`: the qualifier is an import, so look only where it points."""
     if reach.external is not None:
@@ -119,6 +136,8 @@ def _through_import(
     nodes = _members(ctx, reach, call.name)
     if nodes:
         _mark_used(state, reach, nodes)
+        nodes = profile.narrow(ctx, info, call, nodes)
+    if nodes:
         return _Targets(tuple(nodes))
     return None  # the import is internal but the name is not there: fall back to a guess
 
@@ -132,7 +151,7 @@ def _in_scope(
     is_self = receiver in profile.self_receivers
     bare_method_possible = unqualified and not profile.unqualified_is_toplevel
     if (bare_method_possible or is_self) and profile.has_class_chain:
-        chain = _class_chain(ctx, info, call.caller_key, name)
+        chain = profile.narrow(ctx, info, call, _class_chain(ctx, info, call.caller_key, name))
         if chain:
             return _Targets(tuple(chain))
         if is_self:
@@ -146,9 +165,10 @@ def _in_scope(
         tiers.append(profile.package_scope(ctx, info))
     for paths in tiers:
         nodes = _functions_in(ctx, paths, name, profile.unqualified_is_toplevel and unqualified)
+        nodes = profile.narrow(ctx, info, call, nodes)
         if nodes:
             return _Targets(tuple(nodes))
-    return _from_imports(ctx, state, call)
+    return _from_imports(ctx, info, profile, state, call)
 
 
 def _on_type(
@@ -194,7 +214,9 @@ def _container(node: Node) -> str | None:
     return node.qualname.rsplit(".", 1)[0].rsplit(".", 1)[-1].split("#", 1)[0]
 
 
-def _from_imports(ctx: Context, state: _FileState, call: RawCall) -> _Targets | None:
+def _from_imports(
+    ctx: Context, info: FileInfo, profile: Profile, state: _FileState, call: RawCall
+) -> _Targets | None:
     nodes: list[Node] = []
     for reach in state.reaches:
         if reach.external is not None:
@@ -206,6 +228,8 @@ def _from_imports(ctx: Context, state: _FileState, call: RawCall) -> _Targets | 
         found = _members(ctx, reach, call.name, any_owner=call.receiver is not None)
         _mark_used(state, reach, found)
         nodes += found
+    nodes = list({n.key: n for n in nodes}.values())  # one file reached by two imports
+    nodes = profile.narrow(ctx, info, call, nodes) if nodes else nodes
     if call.receiver is not None and len(nodes) > MAX_GUESSES:
         # An untyped receiver matched many same-named methods (jsoup had calls with 78
         # candidates at 0.013 each). That is a guess, not a scoped answer: give up, as a
@@ -226,7 +250,7 @@ def _members(ctx: Context, reach: Reach, name: str, any_owner: bool = False) -> 
             if any_owner:
                 found.append(node)
             elif reach.class_name is None:
-                if node.owner_key is None:
+                if _owner_name(node) is None:
                     found.append(node)
             elif _owner_name(node) == reach.class_name:
                 found.append(node)
@@ -243,7 +267,7 @@ def _functions_in(ctx: Context, paths: Sequence[str], name: str, toplevel: bool)
     found = []
     for path in paths:
         for node in ctx.files[path].functions.get(name, []):
-            if not toplevel or node.owner_key is None:
+            if not toplevel or _owner_name(node) is None:
                 found.append(node)
     return found
 
@@ -269,8 +293,11 @@ def _enclosing(info: FileInfo, node: Node) -> Node | None:
 
 
 def _owner_name(node: Node) -> str | None:
+    """The class a method belongs to; a Go or Rust method declared away from its type
+    has no `owner_key` but keeps the type's name in `attrs["receiver"]`."""
     if node.owner_key is None:
-        return None
+        receiver = node.attrs.get("receiver")
+        return receiver if isinstance(receiver, str) else None
     return node.owner_key.split("::", 1)[1].rsplit(".", 1)[-1].split("#", 1)[0]
 
 
@@ -310,17 +337,24 @@ def _import_edges(ctx: Context, info: FileInfo, state: _FileState) -> list[Edge]
     importer calls into; if it calls into none, at the first few by name.
     """
     snapshot = info.module.snapshot_id
-    edges = []
+    edges: list[Edge] = []
+    seen: set[str] = set()  # one statement can reach the same file through several names
     for position, reach in enumerate(state.reaches):
         line = reach.imp.line
         if reach.external is not None:
             dst = make_node_id(snapshot, f"::external:{reach.external}")
+            if dst in seen:
+                continue
+            seen.add(dst)
             edges.append(Edge(info.module.id, dst, EdgeKind.IMPORTS, 1.0,
                               Resolution.STRUCTURAL, line))
             continue
         paths = _imported_files(reach, state.used[position])
         attrs = {"files_in_package": len(reach.paths)} if len(reach.paths) > 1 else {}
         for path in paths:
+            if ctx.files[path].module.id in seen or path == info.path:
+                continue
+            seen.add(ctx.files[path].module.id)
             edges.append(Edge(info.module.id, ctx.files[path].module.id, EdgeKind.IMPORTS,
                               1 / len(paths), Resolution.STRUCTURAL, line, dict(attrs)))
     return edges

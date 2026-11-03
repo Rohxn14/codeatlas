@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from typing import ClassVar
 
 from codeatlas.indexer.structural.context import Context, FileInfo
-from codeatlas.models import RawImport
+from codeatlas.models import Node, RawCall, RawImport
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,9 +46,28 @@ class Profile:
     def reach(self, ctx: Context, file: FileInfo, imp: RawImport) -> Reach:
         return Reach(imp, external=imp.target)
 
+    def reaches(self, ctx: Context, file: FileInfo, imp: RawImport) -> list[Reach]:
+        """Every `Reach` of one statement; Rust `use a::{B, c::D}` has one per name."""
+        return [self.reach(ctx, file, imp)]
+
     def package_scope(self, ctx: Context, file: FileInfo) -> list[str]:
         """Other files that `file` can use without importing them."""
         return []
+
+    def qualify(self, ctx: Context, file: FileInfo, call: RawCall) -> Reach | None:
+        """Where a written qualifier that is not an import binding points.
+
+        Rust `crate::util::f()` or `Self::new()` name their target in the call itself.
+        None: the resolver carries on with its scopes.
+        """
+        return None
+
+    def narrow(self, ctx: Context, file: FileInfo, call: RawCall, nodes: list[Node]) -> list[Node]:
+        """Drop candidates the language rules out, or swap them for better ones.
+
+        C++ `ns::f()` cannot be `other::f`; a C prototype stands for its definition.
+        """
+        return nodes
 
 
 def join_relative(directory: str, relative: str) -> str | None:

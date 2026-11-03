@@ -1,0 +1,347 @@
+{
+ "snapshot": {
+  "id": "cpp@expected",
+  "repo": "cpp",
+  "commit_sha": "",
+  "indexed_at": "",
+  "indexer_version": "hand-labelled",
+  "source": "tests/data/structural/cpp",
+  "limits_hit": []
+ },
+ "nodes": [
+  {
+   "key": "include/shapes/shape.hpp::",
+   "kind": "module",
+   "language": "cpp",
+   "path": "include/shapes/shape.hpp",
+   "span": {
+    "start_line": 1,
+    "end_line": 18
+   }
+  },
+  {
+   "key": "include/shapes/shape.hpp::shapes.Circle",
+   "kind": "class",
+   "language": "cpp",
+   "path": "include/shapes/shape.hpp",
+   "span": {
+    "start_line": 5,
+    "end_line": 14
+   }
+  },
+  {
+   "key": "include/shapes/shape.hpp::shapes.Circle.Circle",
+   "kind": "function",
+   "language": "cpp",
+   "path": "include/shapes/shape.hpp",
+   "span": {
+    "start_line": 7,
+    "end_line": 7
+   }
+  },
+  {
+   "key": "include/shapes/shape.hpp::shapes.Circle.area",
+   "kind": "function",
+   "language": "cpp",
+   "path": "include/shapes/shape.hpp",
+   "span": {
+    "start_line": 8,
+    "end_line": 8
+   }
+  },
+  {
+   "key": "include/shapes/shape.hpp::shapes.Circle.scaled",
+   "kind": "function",
+   "language": "cpp",
+   "path": "include/shapes/shape.hpp",
+   "span": {
+    "start_line": 9,
+    "end_line": 9
+   }
+  },
+  {
+   "key": "include/shapes/shape.hpp::shapes.Circle.unit",
+   "kind": "function",
+   "language": "cpp",
+   "path": "include/shapes/shape.hpp",
+   "span": {
+    "start_line": 10,
+    "end_line": 10
+   }
+  },
+  {
+   "key": "include/shapes/shape.hpp::shapes.total",
+   "kind": "function",
+   "language": "cpp",
+   "path": "include/shapes/shape.hpp",
+   "span": {
+    "start_line": 16,
+    "end_line": 16
+   }
+  },
+  {
+   "key": "include/util/math.hpp::",
+   "kind": "module",
+   "language": "cpp",
+   "path": "include/util/math.hpp",
+   "span": {
+    "start_line": 1,
+    "end_line": 13
+   }
+  },
+  {
+   "key": "include/util/math.hpp::util.half",
+   "kind": "function",
+   "language": "cpp",
+   "path": "include/util/math.hpp",
+   "span": {
+    "start_line": 4,
+    "end_line": 4
+   }
+  },
+  {
+   "key": "include/util/math.hpp::legacy.half",
+   "kind": "function",
+   "language": "cpp",
+   "path": "include/util/math.hpp",
+   "span": {
+    "start_line": 10,
+    "end_line": 10
+   }
+  },
+  {
+   "key": "src/main.cpp::",
+   "kind": "module",
+   "language": "cpp",
+   "path": "src/main.cpp",
+   "span": {
+    "start_line": 1,
+    "end_line": 11
+   }
+  },
+  {
+   "key": "src/main.cpp::main",
+   "kind": "function",
+   "language": "cpp",
+   "path": "src/main.cpp",
+   "span": {
+    "start_line": 6,
+    "end_line": 6
+   }
+  },
+  {
+   "key": "src/shape.cpp::",
+   "kind": "module",
+   "language": "cpp",
+   "path": "src/shape.cpp",
+   "span": {
+    "start_line": 1,
+    "end_line": 24
+   }
+  },
+  {
+   "key": "src/shape.cpp::shapes.Circle",
+   "kind": "function",
+   "language": "cpp",
+   "path": "src/shape.cpp",
+   "span": {
+    "start_line": 6,
+    "end_line": 6
+   }
+  },
+  {
+   "key": "src/shape.cpp::shapes.area",
+   "kind": "function",
+   "language": "cpp",
+   "path": "src/shape.cpp",
+   "span": {
+    "start_line": 8,
+    "end_line": 8
+   }
+  },
+  {
+   "key": "src/shape.cpp::shapes.scaled",
+   "kind": "function",
+   "language": "cpp",
+   "path": "src/shape.cpp",
+   "span": {
+    "start_line": 12,
+    "end_line": 12
+   }
+  },
+  {
+   "key": "src/shape.cpp::shapes.unit",
+   "kind": "function",
+   "language": "cpp",
+   "path": "src/shape.cpp",
+   "span": {
+    "start_line": 16,
+    "end_line": 16
+   }
+  },
+  {
+   "key": "src/shape.cpp::shapes.total",
+   "kind": "function",
+   "language": "cpp",
+   "path": "src/shape.cpp",
+   "span": {
+    "start_line": 20,
+    "end_line": 20
+   }
+  },
+  {
+   "key": "tests/test_shape.cpp::",
+   "kind": "module",
+   "language": "cpp",
+   "path": "tests/test_shape.cpp",
+   "span": {
+    "start_line": 1,
+    "end_line": 8
+   }
+  },
+  {
+   "key": "tests/test_shape.cpp::main",
+   "kind": "function",
+   "language": "cpp",
+   "path": "tests/test_shape.cpp",
+   "span": {
+    "start_line": 4,
+    "end_line": 4
+   }
+  },
+  {
+   "key": "::external:algorithm",
+   "kind": "external",
+   "language": "cpp",
+   "path": "",
+   "span": {
+    "start_line": 1,
+    "end_line": 1
+   }
+  },
+  {
+   "key": "::external:vector",
+   "kind": "external",
+   "language": "cpp",
+   "path": "",
+   "span": {
+    "start_line": 1,
+    "end_line": 1
+   }
+  },
+  {
+   "key": "::external:cassert",
+   "kind": "external",
+   "language": "cpp",
+   "path": "",
+   "span": {
+    "start_line": 1,
+    "end_line": 1
+   }
+  }
+ ],
+ "edges": [
+  {
+   "src_key": "src/main.cpp::",
+   "dst_key": "::external:algorithm",
+   "kind": "imports",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/main.cpp::",
+   "dst_key": "::external:vector",
+   "kind": "imports",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/main.cpp::",
+   "dst_key": "include/shapes/shape.hpp::",
+   "kind": "imports",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/main.cpp::",
+   "dst_key": "include/util/math.hpp::",
+   "kind": "imports",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/main.cpp::",
+   "dst_key": "src/shape.cpp::shapes.unit",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/main.cpp::",
+   "dst_key": "src/shape.cpp::shapes.area",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/main.cpp::",
+   "dst_key": "include/util/math.hpp::legacy.half",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/main.cpp::",
+   "dst_key": "src/shape.cpp::shapes.total",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/shape.cpp::",
+   "dst_key": "include/shapes/shape.hpp::",
+   "kind": "imports",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/shape.cpp::",
+   "dst_key": "include/util/math.hpp::",
+   "kind": "imports",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/shape.cpp::",
+   "dst_key": "src/shape.cpp::shapes.area",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/shape.cpp::",
+   "dst_key": "src/shape.cpp::shapes.Circle",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/shape.cpp::",
+   "dst_key": "include/util/math.hpp::util.half",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "tests/test_shape.cpp::",
+   "dst_key": "::external:cassert",
+   "kind": "imports",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "tests/test_shape.cpp::",
+   "dst_key": "include/shapes/shape.hpp::",
+   "kind": "imports",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "tests/test_shape.cpp::",
+   "dst_key": "src/shape.cpp::shapes.scaled",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "tests/test_shape.cpp::",
+   "dst_key": "src/shape.cpp::shapes.area",
+   "kind": "calls",
+   "confidence": 1.0
+  }
+ ]
+}

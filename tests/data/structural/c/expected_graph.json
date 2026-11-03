@@ -1,0 +1,305 @@
+{
+ "snapshot": {
+  "id": "c@expected",
+  "repo": "c",
+  "commit_sha": "",
+  "indexed_at": "",
+  "indexer_version": "hand-labelled",
+  "source": "tests/data/structural/c",
+  "limits_hit": []
+ },
+ "nodes": [
+  {
+   "key": "CMakeLists.txt::",
+   "kind": "module",
+   "language": "cmake",
+   "path": "CMakeLists.txt",
+   "span": {
+    "start_line": 1,
+    "end_line": 4
+   }
+  },
+  {
+   "key": "lib/geometry.c::",
+   "kind": "module",
+   "language": "c",
+   "path": "lib/geometry.c",
+   "span": {
+    "start_line": 1,
+    "end_line": 18
+   }
+  },
+  {
+   "key": "lib/geometry.c::square#8e3e",
+   "kind": "function",
+   "language": "c",
+   "path": "lib/geometry.c",
+   "span": {
+    "start_line": 3,
+    "end_line": 3
+   }
+  },
+  {
+   "key": "lib/geometry.c::area",
+   "kind": "function",
+   "language": "c",
+   "path": "lib/geometry.c",
+   "span": {
+    "start_line": 5,
+    "end_line": 5
+   }
+  },
+  {
+   "key": "lib/geometry.c::clamp",
+   "kind": "function",
+   "language": "c",
+   "path": "lib/geometry.c",
+   "span": {
+    "start_line": 12,
+    "end_line": 12
+   }
+  },
+  {
+   "key": "lib/geometry.c::square#8e3e-2",
+   "kind": "function",
+   "language": "c",
+   "path": "lib/geometry.c",
+   "span": {
+    "start_line": 16,
+    "end_line": 16
+   }
+  },
+  {
+   "key": "lib/api/geometry.h::",
+   "kind": "module",
+   "language": "c",
+   "path": "lib/api/geometry.h",
+   "span": {
+    "start_line": 1,
+    "end_line": 7
+   }
+  },
+  {
+   "key": "lib/api/geometry.h::area",
+   "kind": "function",
+   "language": "c",
+   "path": "lib/api/geometry.h",
+   "span": {
+    "start_line": 4,
+    "end_line": 4
+   }
+  },
+  {
+   "key": "lib/api/geometry.h::clamp",
+   "kind": "function",
+   "language": "c",
+   "path": "lib/api/geometry.h",
+   "span": {
+    "start_line": 5,
+    "end_line": 5
+   }
+  },
+  {
+   "key": "src/main.c::",
+   "kind": "module",
+   "language": "c",
+   "path": "src/main.c",
+   "span": {
+    "start_line": 1,
+    "end_line": 10
+   }
+  },
+  {
+   "key": "src/main.c::main",
+   "kind": "function",
+   "language": "c",
+   "path": "src/main.c",
+   "span": {
+    "start_line": 5,
+    "end_line": 5
+   }
+  },
+  {
+   "key": "src/util/log.c::",
+   "kind": "module",
+   "language": "c",
+   "path": "src/util/log.c",
+   "span": {
+    "start_line": 1,
+    "end_line": 8
+   }
+  },
+  {
+   "key": "src/util/log.c::log_line",
+   "kind": "function",
+   "language": "c",
+   "path": "src/util/log.c",
+   "span": {
+    "start_line": 4,
+    "end_line": 4
+   }
+  },
+  {
+   "key": "src/util/log.h::",
+   "kind": "module",
+   "language": "c",
+   "path": "src/util/log.h",
+   "span": {
+    "start_line": 1,
+    "end_line": 10
+   }
+  },
+  {
+   "key": "src/util/log.h::log_line",
+   "kind": "function",
+   "language": "c",
+   "path": "src/util/log.h",
+   "span": {
+    "start_line": 4,
+    "end_line": 4
+   }
+  },
+  {
+   "key": "src/util/log.h::log_level",
+   "kind": "function",
+   "language": "c",
+   "path": "src/util/log.h",
+   "span": {
+    "start_line": 6,
+    "end_line": 6
+   }
+  },
+  {
+   "key": "tests/test_geometry.c::",
+   "kind": "module",
+   "language": "c",
+   "path": "tests/test_geometry.c",
+   "span": {
+    "start_line": 1,
+    "end_line": 8
+   }
+  },
+  {
+   "key": "tests/test_geometry.c::main",
+   "kind": "function",
+   "language": "c",
+   "path": "tests/test_geometry.c",
+   "span": {
+    "start_line": 4,
+    "end_line": 4
+   }
+  },
+  {
+   "key": "::external:stdio.h",
+   "kind": "external",
+   "language": "c",
+   "path": "",
+   "span": {
+    "start_line": 1,
+    "end_line": 1
+   }
+  },
+  {
+   "key": "::external:assert.h",
+   "kind": "external",
+   "language": "c",
+   "path": "",
+   "span": {
+    "start_line": 1,
+    "end_line": 1
+   }
+  }
+ ],
+ "edges": [
+  {
+   "src_key": "lib/geometry.c::",
+   "dst_key": "lib/api/geometry.h::",
+   "kind": "imports",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "lib/geometry.c::",
+   "dst_key": "lib/geometry.c::square#8e3e-2",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/main.c::",
+   "dst_key": "::external:stdio.h",
+   "kind": "imports",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/main.c::",
+   "dst_key": "lib/api/geometry.h::",
+   "kind": "imports",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/main.c::",
+   "dst_key": "src/util/log.h::",
+   "kind": "imports",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/main.c::",
+   "dst_key": "lib/geometry.c::area",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/main.c::",
+   "dst_key": "src/util/log.c::log_line",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/main.c::",
+   "dst_key": "lib/geometry.c::clamp",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/util/log.c::",
+   "dst_key": "::external:stdio.h",
+   "kind": "imports",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/util/log.c::",
+   "dst_key": "src/util/log.h::",
+   "kind": "imports",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/util/log.c::",
+   "dst_key": "src/util/log.h::log_level",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "tests/test_geometry.c::",
+   "dst_key": "::external:assert.h",
+   "kind": "imports",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "tests/test_geometry.c::",
+   "dst_key": "lib/api/geometry.h::",
+   "kind": "imports",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "tests/test_geometry.c::",
+   "dst_key": "lib/geometry.c::area",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "tests/test_geometry.c::",
+   "dst_key": "lib/geometry.c::clamp",
+   "kind": "calls",
+   "confidence": 1.0
+  }
+ ]
+}
