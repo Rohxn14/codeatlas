@@ -32,7 +32,8 @@ class FileInfo:
 
     @property
     def directory(self) -> str:
-        return str(PurePosixPath(self.path).parent).removeprefix(".")
+        parent = str(PurePosixPath(self.path).parent)
+        return "" if parent == "." else parent
 
     @property
     def is_test_file(self) -> bool:

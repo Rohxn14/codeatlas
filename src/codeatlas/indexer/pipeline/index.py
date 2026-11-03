@@ -66,7 +66,7 @@ def index_repository(
     """Index `source` into the database at `db_path`, or return the saved report.
 
     An already-indexed commit returns its report unless `force`. The commit is only known
-    after intake, so a repeat still reads the source once; it does not re-parse it.
+    after parsing, so a repeat still parses every file before the saved report is found.
     """
     db_path.parent.mkdir(parents=True, exist_ok=True)
     with GraphStore(db_path) as store:
@@ -134,6 +134,23 @@ def _files_section(built: BuildResult) -> dict[str, Any]:
         "by_tier": _counts(str(r.tier) for r in results.values()),
         "by_language": _counts(r.language for r in results.values()),
         "skipped": {"total": len(reasons), "by_reason": dict(sorted(skipped.items()))},
+        "not_entered": _not_entered(built),
+    }
+
+
+def _not_entered(built: BuildResult) -> dict[str, Any]:
+    """Folders, links and submodules discovery never went into (`node_modules/`, say).
+
+    Their files have no nodes at all, so without this section they would vanish from the
+    report silently; `scan` already lists them.
+    """
+    skipped = built.parsed.discovery.skipped
+    return {
+        "total": len(skipped),
+        "files": sum(s.file_count for s in skipped),
+        "by_reason": _counts(s.reason for s in skipped),
+        "paths": [{"path": s.path, "reason": s.reason, "files": s.file_count}
+                  for s in skipped[:200]],
     }
 
 

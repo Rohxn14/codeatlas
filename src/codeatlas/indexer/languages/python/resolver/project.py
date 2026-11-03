@@ -33,7 +33,12 @@ class Project:
         parts = [p for p in dotted.split(".") if p]
         if not parts:
             return []
-        roots = (*self.roots, posixpath.dirname(importer))
+        # The importer's own folder is a root only for a script folder: inside a package
+        # (a folder with `__init__.py`), `import logging` means the standard library,
+        # not a sibling `logging.py` (Python 3 has no implicit relative imports).
+        folder = posixpath.dirname(importer)
+        in_package = posixpath.join(folder, "__init__.py") in self.paths
+        roots = self.roots if in_package else (*self.roots, folder)
         found: list[str] = []
         for root in roots:
             for candidate in _candidates(root, parts):

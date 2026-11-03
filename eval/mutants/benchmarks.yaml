@@ -1,0 +1,20 @@
+# Repositories whose tests the mutation runner may execute (CLAUDE.md, Safety). Only the
+# cloud VM or a container may run this: it executes the repository's own test code.
+#
+# `path` is a folder inside this repository; `url` + `sha` is a pinned public clone.
+# `commands` maps a mutated language to the test command and the folder it runs in.
+benchmarks:
+  - name: polyglot_app
+    path: eval/fixtures/polyglot_app
+    why: "The hand-labelled fixture, a Python backend and a TypeScript frontend."
+    commands:
+      python: {run: "pytest backend", cwd: ".", reporter: pytest}
+      typescript: {run: "npx vitest run", cwd: "frontend", reporter: vitest}
+  - name: itsdangerous
+    url: https://github.com/pallets/itsdangerous
+    sha: 672971d66a2ef9f85151e53283113f33d642dabd
+    why: >-
+      A small pure-Python library (about ten modules) whose whole test suite runs in
+      about a second and needs only pytest, so thirty mutants cost under a minute.
+    commands:
+      python: {run: "python -m pytest tests", cwd: ".", reporter: pytest, pythonpath: src}

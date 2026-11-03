@@ -111,7 +111,7 @@ def build_graph(
     result.seconds["write"] = time.perf_counter() - mark
     mark = time.perf_counter()
     index = store.symbol_index(snapshot_id)
-    resolved = _run_resolvers(results, index, result)
+    resolved = _run_resolvers(results, index, result, parsed.intake.root)
     result.seconds["resolve"] = time.perf_counter() - mark
     mark = time.perf_counter()
     link_nodes, linked = _run_linkers(results, index, snapshot_id, result)
@@ -188,7 +188,17 @@ def _with_package_keys(results: list[ParseResult], repo_edges: list[Edge]) -> li
     return updated
 
 
-def _run_resolvers(results: list[ParseResult], index: object, result: BuildResult) -> list[Edge]:
+def _run_resolvers(
+    results: list[ParseResult], index: object, result: BuildResult, repo_root: Path
+) -> list[Edge]:
+    """Run each resolver on its languages; collect its edges and its own problems.
+
+    A resolver that needs repository files (tsconfig.json, package.json) offers
+    `set_repo_root(path)`: the pipeline passes the checkout, which for a GitHub URL is
+    the clone, so it never has to guess the root from the store. A resolver's
+    `problems` list (unreadable configs, say) is copied into the build's problems, so
+    nothing it skipped is silent.
+    """
     loaded, failures = plugins.load_plugins(plugins.RESOLVERS)
     result.problems += [f"resolver {f.name} not loaded: {f.error}" for f in failures]
     covered: set[str] = set()
@@ -198,9 +208,12 @@ def _run_resolvers(results: list[ParseResult], index: object, result: BuildResul
         mine = [r for r in results if r.language in languages]
         covered |= languages
         try:
+            if hasattr(resolver, "set_repo_root"):
+                resolver.set_repo_root(repo_root)
             edges += resolver.resolve(mine, index)  # type: ignore[attr-defined]
         except Exception as exc:
             result.problems.append(f"resolver {name} failed: {type(exc).__name__}: {exc}")
+        result.problems += [f"resolver {name}: {p}" for p in getattr(resolver, "problems", [])]
     parsed_languages = {r.language for r in results if r.nodes and len(r.nodes) > 1}
     result.languages_without_resolver = sorted(parsed_languages - covered)
     return edges

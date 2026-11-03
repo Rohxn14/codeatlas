@@ -1,0 +1,354 @@
+[
+  {
+    "name": "click",
+    "queries": 410,
+    "scores": [
+      {
+        "predictor": "cochange",
+        "overall": {
+          "queries": 410,
+          "precision@5": 0.2729,
+          "recall@5": 0.2508,
+          "precision@10": 0.2123,
+          "recall@10": 0.3212,
+          "no_prediction_share": 0.2512
+        },
+        "by_language": {
+          "markdown": {
+            "queries": 94,
+            "precision@5": 0.3506,
+            "recall@5": 0.143,
+            "precision@10": 0.3317,
+            "recall@10": 0.2036,
+            "no_prediction_share": 0.4255
+          },
+          "python": {
+            "queries": 260,
+            "precision@5": 0.2784,
+            "recall@5": 0.2767,
+            "precision@10": 0.1991,
+            "recall@10": 0.3406,
+            "no_prediction_share": 0.2308
+          },
+          "rst": {
+            "queries": 32,
+            "precision@5": 0.1313,
+            "recall@5": 0.212,
+            "precision@10": 0.1063,
+            "recall@10": 0.3591,
+            "no_prediction_share": 0.0
+          },
+          "text": {
+            "queries": 2,
+            "precision@5": 0.0,
+            "recall@5": 0.0,
+            "precision@10": 0.0,
+            "recall@10": 0.0,
+            "no_prediction_share": 0.0
+          },
+          "toml": {
+            "queries": 15,
+            "precision@5": 0.1333,
+            "recall@5": 0.5512,
+            "precision@10": 0.1,
+            "recall@10": 0.6746,
+            "no_prediction_share": 0.0
+          },
+          "yaml": {
+            "queries": 7,
+            "precision@5": 0.7375,
+            "recall@5": 0.3429,
+            "precision@10": 0.6375,
+            "recall@10": 0.3429,
+            "no_prediction_share": 0.4286
+          }
+        }
+      },
+      {
+        "predictor": "same-folder",
+        "overall": {
+          "queries": 410,
+          "precision@5": 0.1157,
+          "recall@5": 0.1407,
+          "precision@10": 0.1002,
+          "recall@10": 0.1886,
+          "no_prediction_share": 0.0683
+        },
+        "by_language": {
+          "markdown": {
+            "queries": 94,
+            "precision@5": 0.0489,
+            "recall@5": 0.0959,
+            "precision@10": 0.0432,
+            "recall@10": 0.1435,
+            "no_prediction_share": 0.0
+          },
+          "python": {
+            "queries": 260,
+            "precision@5": 0.1241,
+            "recall@5": 0.0885,
+            "precision@10": 0.1069,
+            "recall@10": 0.1468,
+            "no_prediction_share": 0.1077
+          },
+          "rst": {
+            "queries": 32,
+            "precision@5": 0.0562,
+            "recall@5": 0.2383,
+            "precision@10": 0.0402,
+            "recall@10": 0.2383,
+            "no_prediction_share": 0.0
+          },
+          "text": {
+            "queries": 2,
+            "precision@5": 0.1,
+            "recall@5": 0.25,
+            "precision@10": 0.0714,
+            "recall@10": 0.25,
+            "no_prediction_share": 0.0
+          },
+          "toml": {
+            "queries": 15,
+            "precision@5": 0.1867,
+            "recall@5": 0.7679,
+            "precision@10": 0.1333,
+            "recall@10": 0.7679,
+            "no_prediction_share": 0.0
+          },
+          "yaml": {
+            "queries": 7,
+            "precision@5": 0.8571,
+            "recall@5": 0.8571,
+            "precision@10": 0.8571,
+            "recall@10": 0.8571,
+            "no_prediction_share": 0.0
+          }
+        }
+      }
+    ]
+  },
+  {
+    "name": "cobra",
+    "queries": 322,
+    "scores": [
+      {
+        "predictor": "cochange",
+        "overall": {
+          "queries": 322,
+          "precision@5": 0.2973,
+          "recall@5": 0.3466,
+          "precision@10": 0.271,
+          "recall@10": 0.4254,
+          "no_prediction_share": 0.236
+        },
+        "by_language": {
+          "go": {
+            "queries": 221,
+            "precision@5": 0.2948,
+            "recall@5": 0.4386,
+            "precision@10": 0.2635,
+            "recall@10": 0.5398,
+            "no_prediction_share": 0.0905
+          },
+          "make": {
+            "queries": 4,
+            "precision@5": 1.0,
+            "recall@5": 0.125,
+            "precision@10": 1.0,
+            "recall@10": 0.125,
+            "no_prediction_share": 0.75
+          },
+          "markdown": {
+            "queries": 67,
+            "precision@5": 0.2859,
+            "recall@5": 0.1142,
+            "precision@10": 0.2826,
+            "recall@10": 0.1328,
+            "no_prediction_share": 0.5224
+          },
+          "text": {
+            "queries": 13,
+            "precision@5": 0.5267,
+            "recall@5": 0.3077,
+            "precision@10": 0.4917,
+            "recall@10": 0.3333,
+            "no_prediction_share": 0.6154
+          },
+          "yaml": {
+            "queries": 17,
+            "precision@5": 0.1571,
+            "recall@5": 0.149,
+            "precision@10": 0.1714,
+            "recall@10": 0.2314,
+            "no_prediction_share": 0.5882
+          }
+        }
+      },
+      {
+        "predictor": "same-folder",
+        "overall": {
+          "queries": 322,
+          "precision@5": 0.1915,
+          "recall@5": 0.3156,
+          "precision@10": 0.1587,
+          "recall@10": 0.4652,
+          "no_prediction_share": 0.0435
+        },
+        "by_language": {
+          "go": {
+            "queries": 221,
+            "precision@5": 0.2,
+            "recall@5": 0.3714,
+            "precision@10": 0.1543,
+            "recall@10": 0.5387,
+            "no_prediction_share": 0.0
+          },
+          "make": {
+            "queries": 4,
+            "precision@5": 0.1,
+            "recall@5": 0.1,
+            "precision@10": 0.075,
+            "recall@10": 0.225,
+            "no_prediction_share": 0.0
+          },
+          "markdown": {
+            "queries": 67,
+            "precision@5": 0.1278,
+            "recall@5": 0.1457,
+            "precision@10": 0.1259,
+            "recall@10": 0.2645,
+            "no_prediction_share": 0.194
+          },
+          "text": {
+            "queries": 13,
+            "precision@5": 0.2389,
+            "recall@5": 0.2974,
+            "precision@10": 0.2472,
+            "recall@10": 0.3897,
+            "no_prediction_share": 0.0769
+          },
+          "yaml": {
+            "queries": 17,
+            "precision@5": 0.2706,
+            "recall@5": 0.3255,
+            "precision@10": 0.2765,
+            "recall@10": 0.4157,
+            "no_prediction_share": 0.0
+          }
+        }
+      }
+    ]
+  },
+  {
+    "name": "express",
+    "queries": 290,
+    "scores": [
+      {
+        "predictor": "cochange",
+        "overall": {
+          "queries": 290,
+          "precision@5": 0.4338,
+          "recall@5": 0.6397,
+          "precision@10": 0.3978,
+          "recall@10": 0.6847,
+          "no_prediction_share": 0.0724
+        },
+        "by_language": {
+          "javascript": {
+            "queries": 108,
+            "precision@5": 0.4064,
+            "recall@5": 0.3759,
+            "precision@10": 0.3611,
+            "recall@10": 0.4599,
+            "no_prediction_share": 0.0648
+          },
+          "json": {
+            "queries": 26,
+            "precision@5": 0.2154,
+            "recall@5": 0.8107,
+            "precision@10": 0.1115,
+            "recall@10": 0.8492,
+            "no_prediction_share": 0.0
+          },
+          "markdown": {
+            "queries": 38,
+            "precision@5": 0.2118,
+            "recall@5": 0.6714,
+            "precision@10": 0.1412,
+            "recall@10": 0.7495,
+            "no_prediction_share": 0.1053
+          },
+          "text": {
+            "queries": 2,
+            "precision@5": null,
+            "recall@5": 0.0,
+            "precision@10": null,
+            "recall@10": 0.0,
+            "no_prediction_share": 1.0
+          },
+          "yaml": {
+            "queries": 116,
+            "precision@5": 0.5818,
+            "recall@5": 0.8477,
+            "precision@10": 0.5818,
+            "recall@10": 0.8477,
+            "no_prediction_share": 0.069
+          }
+        }
+      },
+      {
+        "predictor": "same-folder",
+        "overall": {
+          "queries": 290,
+          "precision@5": 0.3321,
+          "recall@5": 0.569,
+          "precision@10": 0.318,
+          "recall@10": 0.6059,
+          "no_prediction_share": 0.0138
+        },
+        "by_language": {
+          "javascript": {
+            "queries": 108,
+            "precision@5": 0.2019,
+            "recall@5": 0.1186,
+            "precision@10": 0.201,
+            "recall@10": 0.1993,
+            "no_prediction_share": 0.037
+          },
+          "json": {
+            "queries": 26,
+            "precision@5": 0.1692,
+            "recall@5": 0.7343,
+            "precision@10": 0.0863,
+            "recall@10": 0.7343,
+            "no_prediction_share": 0.0
+          },
+          "markdown": {
+            "queries": 38,
+            "precision@5": 0.1158,
+            "recall@5": 0.5024,
+            "precision@10": 0.067,
+            "recall@10": 0.5463,
+            "no_prediction_share": 0.0
+          },
+          "text": {
+            "queries": 2,
+            "precision@5": 0.0,
+            "recall@5": 0.0,
+            "precision@10": 0.05,
+            "recall@10": 0.1667,
+            "no_prediction_share": 0.0
+          },
+          "yaml": {
+            "queries": 116,
+            "precision@5": 0.5618,
+            "recall@5": 0.9828,
+            "precision@10": 0.5618,
+            "recall@10": 0.9828,
+            "no_prediction_share": 0.0
+          }
+        }
+      }
+    ]
+  }
+]

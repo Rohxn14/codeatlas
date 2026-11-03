@@ -15,7 +15,7 @@ from tree_sitter import Node as TSNode
 # T00's rule for repeated names (`#` + short hash of the signature, then an ordinal only
 # for identical signatures). Reused, not copied, so a symbol keeps the same key whether
 # the deep or the structural tier parses it. It is private to generic/adapter.py.
-from codeatlas.indexer.generic.adapter import _Definition, _duplicate_suffixes
+from codeatlas.indexer.generic.adapter import _comments_between, _Definition, _duplicate_suffixes
 from codeatlas.indexer.languages.python.syntax import (
     NodeId,
     ident,
@@ -107,7 +107,14 @@ def signature(node: TSNode, source: bytes) -> str:
     colon = next((c for c in node.children if c.type == ":"), None)
     body = node.child_by_field_name("body")
     end = colon.start_byte if colon is not None else (body.start_byte if body else node.end_byte)
-    return " ".join(source[node.start_byte : end].decode("utf-8", "replace").split())
+    # Comments inside the header (`def f(\n    a,  # why\n):`) are dropped too, exactly
+    # as T00's structural tier does, so both tiers hash the same text for repeated names.
+    pieces, position = [], node.start_byte
+    for comment in _comments_between(node, end):
+        pieces.append(source[position : comment.start_byte])
+        position = max(position, comment.end_byte)
+    pieces.append(source[position:end])
+    return " ".join(b"".join(pieces).decode("utf-8", "replace").split())
 
 
 def _bases(node: TSNode, source: bytes) -> list[str]:

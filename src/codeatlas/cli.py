@@ -37,6 +37,7 @@ from codeatlas.models import (
 )
 from codeatlas.store import GraphStore
 from codeatlas.view import build_view_data, latest_snapshot_id, write_view
+from codeatlas.view.data import focus_matches
 
 
 @dataclass(slots=True)
@@ -222,6 +223,10 @@ def render_index_text(report: IndexReport) -> str:
     tiers = ", ".join(f"{k}: {v}" for k, v in files["by_tier"].items())
     lines += _table(["language", "files"], [[k, v] for k, v in files["by_language"].items()])
     lines.append(f"total: {files['total']} files ({tiers}); skipped: {files['skipped']['total']}")
+    not_entered = files.get("not_entered") or {}
+    if not_entered.get("total"):
+        lines.append(f"not entered: {not_entered['total']} folders or links "
+                     f"({not_entered['files']} files): " + _pairs(not_entered["by_reason"]))
     lines += ["", "Nodes: " + _pairs(report.nodes["by_kind"])]
     lines.append(f"Edges: {report.edges['total']}")
     lines += ["  by kind: " + _pairs(report.edges["by_kind"])]
@@ -281,6 +286,9 @@ def _run_index(args: argparse.Namespace, config: Config) -> int:
 def _run_view(args: argparse.Namespace, config: Config) -> int:
     store, snapshot_id = _open_store(args, config)
     with store:
+        if not focus_matches(store, snapshot_id, args.focus):
+            print(f"--focus {args.focus!r} matches no file of {snapshot_id}", file=sys.stderr)
+            return 2
         saved = load_report(config, snapshot_id)
         data = build_view_data(store, snapshot_id, saved.to_dict() if saved else None, args.focus)
     out = Path(args.out) if args.out else Path(config.data_dir) / "view.html"

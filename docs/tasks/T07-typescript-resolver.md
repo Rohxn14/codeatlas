@@ -73,3 +73,19 @@ In the pull request:
 ## Done when
 
 Tests pass on Linux and Windows CI; the plan is committed; the scores are in the pull request; the explainer covers module resolution step by step, each resolution level with an example from the fixture, and what static resolution cannot see (dynamic property access, callbacks, framework magic).
+
+## Review of PR #22 (Nov 3)
+
+**Verdict**: fine as merged; follow-up fixes done in the "Wave 2 review fixes" pull request.
+
+**Scores (TypeScript)**: against your labels, IMPORTS 19/19, CALLS 13/13, INHERITS 1/1, TESTS 7/7. Against the SCIP oracle, typescript calls 10/10 and tsx 3/4 (the miss is `toBe(UserCard)`, a reference SCIP counts and the labels rightly do not). The only fixture misses are the HTTP calls, which belong to the linker (T11).
+
+**Real code**: 1,023 TS/JS files shipped with scip-typescript in 8.3 s (the resolver itself 0.26 s), no exception. 47% of raw calls unresolved. Of the name guesses, 83% came from 15 built-in method names (`push`, `map`, `next`, `slice`...), and built-in `add`, `get`, `has` landed on user code as import-scoped at up to 1.0.
+
+**Fixed in the review-fixes PR**: receiver calls named like built-in methods get no scoped match and no guess; `this.m()` on a class whose base is outside the repository (`extends React.Component`) is "no edge" instead of a guess; the pipeline now passes the checkout to the resolver (`set_repo_root`), so tsconfig `paths` and package `exports` work for GitHub URL sources too, and the resolver's own problems (an unreadable tsconfig) reach the build's problems instead of vanishing.
+
+**Still open**: `exports` conditions are checked in a fixed order rather than key order; `extends` arrays take the last parent's folder; extension order and the exact cut-off are untested; the plan's file list is stale.
+
+**Your decisions**: typed receivers (see T06, D-22); should an import-scoped match with one candidate and an unknown receiver be 1.0 like DIRECT? Recommended: cap it below 0.9 so the impact engine can tell them apart.
+
+**Read these yourself**: `resolver/calls.py` (level order and the built-in stop-list); `resolver/tables.py` (barrel following and the cycle guard); `resolver/resolver.py` (`set_repo_root`).

@@ -40,6 +40,19 @@ class Hit:
     attrs: dict[str, object] = field(default_factory=dict)
 
 
+# Methods of built-in arrays, maps, sets, strings, iterators and promises. A repository
+# function with one of these names is almost never what `x.push()` means, so receiver
+# calls with these names get no scoped match and no guess (the same idea as T06's
+# NO_GUESS list for Python).
+BUILTIN_METHODS = frozenset({
+    "push", "pop", "shift", "unshift", "slice", "splice", "map", "filter", "reduce",
+    "forEach", "find", "findIndex", "some", "every", "includes", "indexOf", "join",
+    "concat", "sort", "reverse", "flat", "flatMap", "keys", "values", "entries", "get",
+    "set", "has", "add", "delete", "clear", "next", "then", "catch", "finally",
+    "toString", "split", "replace", "trim", "toLowerCase", "toUpperCase", "startsWith",
+    "endsWith", "match", "test", "apply", "call", "bind", "padStart", "padEnd", "repeat",
+})
+
 class CallResolver:
     def __init__(
         self,
@@ -61,6 +74,8 @@ class CallResolver:
             hits = attempt(call, caller, ctx)
             if hits is not None:
                 return hits
+        if call.receiver is not None and call.name in BUILTIN_METHODS:
+            return []  # `items.push(x)`, `seen.has(k)`: a built-in, not a repository method
         return self._scoped(call, ctx) or self._guess(call)
 
     # --- DIRECT -----------------------------------------------------------------------
@@ -155,8 +170,18 @@ class CallResolver:
         else:
             method = self._find_method(start, call.name, set(), 0)
         if method is None:
-            return None
+            # Not in the repository's part of the hierarchy. If a base lies outside it
+            # (`extends React.Component`), the method is that library's: decide "no edge"
+            # rather than guessing a same-named method somewhere else.
+            return [] if self._has_outside_base(cls) else None
         return [Hit(method.key, Resolution.SELF_METHOD, SELF_METHOD_CONFIDENCE)]
+
+    def _has_outside_base(self, cls: Node) -> bool:
+        written = cls.attrs.get("bases")
+        count = len(written) if isinstance(written, list) else 0
+        inside = [b for b in self.bases(cls)
+                  if b.node is not None and b.node.kind is NodeKind.CLASS]
+        return len(inside) < count
 
     def _enclosing_class(self, caller: Node) -> Node | None:
         if caller.owner_key:

@@ -27,6 +27,7 @@ _SUITE_CALLS = frozenset({"describe", "context", "suite", "fdescribe", "xdescrib
 _TEST_CALLS = frozenset({"it", "test", "fit", "xit", "xtest"})
 _TEST_MODIFIERS = frozenset({"only", "skip", "concurrent", "todo", "failing"})
 _TEST_SEPARATOR = " > "
+_TEST_FOLDERS = frozenset({"__tests__", "test", "tests", "spec"})
 _CALLER_KINDS = frozenset({NodeKind.FUNCTION, NodeKind.TEST})
 
 
@@ -45,10 +46,17 @@ class Definition:
 
 
 def is_test_file(path: str) -> bool:
-    """`*.test.*`, `*.spec.*` or anything under a `__tests__` folder."""
+    """`*.test.*`, `*.spec.*`, or anything under a `__tests__`, `test`, `tests` or `spec`
+    folder.
+
+    Mocha projects (express, lodash) keep `describe`/`it` files in `test/` with plain
+    names. Missing them left every call inside `it(...)` callbacks at module level, so
+    the acceptance suite showed express with 99% of calls unresolved.
+    """
     pure = PurePosixPath(path)
     stem_parts = pure.name.split(".")[1:-1]
-    return "__tests__" in pure.parts[:-1] or "test" in stem_parts or "spec" in stem_parts
+    folders = {part.lower() for part in pure.parts[:-1]}
+    return bool(folders & _TEST_FOLDERS) or "test" in stem_parts or "spec" in stem_parts
 
 
 class Symbols:

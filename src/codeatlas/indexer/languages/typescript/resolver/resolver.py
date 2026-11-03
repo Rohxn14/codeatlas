@@ -61,6 +61,17 @@ class TypeScriptResolver:
         run = _Run(tables, modules, exports, _snapshot_id(results))
         return run.edges(self.problems)
 
+    def set_repo_root(self, root: Path) -> None:
+        """Read tsconfig.json and package.json from `root` (the pipeline calls this)."""
+
+        def read(path: str) -> bytes | None:
+            try:
+                return root.joinpath(*path.split("/")).read_bytes()
+            except OSError:
+                return None
+
+        self._read = read
+
     def _reader_from_index(self, index: SymbolIndex) -> ReadFile:
         root = _root_of(index)
         if root is None:
@@ -122,6 +133,8 @@ class _Run:
         self._add(caller.key, hit.dst_key, EdgeKind.CALLS, hit.resolution, hit.confidence, line,
                   hit.attrs)
         target = self._t.nodes.get(hit.dst_key)
+        if hit.resolution is Resolution.NAME_GUESS:
+            return  # D-23: a guess is too weak to say which tests cover a function
         if caller.kind is NodeKind.TEST and target is not None and _is_source_function(target):
             self._add(caller.key, hit.dst_key, EdgeKind.TESTS, hit.resolution, hit.confidence,
                       line, hit.attrs)

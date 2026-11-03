@@ -65,3 +65,21 @@ In the pull request: five questions about the fixture, asked with the real LLM i
 ## Done when
 
 Tests pass on Linux and Windows CI; the five questions are reported; the explainer covers each tool, the loop step by step with one real trajectory, the citation check, and how to connect the MCP server to Claude Code.
+
+## Review of PR #23 (Nov 3)
+
+**Verdict**: keep merged; follow-up fixes done in the "Wave 2 review fixes" pull request. One deliverable is missing: the five real-LLM questions, because Groq hit its free-tier limit (429) and Gemini returned 503/504 in the session. The PR says so honestly.
+
+**What works**: 10 of 11 tools give the right answers on the fixture (callers, callees, traverse, impact and select_tests for `Repo.save` match your labels); over real stdio, the MCP server lists all 11 tools and runs `find_callers`; the citation check catches a missing file, a line out of range and another snapshot; no key reaches the trajectory log; the hybrid-search integration works against T08's real API.
+
+**Must fix (done)**: `get_imports` read only edges touching the module node, but resolvers point imports at symbols, so `imported_by` was empty for `repo.py`, `models.py` and `services.py`. It now collects importers of every symbol in the file. `impact` v0 also starts from the classes that own a changed method.
+
+**Also fixed**: `semantic_search` uses the configured embedding model, passes on the search engine's notes, keeps at most k hits and drops EXTERNAL nodes.
+
+**Still open**: ask the five questions (see `docs/wave3.md`; the Groq free tier allows about 8,000 tokens a minute, so use a lower `max_steps` or Gemini); malformed citations are skipped, not reported; the trajectory stores result sizes, not contents; the MCP server needs `mcp>=2` while `pyproject.toml` says `>=1.2` (your edit to make).
+
+**Your decisions**: should `ask` exit non-zero on an invalid citation (recommended, for the eval)? Should trajectories store tool results, capped at 4,000 characters (recommended, for strategy memory later)?
+
+**Try it**: `codeatlas index eval/fixtures/polyglot_app --db $PWD\atlas.sqlite`, then `claude mcp add codeatlas -- python -m codeatlas.agent mcp --db $PWD\atlas.sqlite`, then ask Claude Code "use codeatlas find_callers on backend/repo.py::Repo.save with depth 2". Expect `UserRepo.save` (0.9) and `UserService.create_user` (0.81).
+
+**Read these yourself**: `agent/loop.py` (the citation check); `agent/tools.py` (`semantic_search`, `get_imports`, `_impact_scores`).

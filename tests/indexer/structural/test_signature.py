@@ -21,6 +21,13 @@ class Shape:
         """Docs."""
         return scale
 
+    def area(
+        self,  # a repeated name with a comment inside the header
+        scale,
+        offset,
+    ):
+        return scale + offset
+
 
 def render(x):
     # comment
@@ -55,8 +62,8 @@ def test_editing_a_comment_does_not_change_a_key() -> None:
 def test_signature_has_no_comments_and_no_semicolon() -> None:
     adapter = Registry(deep={}).adapter_for("python")
     result = adapter.parse("m.py", SOURCE.encode(), SNAPSHOT)
-    signatures = {n.name: n.signature for n in result.nodes if n.name == "area"}
-    assert signatures["area"] == "def area( self, scale, )"
+    signatures = sorted(n.signature for n in result.nodes if n.name == "area")
+    assert signatures == ["def area( self, scale, )", "def area( self, scale, offset, )"]
     java = Registry(deep={}).adapter_for("java")
     iface = java.parse("I.java", b"interface I { void save(int a); }", SNAPSHOT)
     assert [n.signature for n in iface.nodes if n.name == "save"] == ["void save(int a)"]

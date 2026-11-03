@@ -103,7 +103,30 @@ def test_name_guess_splits_confidence_and_gives_up_above_the_cutoff() -> None:
     assert [c[2] for c in two] == [0.3, 0.3]
     four = calls(resolve(project(4)))
     assert [round(c[2], 2) for c in four] == [0.25] * 4
+    exactly = calls(resolve(project(MAX_GUESSES)))  # the cut-off itself still guesses
+    assert len(exactly) == MAX_GUESSES
     assert calls(resolve(project(MAX_GUESSES + 1))) == []
+
+
+def test_untyped_receiver_with_many_scoped_candidates_gives_up() -> None:
+    classes = "".join(
+        f"class C{i} {{ void run() {{}} }}\n" for i in range(MAX_GUESSES + 1)
+    )
+    edges = resolve({
+        "src/p/Many.java": f"package p;\n{classes}",
+        "src/q/Main.java": ("package q;\nimport p.*;\n"
+                            "class Main { void go(Object x) { x.run(); } }\n"),
+    }, packages={})
+    assert calls(edges) == []
+
+
+def test_static_import_from_outside_the_repository_is_external() -> None:
+    edges = resolve({
+        "src/t/ATest.java": ("package t;\nimport static org.junit.Assert.assertEquals;\n"
+                             "class ATest { void t() { assertEquals(1, 2); } }\n"),
+    }, packages={})
+    targets = [c[1] for c in calls(edges)]
+    assert targets == ["::external:org.junit.Assert.assertEquals"]
 
 
 def test_name_guess_stays_inside_the_callers_language() -> None:

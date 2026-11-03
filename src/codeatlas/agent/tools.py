@@ -206,12 +206,18 @@ def semantic_search(ctx: ToolContext, query: str, k: int = DEFAULT_LIMIT) -> dic
         try:
             from codeatlas.llm import EmbeddingClient
 
-            engine = HybridSearch(ctx.store, ctx.snapshot_id, EmbeddingClient())
-            hits = [
-                _hit(ctx, h.node, h.score, list(getattr(h, "sources", ())))
-                for h in engine.search(query, k=k)
-            ]
-            return _fit({"query": query, "engine": "hybrid", "hits": hits}, "hits")
+            # from_config: the configured model and cache, so embeddings built under
+            # CODEATLAS_EMBEDDING_MODEL are found again.
+            engine = HybridSearch(ctx.store, ctx.snapshot_id, EmbeddingClient.from_config())
+            found = [h for h in engine.search(query, k=k)
+                     if h.node.path and h.node.kind is not NodeKind.EXTERNAL]
+            hits = [_hit(ctx, h.node, h.score, list(getattr(h, "sources", ())))
+                    for h in found[:k]]
+            notes = "; ".join(getattr(engine, "notes", []) or [])
+            result = {"query": query, "engine": "hybrid", "hits": hits}
+            if notes:
+                result["note"] = notes
+            return _fit(result, "hits")
         except Exception as exc:  # search is best effort: text search still answers
             note = f"hybrid search failed ({type(exc).__name__}: {exc}); used text search only"
     hits = [_hit(ctx, n, s, ["bm25"]) for n, s in ctx.store.search_text(ctx.snapshot_id, query, k)]
@@ -322,8 +328,15 @@ def get_imports(ctx: ToolContext, path: str) -> dict[str, Any]:
         return _error(f"{path!r} is not a file of this snapshot")
     imports = [_edge_row(ctx, e, e.dst_id) for e in ctx.store.edges_from(module.id,
                                                                          [EdgeKind.IMPORTS])]
-    imported_by = [_edge_row(ctx, e, e.src_id) for e in ctx.store.edges_to(module.id,
-                                                                           [EdgeKind.IMPORTS])]
+    # Resolvers point imports at the symbol imported (`from repo import Repo` gives
+    # user_repo.py -> repo.py::Repo), so a file's importers are the importers of the file
+    # and of everything defined in it, each importing module listed once.
+    imported_by, seen = [], set()
+    for node in ctx.store.nodes_in_file(ctx.snapshot_id, module.path):
+        for e in ctx.store.edges_to(node.id, [EdgeKind.IMPORTS]):
+            if (e.src_id, e.dst_id) not in seen:
+                seen.add((e.src_id, e.dst_id))
+                imported_by.append(_edge_row(ctx, e, e.src_id))
     result = {
         "path": module.path,
         "citation": ctx.citation(module.path, module.span.start_line),
@@ -441,6 +454,15 @@ def _impact_scores(ctx: ToolContext, nodes: list[Node]) -> dict[str, float]:
         module = ctx.store.module_for_path(ctx.snapshot_id, n.path)
         if module is not None:
             starts.add(module.id)
+        # Imports point at symbols: `from repo import Repo` reaches Repo.save's class, so
+        # the classes that own a changed method are starting points too.
+        owner_key = n.owner_key
+        while owner_key:
+            owners = ctx.store.nodes_by_key(owner_key, ctx.snapshot_id)
+            if not owners:
+                break
+            starts.add(owners[0].id)
+            owner_key = owners[0].owner_key
     g = ctx.graph(_IMPACT_KINDS)
     return graph_algos.reverse_reach(g, starts, _IMPACT_KINDS)
 

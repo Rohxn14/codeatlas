@@ -57,3 +57,19 @@ In the pull request: the suite run on at least 5 repositories (from small to lar
 ## Done when
 
 Tests pass on Linux and Windows CI; the three reports are in the pull request; the explainer covers each benchmark with a worked example, what each metric can hide (for example, a mutant no test catches), and how T12 and T14 will use them.
+
+## Review of the T10 branch (Nov 3)
+
+**Verdict**: merge after fixes; merged and fixed in the "Wave 2 review fixes" pull request. The session pushed its branch but never opened a pull request, most likely because it ran out of credit after its last commit.
+
+**What it built**: `python -m eval.suite` (47 pinned repositories, each built in a child process with a time limit, a JSON and markdown scoreboard, resume); `python -m eval.cochange` (held-out commits, precision and recall at 5 and 10, a `Predictor` protocol for T12, co-change and same-folder predictors); `python -m eval.mutants` (pinned benchmarks only, scratch copies only, a baseline check first, timeouts). Co-change beats the same-folder baseline on click (P@5 0.27 vs 0.12), cobra (0.30 vs 0.19) and express (0.43 vs 0.33).
+
+**Must fix (done)**: the mutator broke `@overload` stubs whose body shares the header's line, so three itsdangerous "caught" mutants were really syntax errors. It now skips overloads and any mutation that no longer parses, and both truth files were regenerated on the merged tree (caller basis `calls-edges`): itsdangerous 29 made, 29 caught; fixture 23 made, 22 caught. A test assumed no resolvers existed; fixed. The committed scoreboard predated Wave 2 (100% unresolved everywhere); re-run on the merged tree, see `docs/wave3.md`.
+
+**Also fixed**: the Windows refusal is in `run_benchmark` itself; the message no longer suggests WSL (CLAUDE.md says cloud VM or container); the pin check raises instead of `assert`; a failed co-change clone is a row with its error.
+
+**Still open**: kill the whole process group on a test timeout; `eval/cochange` calls T15's private `_count` and `_filter_reason` (make them public in a later task); Kotlin and Bash files land in the text tier with no recorded reason (Kotlin has no grammar in `pyproject.toml`; Bash has none either), which the suite scoreboard shows.
+
+**Your decisions**: mutation truth runs only in the cloud VM or a container (done); T12 is scored on `calls-edges` truth (done); T12 builds one index and reads history up to each commit, rather than re-indexing per commit (in the T12 brief).
+
+**Read these yourself**: `eval/mutants/mutate.py` (the mutator and its new checks); `eval/mutants/run.py` (the only place repository tests run); `eval/cochange/predictors.py` (the protocol T12 implements).

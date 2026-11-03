@@ -61,15 +61,21 @@ class Names:
                 if node.owner_key:
                     self.members_of.setdefault(node.owner_key, {})[node.name] = node
         self._mro: dict[str, Mro] = {}
+        self._mro_in_progress: set[str] = set()
 
     # --- names -----------------------------------------------------------------
 
-    def ref(self, path: str, text: str) -> Ref | None:
-        """Resolve a dotted text as seen from module `path`; None when unknown."""
+    def ref(self, path: str, text: str, hide: str | None = None) -> Ref | None:
+        """Resolve a dotted text as seen from module `path`; None when unknown.
+
+        `hide` leaves one local definition out of scope: a class's bases are evaluated
+        before the class name is bound, so in `from lib import Foo; class Foo(Foo.Base)`
+        the base `Foo` is the import, not the class being defined.
+        """
         if not _DOTTED.match(text) or path not in self.tables:
             return None
         parts = text.split(".")
-        start = self._start(self.tables[path], parts)
+        start = self._start(self.tables[path], parts, hide)
         if start is None:
             return None
         current, used = start
@@ -79,8 +85,10 @@ class Names:
                 return None
         return current
 
-    def _start(self, table: ModuleTable, parts: list[str]) -> tuple[Ref, int] | None:
-        if parts[0] in table.defs:
+    def _start(
+        self, table: ModuleTable, parts: list[str], hide: str | None = None
+    ) -> tuple[Ref, int] | None:
+        if parts[0] in table.defs and parts[0] != hide:
             return Ref("node", (table.defs[parts[0]],)), 1
         for used in range(len(parts), 0, -1):  # longest import prefix: `a.b` before `a`
             binding = table.bindings.get(".".join(parts[:used]))
@@ -150,11 +158,20 @@ class Names:
     def mro(self, cls: Node) -> Mro:
         """Depth-first, left-to-right, each class once, at most MAX_MRO_DEPTH deep."""
         cached = self._mro.get(cls.key)
-        if cached is None:
+        if cached is not None:
+            return cached
+        if cls.key in self._mro_in_progress:
+            # Resolving this class's bases led back to the class itself: answer with
+            # what is known so far instead of recursing forever.
+            return Mro([cls], False)
+        self._mro_in_progress.add(cls.key)
+        try:
             result = Mro([], True)
             self._visit(cls, result, set(), 0)
-            cached = self._mro[cls.key] = result
-        return cached
+        finally:
+            self._mro_in_progress.discard(cls.key)
+        self._mro[cls.key] = result
+        return result
 
     def _visit(self, cls: Node, out: Mro, seen: set[str], depth: int) -> None:
         if cls.key in seen:
@@ -174,7 +191,7 @@ class Names:
         """Each written base as a repository class, or None when it is not one."""
         found: list[Node | None] = []
         for text in base_names(cls):
-            ref = self.ref(cls.path, text) if text else None
+            ref = self.ref(cls.path, text, base_scope_hide(cls)) if text else None
             node = ref.nodes[0] if ref and ref.kind == "node" else None
             found.append(node if node is not None and node.kind is NodeKind.CLASS else None)
         return found
@@ -186,6 +203,15 @@ class Names:
             if member is not None:
                 return member
         return None
+
+
+def base_scope_hide(cls: Node) -> str | None:
+    """The name to leave out of scope while resolving `cls`'s bases.
+
+    Bases are evaluated before the class name is bound. Only a module-level class can
+    shadow a module-level name, which is what `ModuleTable.defs` holds.
+    """
+    return cls.name if "." not in cls.qualname else None
 
 
 def base_names(cls: Node) -> list[str]:

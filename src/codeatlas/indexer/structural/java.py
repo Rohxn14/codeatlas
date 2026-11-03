@@ -37,6 +37,12 @@ class JavaProfile(Profile):
                     return Reach(imp, tuple(paths), None, member, member)
                 # `import static a.b.C.m` brings the member m, unqualified.
                 return Reach(imp, tuple(paths), None, None, parts[cut - 1], frozenset({member}))
+        if len(parts) >= 2 and parts[-1][:1].islower() and parts[-2][:1].isupper():
+            # `import static org.junit.Assert.assertEquals`: a member of an outside class,
+            # used unqualified as `assertEquals(...)`. The import statement does not say
+            # "static" in the raw import, but Java naming does: Class.member.
+            owner = ".".join(parts[:-1])
+            return Reach(imp, external=owner, binding=None, names=frozenset({parts[-1]}))
         return Reach(imp, external=imp.target, binding=parts[-1])
 
     def _wildcard(self, ctx: Context, imp: RawImport) -> Reach:
