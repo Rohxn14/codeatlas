@@ -58,3 +58,32 @@ def test_predictor_uses_history_up_to_the_held_out_commit(tmp_path):
     assert "lib.py" not in ranked
     assert predictor.predict(root, f"{held_out}^", "nothing.py", 5) == []
     store.close()
+
+
+def test_files_missing_from_the_index_are_counted(tmp_path):
+    root, held_out = make_project(tmp_path)
+    store = GraphStore(tmp_path / "m.db")
+    built = build_graph(str(root), store)
+    predictor = ImpactPredictor(store, built.snapshot_id)
+    assert predictor.predict(root, f"{held_out}^", "added_later.py", 5) == []
+    assert predictor.not_in_index == 1
+    store.close()
+
+
+def test_the_index_can_be_built_before_the_held_out_commits(tmp_path):
+    import importlib.util
+
+    root, held_out = make_project(tmp_path)
+    commit(root, {"late.py": "from lib import save\n\ndef late():\n    return save(1)\n"}, 5)
+    spec = importlib.util.spec_from_file_location(
+        "evaluate_impact", Path(__file__).resolve().parents[2] / "scripts" / "evaluate_impact.py")
+    script = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(script)
+    store = GraphStore(tmp_path / "w.db")
+    with script.checkout_at(root, f"{held_out}^", tmp_path / "wt") as src:
+        built = build_graph(str(src), store)
+    assert built.parsed.snapshot.commit_sha == git(root, "rev-parse", f"{held_out}^")
+    assert store.module_for_path(built.snapshot_id, "late.py") is None  # no leakage
+    assert store.module_for_path(built.snapshot_id, "lib.py") is not None
+    assert not (tmp_path / "wt" / "tree").exists()
+    store.close()

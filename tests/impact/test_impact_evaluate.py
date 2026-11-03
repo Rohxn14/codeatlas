@@ -11,6 +11,9 @@ from codeatlas.impact.evaluate import (
     change_for,
     default_selectors,
     evaluate_mutants,
+    f1_by_threshold,
+    leave_one_out,
+    lobo_table,
     mutants_from_truth,
     prf,
     table,
@@ -99,3 +102,22 @@ def test_table_renders_every_selector(engine):
     assert text.startswith("### demo")
     for name in ("engine", "run-all", "importing-tests", "cochange-only"):
         assert f"| {name} |" in text
+
+
+def test_threshold_sweep_matches_the_natural_cut_off(engine):
+    mutants = [Mutant("app/service.py::create", frozenset({"tests/test_service.py"}))]
+    sweep = f1_by_threshold(engine, mutants, (0.3, 0.99))
+    assert sweep == {0.3: 1.0, 0.99: 0.0}  # the test file scores 0.8: one hop of decay
+
+
+def test_leave_one_out_tunes_on_the_other_benchmarks_only():
+    sweeps = {"a": {0.2: 0.9, 0.5: 0.1}, "b": {0.2: 0.2, 0.5: 0.6}}
+    rows = {r["held_out"]: r for r in leave_one_out(sweeps, default=0.5)}
+    assert rows["a"]["tuned_on_others"] == 0.5 and rows["a"]["f1_tuned"] == 0.1
+    assert rows["a"]["oracle"] == 0.2 and rows["a"]["f1_default"] == 0.1
+    assert rows["b"]["tuned_on_others"] == 0.2 and rows["b"]["f1_tuned"] == 0.2
+    assert "| a | 0.5 | 0.1 |" in lobo_table(list(rows.values()))
+
+
+def test_leave_one_out_needs_two_benchmarks():
+    assert leave_one_out({"a": {0.3: 1.0}}, default=0.3) == []

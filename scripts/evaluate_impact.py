@@ -4,17 +4,23 @@
     python scripts/evaluate_impact.py cochange [--repo NAME ...] [--commits N]
 
 `mutants` indexes each benchmark's source with `build_graph`, reads
-`eval/mutants/truth/*.json` and prints one table per benchmark. `cochange` runs the
-held-out-commit benchmark with the existing predictors plus the engine, building one
-index per repository. Neither runs repository code: they read git and parse files.
+`eval/mutants/truth/*.json` and prints one table per benchmark, then a leave-one-
+benchmark-out table for the natural cut-off. `cochange` runs the held-out-commit
+benchmark with the existing predictors plus the engine, building one index per
+repository at the parent of its oldest held-out commit, so no held-out commit's own
+structure leaks into the graph. Neither runs repository code: they read git and parse
+files.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import subprocess
 import sys
 import tempfile
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import replace
 from pathlib import Path
 
@@ -26,6 +32,9 @@ from codeatlas.impact.engine import ImpactEngine  # noqa: E402
 from codeatlas.impact.evaluate import (  # noqa: E402
     default_selectors,
     evaluate_mutants,
+    f1_by_threshold,
+    leave_one_out,
+    lobo_table,
     mutants_from_truth,
     table,
 )
@@ -41,7 +50,7 @@ def run_mutants(args: argparse.Namespace) -> int:
 
     config = replace(ImpactConfig(), combine=args.combine, depth=args.depth,
                      decay=args.decay, test_threshold=args.threshold)
-    report, results = [], {}
+    report, results, sweeps = [], {}, {}
     for bench in load_benchmarks():
         if args.benchmark and bench.name not in args.benchmark:
             continue
@@ -60,11 +69,17 @@ def run_mutants(args: argparse.Namespace) -> int:
             try:
                 built = build_graph(str(root), store)
                 engine = ImpactEngine(store, built.snapshot_id, config)
-                result = evaluate_mutants(engine, mutants_from_truth(truth), default_selectors())
+                mutants = mutants_from_truth(truth)
+                result = evaluate_mutants(engine, mutants, default_selectors())
+                sweeps[bench.name] = f1_by_threshold(engine, mutants)
             finally:
                 store.close()
         results[bench.name] = result
         report.append(table(bench.name, result))
+    lobo = leave_one_out(sweeps, config.test_threshold)
+    if lobo:
+        report.append(lobo_table(lobo))
+        results["leave_one_out"] = lobo
     text = "\n".join(report)
     print(text)
     if args.out:
@@ -73,8 +88,27 @@ def run_mutants(args: argparse.Namespace) -> int:
     return 0
 
 
+@contextmanager
+def checkout_at(repo: Path, rev: str, parent: Path) -> Iterator[Path]:
+    """A detached worktree of `repo` at `rev`, removed afterwards: the code as it was."""
+    folder = parent / "tree"
+    _git(repo, "worktree", "add", "--detach", "--quiet", str(folder), rev)
+    try:
+        yield folder
+    finally:
+        _git(repo, "worktree", "remove", "--force", str(folder))
+
+
+def _git(repo: Path, *args: str) -> None:
+    done = subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True,
+                          check=False, timeout=600)
+    if done.returncode != 0:
+        raise RuntimeError(done.stderr.strip() or f"git {args[0]} failed")
+
+
 def run_cochange(args: argparse.Namespace) -> int:
     from eval.cochange.benchmark import build_queries, evaluate
+    from eval.cochange.gitread import files_at
     from eval.cochange.predictors import CoChangePredictor, ImpactPredictor, SameFolderPredictor
     from eval.cochange.report import table as cochange_table
     from eval.suite.clone import clone_pinned
@@ -90,16 +124,28 @@ def run_cochange(args: argparse.Namespace) -> int:
             results.append({"name": name, "error": str(exc), "scores": []})
             continue
         queries = build_queries(root, args.commits)
-        with tempfile.TemporaryDirectory() as tmp:
+        if not queries:
+            results.append({"name": name, "queries": 0, "scores": []})
+            continue
+        # The oldest held-out commit's parent, so no held-out structure is in the graph;
+        # `--index-at head` reproduces the leaky T12 setup for comparison.
+        base = "HEAD" if args.index_at == "head" else f"{queries[-1].commit}^"
+        present = files_at(root, base)
+        groups = [("", queries), (" (file in index)", [q for q in queries if q.file in present])]
+        with tempfile.TemporaryDirectory() as tmp, checkout_at(root, base, Path(tmp)) as src:
             store = GraphStore(Path(tmp) / "repo.db")
             try:
-                built = build_graph(str(root), store)
-                predictors = [CoChangePredictor(), SameFolderPredictor(),
-                              ImpactPredictor(store, built.snapshot_id)]
-                scores = [evaluate(root, queries, p) for p in predictors]
+                built = build_graph(str(src), store)
+                for suffix, subset in groups:
+                    engine = ImpactPredictor(store, built.snapshot_id)
+                    predictors = [CoChangePredictor(), SameFolderPredictor(), engine]
+                    scores = [evaluate(root, subset, p) for p in predictors]
+                    print(f"{name}{suffix}: indexed at {base}; {engine.not_in_index} of "
+                          f"{len(subset)} queries name a file the index lacks")
+                    results.append({"name": name + suffix, "queries": len(subset),
+                                    "scores": scores})
             finally:
                 store.close()
-        results.append({"name": name, "queries": len(queries), "scores": scores})
     text = cochange_table(results, utc_date())
     print(text)
     if args.out:
@@ -121,6 +167,7 @@ def main(argv: list[str] | None = None) -> int:
     c = sub.add_parser("cochange")
     c.add_argument("--repo", action="append")
     c.add_argument("--commits", type=int, default=100)
+    c.add_argument("--index-at", choices=["oldest-parent", "head"], default="oldest-parent")
     c.add_argument("--out", type=Path)
     c.set_defaults(run=run_cochange)
     args = parser.parse_args(argv)

@@ -440,33 +440,6 @@ def traverse(
     return _fit(result, "results")
 
 
-_IMPACT_KINDS = (EdgeKind.CALLS, EdgeKind.IMPORTS)
-
-
-def _impact_scores(ctx: ToolContext, nodes: list[Node]) -> dict[str, float]:
-    """Node id -> best path confidence of reaching any changed symbol over CALLS/IMPORTS.
-
-    The changed symbols' own files count as starting points too, because an IMPORTS edge
-    usually points at a module, not at one function inside it.
-    """
-    starts = {n.id for n in nodes}
-    for n in nodes:
-        module = ctx.store.module_for_path(ctx.snapshot_id, n.path)
-        if module is not None:
-            starts.add(module.id)
-        # Imports point at symbols: `from repo import Repo` reaches Repo.save's class, so
-        # the classes that own a changed method are starting points too.
-        owner_key = n.owner_key
-        while owner_key:
-            owners = ctx.store.nodes_by_key(owner_key, ctx.snapshot_id)
-            if not owners:
-                break
-            starts.add(owners[0].id)
-            owner_key = owners[0].owner_key
-    g = ctx.graph(_IMPACT_KINDS)
-    return graph_algos.reverse_reach(g, starts, _IMPACT_KINDS)
-
-
 def _resolve_all(ctx: ToolContext, keys: list[str]) -> tuple[list[Node], list[dict[str, Any]]]:
     found: list[Node] = []
     problems: list[dict[str, Any]] = []
@@ -511,14 +484,20 @@ def impact(ctx: ToolContext, keys: list[str]) -> dict[str, Any]:
         other = ctx.store.nodes_by_key(target.key, ctx.snapshot_id)
         if not other:
             continue
-        row = _symbol(ctx, other[0], confidence=round(target.score, 3),
-                      evidence=_evidence_rows(target.evidence))
+        rows = _evidence_rows(target.evidence)
         history = [e for e in target.evidence if e.signal == "cochange"]
-        if len(history) < len(target.evidence):
-            affected.append(row)
+        structure = [e for e in target.evidence if e.signal != "cochange"]
+        # Each list carries its own evidence's confidence: history is correlation, so
+        # it must not lift a row in `affected`, and vice versa.
+        if structure:
+            affected.append(_symbol(ctx, other[0], confidence=round(structure[0].score, 3),
+                                    evidence=rows))
         if history:
-            co_changed.append({**row, "confidence": round(history[0].score, 3),
-                               "changed_with": history[0].path[0].key.split("::")[0]})
+            co_changed.append(_symbol(ctx, other[0], confidence=round(history[0].score, 3),
+                                      evidence=rows,
+                                      changed_with=history[0].path[0].key.split("::")[0]))
+    affected.sort(key=lambda r: -r["confidence"])
+    co_changed.sort(key=lambda r: -r["confidence"])
     out: dict[str, Any] = {
         "changed": [_symbol(ctx, n) for n in nodes],
         "problems": problems,

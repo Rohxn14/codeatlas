@@ -60,19 +60,15 @@ def _nodes_for_ranges(
     """
     hit: dict[str, Node] = {}
     for first, last in ranges:
-        found: dict[str, Node] = {}
         points = {first}
         for s in symbols:
             for boundary in (s.span.start_line, s.span.end_line + 1):
                 if first < boundary <= last:
                     points.add(boundary)
-        for line in points:
-            node = _innermost(symbols, line)
-            if node is not None:
-                found.setdefault(node.id, node)
-        # Blank lines and comments between symbols belong to no one; a range that touches
-        # no symbol at all is a change to the file's top level.
-        for node in found.values() or [module]:
+        for line in sorted(points):
+            # A line outside every symbol is the file's top level: an import, a constant,
+            # a decorator's argument. Blank lines count too, since a diff cannot tell.
+            node = _innermost(symbols, line) or module
             hit.setdefault(node.id, node)
     return list(hit.values())
 
