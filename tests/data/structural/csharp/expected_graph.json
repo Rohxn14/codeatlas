@@ -1,0 +1,387 @@
+{
+ "snapshot": {
+  "id": "expected",
+  "repo": "csharp",
+  "commit_sha": "441553b68cd131e7d5efea784feb4af72e51c66c",
+  "indexed_at": "2026-11-03T12:40:01Z",
+  "indexer_version": "hand-labelled",
+  "source": "tests/data/structural/csharp",
+  "limits_hit": []
+ },
+ "nodes": [
+  {
+   "key": "src/Program.cs::",
+   "kind": "module",
+   "language": "c_sharp",
+   "path": "src/Program.cs",
+   "span": {
+    "start_line": 1,
+    "end_line": 15
+   }
+  },
+  {
+   "key": "src/Program.cs::Program",
+   "kind": "class",
+   "language": "c_sharp",
+   "path": "src/Program.cs",
+   "span": {
+    "start_line": 6,
+    "end_line": 15
+   }
+  },
+  {
+   "key": "src/Program.cs::Program.Main",
+   "kind": "function",
+   "language": "c_sharp",
+   "path": "src/Program.cs",
+   "span": {
+    "start_line": 8,
+    "end_line": 14
+   }
+  },
+  {
+   "key": "src/Models/Product.cs::",
+   "kind": "module",
+   "language": "c_sharp",
+   "path": "src/Models/Product.cs",
+   "span": {
+    "start_line": 1,
+    "end_line": 9
+   }
+  },
+  {
+   "key": "src/Models/Product.cs::Product",
+   "kind": "class",
+   "language": "c_sharp",
+   "path": "src/Models/Product.cs",
+   "span": {
+    "start_line": 3,
+    "end_line": 9
+   }
+  },
+  {
+   "key": "src/Models/Product.cs::Product.Describe",
+   "kind": "function",
+   "language": "c_sharp",
+   "path": "src/Models/Product.cs",
+   "span": {
+    "start_line": 5,
+    "end_line": 8
+   }
+  },
+  {
+   "key": "src/Models/User.cs::",
+   "kind": "module",
+   "language": "c_sharp",
+   "path": "src/Models/User.cs",
+   "span": {
+    "start_line": 1,
+    "end_line": 11
+   }
+  },
+  {
+   "key": "src/Models/User.cs::User",
+   "kind": "class",
+   "language": "c_sharp",
+   "path": "src/Models/User.cs",
+   "span": {
+    "start_line": 3,
+    "end_line": 11
+   }
+  },
+  {
+   "key": "src/Models/User.cs::User.Describe",
+   "kind": "function",
+   "language": "c_sharp",
+   "path": "src/Models/User.cs",
+   "span": {
+    "start_line": 7,
+    "end_line": 10
+   }
+  },
+  {
+   "key": "src/Services/UserService.cs::",
+   "kind": "module",
+   "language": "c_sharp",
+   "path": "src/Services/UserService.cs",
+   "span": {
+    "start_line": 1,
+    "end_line": 25
+   }
+  },
+  {
+   "key": "src/Services/UserService.cs::UserService",
+   "kind": "class",
+   "language": "c_sharp",
+   "path": "src/Services/UserService.cs",
+   "span": {
+    "start_line": 10,
+    "end_line": 24
+   }
+  },
+  {
+   "key": "src/Services/UserService.cs::UserService.Save",
+   "kind": "function",
+   "language": "c_sharp",
+   "path": "src/Services/UserService.cs",
+   "span": {
+    "start_line": 12,
+    "end_line": 19
+   }
+  },
+  {
+   "key": "src/Services/UserService.cs::UserService.Validate",
+   "kind": "function",
+   "language": "c_sharp",
+   "path": "src/Services/UserService.cs",
+   "span": {
+    "start_line": 21,
+    "end_line": 23
+   }
+  },
+  {
+   "key": "src/Util/Format.cs::",
+   "kind": "module",
+   "language": "c_sharp",
+   "path": "src/Util/Format.cs",
+   "span": {
+    "start_line": 1,
+    "end_line": 14
+   }
+  },
+  {
+   "key": "src/Util/Format.cs::Format",
+   "kind": "class",
+   "language": "c_sharp",
+   "path": "src/Util/Format.cs",
+   "span": {
+    "start_line": 3,
+    "end_line": 14
+   }
+  },
+  {
+   "key": "src/Util/Format.cs::Format.Upper",
+   "kind": "function",
+   "language": "c_sharp",
+   "path": "src/Util/Format.cs",
+   "span": {
+    "start_line": 5,
+    "end_line": 8
+   }
+  },
+  {
+   "key": "src/Util/Format.cs::Format.Slug",
+   "kind": "function",
+   "language": "c_sharp",
+   "path": "src/Util/Format.cs",
+   "span": {
+    "start_line": 10,
+    "end_line": 13
+   }
+  },
+  {
+   "key": "src/Util/Money.cs::",
+   "kind": "module",
+   "language": "c_sharp",
+   "path": "src/Util/Money.cs",
+   "span": {
+    "start_line": 1,
+    "end_line": 9
+   }
+  },
+  {
+   "key": "src/Util/Money.cs::Money",
+   "kind": "class",
+   "language": "c_sharp",
+   "path": "src/Util/Money.cs",
+   "span": {
+    "start_line": 3,
+    "end_line": 9
+   }
+  },
+  {
+   "key": "src/Util/Money.cs::Money.Show",
+   "kind": "function",
+   "language": "c_sharp",
+   "path": "src/Util/Money.cs",
+   "span": {
+    "start_line": 5,
+    "end_line": 8
+   }
+  },
+  {
+   "key": "tests/UserServiceTests.cs::",
+   "kind": "module",
+   "language": "c_sharp",
+   "path": "tests/UserServiceTests.cs",
+   "span": {
+    "start_line": 1,
+    "end_line": 12
+   }
+  },
+  {
+   "key": "tests/UserServiceTests.cs::UserServiceTests",
+   "kind": "class",
+   "language": "c_sharp",
+   "path": "tests/UserServiceTests.cs",
+   "span": {
+    "start_line": 5,
+    "end_line": 12
+   }
+  },
+  {
+   "key": "tests/UserServiceTests.cs::UserServiceTests.TestSave",
+   "kind": "function",
+   "language": "c_sharp",
+   "path": "tests/UserServiceTests.cs",
+   "span": {
+    "start_line": 7,
+    "end_line": 11
+   }
+  },
+  {
+   "key": "::package:csharp",
+   "kind": "package",
+   "language": "c_sharp",
+   "path": "",
+   "span": {
+    "start_line": 1,
+    "end_line": 1
+   }
+  },
+  {
+   "key": "::external:System.Text.Json.JsonSerializer.Serialize",
+   "kind": "external",
+   "language": "c_sharp",
+   "path": "",
+   "span": {
+    "start_line": 1,
+    "end_line": 1
+   }
+  },
+  {
+   "key": "::external:System",
+   "kind": "external",
+   "language": "c_sharp",
+   "path": "",
+   "span": {
+    "start_line": 1,
+    "end_line": 1
+   }
+  },
+  {
+   "key": "::external:System.Text.Json.JsonSerializer",
+   "kind": "external",
+   "language": "c_sharp",
+   "path": "",
+   "span": {
+    "start_line": 1,
+    "end_line": 1
+   }
+  }
+ ],
+ "edges": [
+  {
+   "src_key": "src/Program.cs::Program.Main",
+   "dst_key": "src/Services/UserService.cs::UserService.Save",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/Program.cs::Program.Main",
+   "dst_key": "src/Models/User.cs::User.Describe",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/Services/UserService.cs::UserService.Save",
+   "dst_key": "src/Services/UserService.cs::UserService.Validate",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/Services/UserService.cs::UserService.Save",
+   "dst_key": "src/Util/Format.cs::Format.Slug",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/Services/UserService.cs::UserService.Save",
+   "dst_key": "::external:System.Text.Json.JsonSerializer.Serialize",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/Services/UserService.cs::UserService.Save",
+   "dst_key": "src/Util/Money.cs::Money.Show",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/Util/Money.cs::Money.Show",
+   "dst_key": "src/Util/Format.cs::Format.Upper",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "tests/UserServiceTests.cs::UserServiceTests.TestSave",
+   "dst_key": "src/Services/UserService.cs::UserService.Save",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/Program.cs::",
+   "dst_key": "src/Models/User.cs::",
+   "kind": "imports",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/Program.cs::",
+   "dst_key": "src/Services/UserService.cs::",
+   "kind": "imports",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/Services/UserService.cs::",
+   "dst_key": "::external:System",
+   "kind": "imports",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/Services/UserService.cs::",
+   "dst_key": "src/Models/User.cs::",
+   "kind": "imports",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/Services/UserService.cs::",
+   "dst_key": "src/Models/Product.cs::",
+   "kind": "imports",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/Services/UserService.cs::",
+   "dst_key": "src/Util/Format.cs::",
+   "kind": "imports",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/Services/UserService.cs::",
+   "dst_key": "src/Util/Money.cs::",
+   "kind": "imports",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/Services/UserService.cs::",
+   "dst_key": "::external:System.Text.Json.JsonSerializer",
+   "kind": "imports",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "tests/UserServiceTests.cs::",
+   "dst_key": "src/Services/UserService.cs::",
+   "kind": "imports",
+   "confidence": 1.0
+  }
+ ]
+}

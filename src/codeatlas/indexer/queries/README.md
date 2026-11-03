@@ -19,6 +19,9 @@ query. They are appended to the upstream query, never replacing it:
 | File | Adds |
 | --- | --- |
 | `rust/extra.scm` | path calls such as `Point::new(...)`, which upstream does not tag |
+| `c_sharp/extra.scm` | all calls: upstream labels them `@reference.send`, which the adapter ignores |
+| `php/extra.scm` | plain `foo()` calls, which upstream tags only for qualified names |
+| `ruby/extra.scm` | a bare word followed by another statement (a call, not a variable) |
 
 TypeScript and TSX also prepend JavaScript's query, as tree-sitter itself does: the
 TypeScript tags file only adds TypeScript-specific patterns (interfaces, signatures).
@@ -46,6 +49,14 @@ for that). A `@import.wildcard` target is the package or class without `.*`.
 | --- | --- |
 | `java/imports.scm` | `import a.b.C;`, `import a.b.*;`, static imports, `package` |
 | `go/imports.scm` | single and grouped imports, aliases, dot and blank imports, `package` |
+| `c_sharp/imports.scm` | `using A.B;`, `using static`, `using X = ...;`, namespaces as `package` |
+| `php/imports.scm` | `use`, `as`, grouped and function `use`, literal `require`/`include`, `namespace` |
+| `ruby/imports.scm` | `require`, `require_relative`, `load` with a literal string |
+
+One exception to the capture table: for Ruby, `@import.name` holds the *method* (`require`
+or `require_relative`), because a Ruby import is an ordinary call and the profile needs to
+know which. For a grouped PHP `use App\{A, B as C}` there is one `@import` per clause, with
+the shared prefix as `@import.target` and the clause as `@import.name`.
 
 A language with an imports query also needs a resolution profile in
 `codeatlas/indexer/structural/` before its imports mean anything; see

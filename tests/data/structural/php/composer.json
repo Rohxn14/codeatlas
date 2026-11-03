@@ -1,0 +1,5 @@
+{
+    "name": "acme/shop",
+    "autoload": {"psr-4": {"Shop\\": "src/"}},
+    "autoload-dev": {"psr-4": {"Shop\\Tests\\": "tests/"}}
+}
