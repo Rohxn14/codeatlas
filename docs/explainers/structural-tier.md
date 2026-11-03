@@ -21,8 +21,8 @@ still gets `NAME_GUESS` edges, so every structural language has some CALLS edges
 
 | Depth | Languages |
 | --- | --- |
-| Import-scoped (profile) | Java, Go |
-| Name guesses only | C, C++, C#, Elixir, Lua, PHP, Ruby, Rust, Scala, Swift |
+| Import-scoped (profile) | Java, Go, C, C++, Rust |
+| Name guesses only | C#, Elixir, Lua, PHP, Ruby, Scala, Swift |
 
 (T17a and T17b add profiles; update this table when a language gets one.)
 
@@ -58,8 +58,9 @@ still gets `NAME_GUESS` edges, so every structural language has some CALLS edges
 2. For each file, ask its profile for a `Reach` per import, and make a table
    `binding -> Reach`.
 3. For each raw call, in order, the first step that finds candidates decides:
-   1. *Qualifier is an import binding* (`m.Format`): look only in the reached files. An
-      external import gives `::external:<import>.<name>`, confidence 1.0.
+   1. *Qualifier is an import binding* (`m.Format`), or a path the profile can follow
+      (`profile.qualify`: Rust `crate::util::f()`, `Self::new()`): look only in the reached
+      files. An external import gives `::external:<import>.<name>`, confidence 1.0.
    2. *Class chain* (profiles with it: Java `m()` or `this.m()`): methods of the enclosing
       class, then the classes around it.
    3. *Own file*, then *package scope* (`profile.package_scope`).
@@ -67,6 +68,8 @@ still gets `NAME_GUESS` edges, so every structural language has some CALLS edges
       names the import brings in, for a bare call (Go dot import, Java static import).
    5. Otherwise a **name guess**: functions with that name in the same language, if there
       are 1 to 5.
+   At every step the profile may `narrow` the candidates: C++ `ns::f()` drops an `f` of
+   another namespace, and a C prototype is swapped for the definition in its source file.
 4. Each candidate is a CALLS edge, confidence 1 ÷ candidates (name guesses: at most 0.3).
 5. IMPORTS edges: one per reached file (see Why), `STRUCTURAL`; outside the repository
    `::external:<target>`.
@@ -89,11 +92,100 @@ still gets `NAME_GUESS` edges, so every structural language has some CALLS edges
 - IMPORTS: `money` was called into at `Format` only, so one edge to `money/money.go`, not
   to `round.go`.
 
+## C, C++ and Rust (T17b)
+
+Three hooks on `Profile` (all default to doing nothing) carry what these languages need,
+so the resolver still names no language:
+
+- `reaches(ctx, file, imp)`: a list of `Reach`es for one statement. Rust
+  `use a::{B, c::D as E}` brings names from two files.
+- `qualify(ctx, file, call)`: a qualifier that is a written path, not an import binding.
+- `narrow(ctx, file, call, nodes)`: drop or swap candidates at each scope step.
+
+`StructuralResolver.set_repo_root()` gives profiles the checkout (`Context.root`,
+`Context.read`), as the TypeScript resolver gets it for `tsconfig.json`.
+
+**C and C++** (`structural/c.py`). `queries/c|cpp/extra.scm` add call patterns, which the
+upstream tags queries lack, and for C++ tag `namespace ns { }` as a scope, so
+`ns::f()` can be checked against `ns.f`. `#include "x.h"` looks beside the including
+file, then in `include/` and `src/` of its folder and each ancestor, then in folders named
+by `include_directories` / `target_include_directories` in any `CMakeLists.txt` (read as
+text, `${CMAKE_CURRENT_SOURCE_DIR}` dropped), then takes the only file anywhere whose path
+ends in `x.h`. `#include <x>` (the target keeps its brackets: the grammar has no node
+inside them, and they mark the form) only searches include folders, else it is external.
+Every header name is usable unqualified (`names=None`). A header and its same-named
+source (`x.h` with `x.c`/`x.cpp`, beside it or the only one in the repository) are each
+other's package scope. Prototypes: `int f(int);` is tagged as a function just like its
+definition, and the node's span covers only the declarator, so the profile reads the
+source after the span: a `;` before any `{` means no body. `narrow` then swaps a prototype
+for the same-named definition in its own file or partner source, and drops prototypes
+when a definition is among the candidates. The same text gives the qualifier written
+before an out-of-line name (`int C::get()` is keyed `get` but belongs to `C`).
+
+Worked example (`tests/data/structural/c`): `src/main.c` has `#include "geometry.h"`.
+Not beside it; not in `src/include`, `include`, `src`; `CMakeLists.txt` names
+`${CMAKE_CURRENT_SOURCE_DIR}/lib/api`, which holds it: `IMPORTS lib/api/geometry.h`. The
+call `area(2.0, 3.0)` finds nothing in `main.c` or its partner (none), then the header's
+`area`, a prototype; its partner is `lib/geometry.c` (the only `geometry.c`), whose
+`area` has a body: one candidate, `IMPORT_SCOPED`, 1.0.
+
+**Rust** (`structural/rust.py`). The imports query reports each `use` with its `{...}`
+items as texts, which the profile expands into leaves; `mod x;` comes with alias `mod`.
+A path walks the module tree: `crate` starts at the crate root (the Cargo package's
+`library`, else its `entry_points`; the deepest root whose folder holds the file wins, a
+library breaking ties; a file directly under `tests/`, `examples/` or `benches/` is its
+own root), `self` at the file, `super` at the parent module, a name at a child module
+(`x.rs` or `x/mod.rs` in the module's folder) or a workspace crate (`-` and `_` equal).
+Segments that name child modules are followed; the first left over is an item. A type
+gives a `binding` and `class_name` (`C::new()` looks only at `impl C` methods), a
+function gives `names`, an unknown item is looked up among the module's own `pub use`
+re-exports (5 hops at most). A path that leaves the repository is external
+(`::external:std::collections::HashMap`). Modules get no binding, so a variable
+`store.add()` is never taken for `mod store`; `qualify` walks `store::f()` instead.
+`Self::f()` and `self.f()` look at the impl type's methods; prelude types (`Vec::new()`)
+and unknown lower-case crates (`regex::Regex::new()`) are external.
+
+**Measured** on shallow clones (Linux, this session), share of raw calls left
+unresolved, `main` before and this branch after:
+
+| Repository | Files | Before | After | After by level |
+| --- | --- | --- | --- | --- |
+| `jqlang/jq` (C) | 79 | no calls at all | 34% | 52% scoped, 14% guess |
+| `fmtlib/fmt` (C++ and C) | 74 | no calls at all | 57% | 40% scoped, 3% guess |
+| `BurntSushi/ripgrep` (Rust) | 102 | 65% | 47% | 45% scoped, 8% guess |
+
+Indexing time went from 0.8 to 2.2 s (jq), 1.8 to 6.0 s (fmt), 1.4 to 1.9 s (ripgrep).
+Nearly all of jq's unresolved calls name nothing in the repository (`assert`, `printf`,
+macros). fmt's largest gap is `fmt::format(...)` (1,478 calls): fmt opens its namespace
+with a macro (`FMT_BEGIN_NAMESPACE`), so no definition carries the `fmt` scope and the
+namespace check rejects them all.
+
+**Known wrong or missing**:
+
+- **C and C++ callers are the module** (or, for a method defined inside its class, the
+  class): the upstream tags query tags the `function_declarator`, which does not contain
+  the body, so the adapter never finds an enclosing function for a call. Targets are
+  right; sources are coarse, and the pipeline then keeps one CALLS edge per (module,
+  target). The fix belongs in `generic/adapter.py` (see the T17b pull request).
+- Includes are not transitive: a function declared in a header that is included by an
+  included header is a name guess.
+- Calls to the C library have no edge: no header in the repository says which names
+  `<stdio.h>` declares. Macros, function pointers and calls inside a macro's arguments
+  (Rust `println!("{}", f())`) are invisible or unresolved.
+- Rust `use super::*` inside `mod tests { }` resolves to the parent of the file, not the
+  file: a `RawImport` does not say it sits in an inline module. Own-file lookups come
+  first, so calls still resolve; one wrong IMPORTS edge remains (asserted in the tests).
+- Rust `use a::f as g;` then `g()` is missed (a `Reach` has no rename); `impl C` in a
+  file the import does not reach is missed; trait methods called on a variable are
+  ordinary candidates, cut off above 5.
+- C++ classes in `.h` files are parsed with the C grammar (the extension table maps `.h`
+  to C), so their methods are not seen.
+
 ## Where
 
 - Input: `ParseResult`s of the structural languages (`calls`, `imports`, module
   `attrs["package"]`, `attrs["package_key"]` set by the pipeline) and the `SymbolIndex`
-  (Package nodes for Go module paths).
+  (Package nodes for Go module paths and Cargo crates; `files()` for `CMakeLists.txt`).
 - Output: `Edge`s (`CALLS`, `IMPORTS`), with `Resolution.IMPORT_SCOPED`, `NAME_GUESS`,
   `STRUCTURAL`. EXTERNAL nodes are created by the pipeline from `::external:` targets (D-19).
 - Registered in `pipeline/plugins.py` as `"structural"`; `languages` is every grammar in

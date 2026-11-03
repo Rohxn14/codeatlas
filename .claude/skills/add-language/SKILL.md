@@ -25,13 +25,21 @@ If the language needs something the shared code cannot express, say so in the PR
    ```
    Tier must be `structural`. Definitions and calls must show up for functions, methods,
    classes and a call with and without a receiver. If calls are missing (Rust `Point::new()`
-   was), add `queries/<language>/extra.scm`; never edit upstream.
+   was; C and C++ had none at all), add `queries/<language>/extra.scm`; never edit upstream.
+   Also read each call's `caller_key`: it must be the function around the call. In C and
+   C++ it is the module, because upstream tags the declarator, not the whole function
+   (an adapter problem: report it, do not work around it in the profile). And check
+   whether a declaration without a body (a C prototype) becomes a node too.
 
 2. **Write `queries/<language>/imports.scm`.** Capture names are defined once in
    `queries/README.md`: `@import` (the statement), `@import.target`, `@import.name`,
    `@import.alias`, `@import.wildcard`, `@package.name`. Print the syntax tree of a sample
    (`Parser(...).parse(src).root_node`) to see node types. One pattern per statement shape;
    make sure two patterns cannot match the same statement (a trailing `.` anchor works).
+   Captures of two patterns whose `@import` is the same node are merged into one import,
+   so an overlap duplicates captures (the first `@import.target` wins), not imports.
+   If a shape has no node holding the bare path (C `<stdio.h>`), keep the text and say so
+   in the query's comment; the profile strips it.
    Test on snippets in `tests/indexer/structural/test_imports_queries.py`: every shape the
    language has, a file with no imports, and the `package` capture.
    Go example: one pattern for `import_spec` with an optional `name:` (alias, `.`, `_`).
@@ -51,6 +59,13 @@ If the language needs something the shared code cannot express, say so in the PR
    Three class flags adjust the shared rules: `unqualified_is_toplevel` (a bare `F()` is
    never a method), `unqualified_uses_package`, `has_class_chain`. Set what the language
    needs and nothing more.
+   Three optional hooks, for what `reach` alone cannot say (C, C++ and Rust use them):
+   `reaches` (one statement brings several `Reach`es: Rust `use a::{B, c::D}`),
+   `qualify` (a path written in the call: `crate::m::f()`, `Self::new()`) and `narrow`
+   (drop or swap candidates: C++ namespaces, C prototypes). A profile that must read a
+   build file or a source as text uses `ctx.read(path)` (the checkout, given by the
+   pipeline through `StructuralResolver.set_repo_root`; `None` in unit tests without a
+   root, so keep working without it).
 
 4. **Write a sample project** in `tests/data/structural/<language>/`: two or three
    packages, an aliased or wildcard import, same-package calls, a test file, one call into
@@ -60,13 +75,18 @@ If the language needs something the shared code cannot express, say so in the PR
    edges from the resolver's output would test nothing.
 
 5. **Test.** Unit tests for `reach` (one test per import shape, plus external), the
-   package scope, and the sample scored with `eval.oracle.score` (see `tests/indexer/structural/test_structural_resolver.py`). Give every test file a name unique across `tests/`, such as `test_php_profile.py`: pytest imports test files by base name, so two `test_resolver.py` files break the whole suite.
+   package scope, and the sample scored with `eval.oracle.score` (see `tests/indexer/structural/test_structural_resolver.py`).
+   Add the language's extensions to `_language` in `tests/indexer/structural/helpers.py`. Give every test file a name unique across `tests/`, such as `test_php_profile.py`: pytest imports test files by base name, so two `test_resolver.py` files break the whole suite.
    Write down any expected imprecision as an assertion, with the reason.
 
 6. **Score.**
    `python scripts/score_fixture.py` must not regress. Then index two real repositories
    of the language (shallow `git clone`, at most two attempts each) with `build_graph` and
-   report: time, CALLS by level, the share of raw calls left unresolved.
+   report: time, CALLS by level, the share of raw calls left unresolved. Count per raw
+   call (wrap `structural.resolver._resolve_call` and record whether it returned edges),
+   not from exported edges: the pipeline keeps one edge per (source, target, kind), so many
+   calls from one caller to one target count once. For "before", run the same script
+   against a `git worktree` of `main`.
 
 7. **Document.** Add the language to the table in `docs/explainers/structural-tier.md`
    (depth: profile or name guess), and mention anything it gets wrong.
@@ -76,7 +96,8 @@ If the language needs something the shared code cannot express, say so in the PR
 
 ## Common mistakes
 
-- Matching the same import twice (duplicate `RawImport`s, doubled IMPORTS edges).
+- Matching the same import twice: captures are merged per `@import` node, so the
+  second match adds a second `@import.target` that is silently ignored.
 - Putting quotes or `.*` into `target`; the adapter wants the bare path or name.
 - Treating a test file as part of the importable package (Go `_test.go`).
 - Letting a method satisfy a bare function call (Go) or the reverse.

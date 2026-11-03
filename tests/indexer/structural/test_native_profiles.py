@@ -240,7 +240,7 @@ def test_rust_list_gives_one_reach_per_leaf(tmp_path: Path) -> None:
     assert found == [
         (("app/src/net/mod.rs",), None, None, frozenset()),  # self
         (("app/src/net/tls.rs",), "Config", "Config", frozenset({"Config"})),
-        (("app/src/net/tls.rs",), None, None, frozenset({"connect"})),  # `as dial`: no rename in a Reach
+        (("app/src/net/tls.rs",), None, None, frozenset({"connect"})),  # `as dial`: no rename
     ]
 
 
