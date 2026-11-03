@@ -178,3 +178,12 @@ const Svc = class {
     assert kinds == [("Repo", "class"), ("Repo.save", "function"),
                      ("Svc", "class"), ("Svc.run", "function")]
     assert [(c.caller_key, c.name) for c in result.calls] == [("a.js::Repo.save", "helper")]
+
+
+def test_files_in_test_folders_are_test_files() -> None:
+    from codeatlas.indexer.languages.typescript.symbols import is_test_file
+
+    assert is_test_file("test/app.router.js")  # mocha's layout (express, lodash)
+    assert is_test_file("packages/a/tests/util.ts") and is_test_file("spec/x.js")
+    assert is_test_file("src/user.test.ts") and is_test_file("src/__tests__/a.js")
+    assert not is_test_file("src/testing.ts") and not is_test_file("src/contest/a.ts")
