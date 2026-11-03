@@ -254,6 +254,24 @@ def test_semantic_search_uses_hybrid_when_present(tools, store, monkeypatch):
     import codeatlas.search as search
 
     monkeypatch.setattr(search, "HybridSearch", Fake, raising=False)
-    monkeypatch.setattr(llm, "EmbeddingClient", lambda: object())
+    class FakeEmbeddings:
+        @classmethod
+        def from_config(cls):
+            return cls()
+
+    monkeypatch.setattr(llm, "EmbeddingClient", FakeEmbeddings)
     out = tools.call("semantic_search", {"query": "make user"})
     assert out["engine"] == "hybrid" and out["hits"][0]["found_by"] == ["bm25", "vector"]
+
+
+def test_get_imports_counts_importers_of_symbols_in_the_file(tmp_path):
+    from codeatlas.indexer.pipeline import build_graph
+    from codeatlas.store import GraphStore
+
+    (tmp_path / "repo.py").write_text("class Repo:\n    def save(self):\n        pass\n")
+    (tmp_path / "user_repo.py").write_text(
+        "from repo import Repo\n\nclass UserRepo(Repo):\n    pass\n")
+    st = GraphStore(":memory:")
+    built = build_graph(str(tmp_path), st)
+    out = ToolSet(st, built.snapshot_id).call("get_imports", {"path": "repo.py"})
+    assert [row["path"] for row in out["imported_by"]] == ["user_repo.py"]
