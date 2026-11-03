@@ -52,7 +52,7 @@ def context(tmp_path: Path, files: dict[str, str], packages: dict[str, Node] | N
     results = []
     for path, text in files.items():
         (tmp_path / path).parent.mkdir(parents=True, exist_ok=True)
-        (tmp_path / path).write_text(text, encoding="utf-8")
+        (tmp_path / path).write_bytes(text.encode())  # no \r\n on Windows: offsets matter
         if path.rsplit(".", 1)[-1] in ("c", "h", "cpp", "hpp", "rs"):
             result = parse(path, text)
             if owner and path in owner:
@@ -340,7 +340,7 @@ def _resolve(tmp_path: Path, files: dict[str, str]) -> list[tuple[str, str, floa
     results = []
     for path, text in files.items():
         (tmp_path / path).parent.mkdir(parents=True, exist_ok=True)
-        (tmp_path / path).write_text(text, encoding="utf-8")
+        (tmp_path / path).write_bytes(text.encode())  # no \r\n on Windows: offsets matter
         results.append(parse(path, text))
     resolver = StructuralResolver()
     resolver.set_repo_root(tmp_path)
