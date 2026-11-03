@@ -108,3 +108,18 @@ def test_thing(thing):
 """
     result = PythonAdapter().parse("tests/test_x.py", source, "s@0")
     assert result.routes == ()
+
+
+def test_test_clients_are_clients() -> None:
+    source = (
+        b"from fastapi.testclient import TestClient\n"
+        b"import fastapi.testclient\n\n"
+        b"client = TestClient(app)\n\n"
+        b"def test_a():\n    client.post('/a')\n\n"
+        b"def test_b():\n    c = fastapi.testclient.TestClient(app)\n    c.get(f'/b/{x}')\n"
+    )
+    calls = PythonAdapter().parse("tests/t.py", source, "s@1").http_calls
+    assert [(h.caller_key, h.client, h.url_text, h.method) for h in calls] == [
+        ("tests/t.py::test_a", "testclient", "/a", "POST"),
+        ("tests/t.py::test_b", "testclient", "/b/{x}", "GET"),
+    ]

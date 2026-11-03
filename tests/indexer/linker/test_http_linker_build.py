@@ -26,9 +26,34 @@ def test_fixture_routes_handles_and_reachable_calls(tmp_path: Path) -> None:
     handles = [e for e in export["edges"] if e["kind"] == "handles"]
     assert len(handles) == 3
     http = {(e["src_key"], e["dst_key"]) for e in export["edges"] if e["kind"] == "calls_http"}
-    assert (
-        "frontend/src/api/client.ts::fetchUsers", "backend/routes.py::route:GET /api/users"
-    ) in http
-    assert (
-        "frontend/src/api/client.ts::fetchUser", "backend/routes.py::route:GET /api/users/{id}"
-    ) in http
+    client, tests, routes_py = (
+        "frontend/src/api/client.ts::",
+        "backend/tests/test_routes.py::test_routes_create_list_and_get",
+        "backend/routes.py::route:",
+    )
+    assert http == {
+        (f"{client}fetchUsers", f"{routes_py}GET /api/users"),
+        (f"{client}fetchUser", f"{routes_py}GET /api/users/{{id}}"),
+        (f"{client}createUser", f"{routes_py}POST /api/users"),  # axios instance from http.ts
+        (tests, f"{routes_py}POST /api/users"),  # TestClient
+        (tests, f"{routes_py}GET /api/users/{{id}}"),
+        (tests, f"{routes_py}GET /api/users"),
+    }
+
+
+def test_linker_problems_reach_the_build_report(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    (repo / "web").mkdir(parents=True)
+    (repo / "web" / "server.js").write_text(
+        'const app = express();\napp.get("/ping", (req, res) => res.send("ok"));\n'
+    )
+    (repo / "web" / "client.js").write_text(
+        'export function f() { return fetch("/nowhere"); }\n'
+    )
+    store = GraphStore(tmp_path / "t.db")
+    try:
+        problems = build_graph(str(repo), store).problems
+    finally:
+        store.close()
+    assert "linker http: route GET /ping: inline handler, no HANDLES edge" in problems
+    assert "linker http: unmatched http calls: no_route=1" in problems

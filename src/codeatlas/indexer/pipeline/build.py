@@ -234,6 +234,7 @@ def _run_linkers(
             continue
         nodes += found_nodes
         edges += found_edges
+        result.problems += [f"linker {name}: {p}" for p in getattr(linker, "problems", [])]
     return nodes, edges
 
 

@@ -12,7 +12,12 @@ from tree_sitter import Language, Parser
 from codeatlas.indexer.discover import extensions_for
 from codeatlas.indexer.generic.adapter import module_node, syntax_errors
 from codeatlas.indexer.languages.typescript.calls import extract_calls
-from codeatlas.indexer.languages.typescript.http import axios_clients, extract_http_calls
+from codeatlas.indexer.languages.typescript.http import (
+    axios_clients,
+    exported_instances,
+    extract_http_calls,
+    imported_names,
+)
 from codeatlas.indexer.languages.typescript.imports import extract_imports
 from codeatlas.indexer.languages.typescript.routes import extract_routes
 from codeatlas.indexer.languages.typescript.symbols import Symbols
@@ -41,15 +46,29 @@ class _EcmaScriptAdapter:
             root = tree.root_node
             symbols = Symbols(root, source, path)
             clients = axios_clients(root, source)
+            imports = tuple(extract_imports(root, source, symbols.module_key))
+            routes = tuple(extract_routes(root, source, symbols, frozenset(clients)))
+            http_calls = extract_http_calls(
+                root, source, symbols, clients,
+                imported=imported_names(imports),
+                route_lines=frozenset(r.line for r in routes),
+            )
+            # Exported axios instances travel on the module node, for the HTTP linker to
+            # join their base URL onto calls made in the files that import them.
+            instances = exported_instances(root, source, clients)
+            if instances:
+                module = module_node(
+                    path, self.language, source, snapshot_id, {"axios_instances": instances}
+                )
             return ParseResult(
                 path,
                 self.language,
                 self.tier,
                 (module, *symbols.nodes(self.language, snapshot_id)),
-                imports=tuple(extract_imports(root, source, symbols.module_key)),
+                imports=imports,
                 calls=tuple(extract_calls(root, source, symbols)),
-                routes=tuple(extract_routes(root, source, symbols, frozenset(clients))),
-                http_calls=tuple(extract_http_calls(root, source, symbols, clients)),
+                routes=routes,
+                http_calls=tuple(http_calls),
                 errors=syntax_errors(root),
             )
         except Exception as exc:  # defensive: an extractor bug must not stop indexing
