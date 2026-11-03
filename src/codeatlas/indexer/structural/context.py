@@ -14,6 +14,7 @@ from codeatlas.indexer.adapter import SymbolIndex
 from codeatlas.models import Node, NodeKind, ParseResult, RawImport
 
 PathTable = dict[tuple[str, str], list[str]]  # (language, key) -> file paths
+MAX_READ_BYTES = 4 * 1024 * 1024  # a build file or source larger than this is not read
 
 
 @dataclass(slots=True)
@@ -97,14 +98,43 @@ class Context:
         return self.files.get(node.path)
 
     def read(self, path: str) -> bytes | None:
-        """A repository file's bytes, or None without a root or when it cannot be read."""
-        if self.root is None:
+        """A repository file's bytes, or None when it is not a plain file inside the root.
+
+        Profiles pass paths taken from the repository (a CMakeLists name, a node's path),
+        so they are untrusted: an absolute path, a `..` or a symlink must not let a
+        crafted repository make CodeAtlas read files outside its checkout.
+        """
+        target = _inside(self.root, path) if self.root is not None else None
+        if target is None:
             return None
         try:
-            return (self.root / path).read_bytes()
+            if not target.is_file() or target.stat().st_size > MAX_READ_BYTES:
+                return None
+            return target.read_bytes()
         except OSError:
             return None
 
+
+def _inside(root: Path, path: str) -> Path | None:
+    """`root/path` with symlinks resolved, or None if it is absolute or leaves `root`."""
+    pure = PurePosixPath(path.replace("\\", "/"))
+    if pure.is_absolute() or ".." in pure.parts or Path(path).is_absolute() or Path(path).drive:
+        return None
+    try:
+        base = root.resolve()
+        target = (base / pure).resolve()
+    except (OSError, RuntimeError):
+        return None
+    return target if target.is_relative_to(base) else None
+
+
+def owner_name(node: Node) -> str | None:
+    """The class a method belongs to; a Go or Rust method declared away from its type
+    has no `owner_key` but keeps the type's name in `attrs["receiver"]`."""
+    if node.owner_key is None:
+        receiver = node.attrs.get("receiver")
+        return receiver if isinstance(receiver, str) else None
+    return node.owner_key.split("::", 1)[1].rsplit(".", 1)[-1].split("#", 1)[0]
 
 def _text(value: object) -> str | None:
     return value if isinstance(value, str) and value else None

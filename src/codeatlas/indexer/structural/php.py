@@ -33,7 +33,7 @@ class PhpProfile(Profile):
         binding = imp.alias or short
         path = self._class_file(ctx, full)
         if path is not None:
-            return Reach(imp, (path,), None, binding, short)
+            return Reach(imp, (path,), None, binding, _spelled(ctx.files[path], short))
         functions = _function_files(ctx, full)  # `use function App\helpers\f;`
         if functions:
             return Reach(imp, tuple(functions), None, None, None, frozenset({short}))
@@ -48,7 +48,7 @@ class PhpProfile(Profile):
 
     def _include(self, ctx: Context, file: FileInfo, imp: RawImport) -> Reach:
         """`require 'a/b.php'` is relative to the including file, then to the repo root."""
-        target = imp.target.lstrip("/")
+        target = imp.target.replace("\\", "/").lstrip("/")
         for directory in (file.directory, ""):
             path = join_relative(directory, target)
             if path is not None and path in ctx.files and path != file.path:
@@ -64,7 +64,7 @@ class PhpProfile(Profile):
                     return path
         namespace, _, name = full.rpartition("\\")
         for path in ctx.by_package.get((LANGUAGE, namespace), []):
-            if name in ctx.files[path].types:
+            if _defines_class(ctx.files[path], name):
                 return path
         return None
 
@@ -97,8 +97,23 @@ def _psr4_table(ctx: Context) -> list[tuple[str, str]]:
 
 
 def _is_path(target: str) -> bool:
-    """A literal `require`/`include` argument, as opposed to a namespaced `use` name."""
-    return "\\" not in target and ("/" in target or target.endswith(".php"))
+    """A literal `require`/`include` argument, as opposed to a namespaced `use` name.
+
+    A `.php` ending is a path even with backslashes (`__DIR__ . '\\lib\\x.php'`).
+    """
+    return target.lower().endswith(".php") or ("\\" not in target and "/" in target)
+
+
+def _defines_class(info: FileInfo, name: str) -> bool:
+    """PHP class names are case-insensitive: `use App\\user;` still finds `class User`."""
+    wanted = name.lower()
+    return any(own.lower() == wanted for own in info.types)
+
+
+def _spelled(info: FileInfo, name: str) -> str:
+    """The class name as the file defines it, so method owners compare equal."""
+    wanted = name.lower()
+    return next((own for own in info.types if own.lower() == wanted), name)
 
 
 def _function_files(ctx: Context, full: str) -> list[str]:

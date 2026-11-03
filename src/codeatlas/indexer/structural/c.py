@@ -22,12 +22,13 @@ HEADER_SUFFIXES = frozenset({".h", ".hh", ".hpp", ".hxx"})
 SOURCE_SUFFIXES = (".c", ".cc", ".cpp", ".cxx")
 INCLUDE_FOLDERS = ("include", "src")
 _CMAKE_INCLUDES = re.compile(
-    r"\b(?:target_)?include_directories\s*\(([^)]*)\)", re.IGNORECASE
+    r"\b(target_)?include_directories\s*\(([^)]*)\)", re.IGNORECASE
 )
 _CMAKE_KEYWORDS = frozenset({"PUBLIC", "PRIVATE", "INTERFACE", "SYSTEM", "BEFORE", "AFTER"})
-_CMAKE_VARIABLE = re.compile(
-    r"\$\{(CMAKE_CURRENT_SOURCE_DIR|CMAKE_SOURCE_DIR|PROJECT_SOURCE_DIR)\}/?"
-)
+_CMAKE_CURRENT_DIR = re.compile(r"^\$\{CMAKE_CURRENT_SOURCE_DIR\}/?")
+_CMAKE_ROOT_DIR = re.compile(r"^\$\{(?:CMAKE_SOURCE_DIR|PROJECT_SOURCE_DIR)\}/?")
+_CMAKE_BUILD_INTERFACE = re.compile(r"^\$<BUILD_INTERFACE:([^>]*)>$")
+_CMAKE_COMMENT = re.compile(r"#\[(=*)\[.*?\]\1\]|#[^\n]*", re.DOTALL)
 _QUALIFIER = re.compile(rb"((?:[A-Za-z_]\w*\s*::\s*)+)~?[A-Za-z_]\w*\s*$")
 
 
@@ -113,7 +114,10 @@ def _cmake_folders(ctx: Context) -> list[str]:
 
 
 def _read_cmake_folders(ctx: Context) -> list[str]:
-    """Folders in `include_directories(...)` lines, relative to each CMakeLists.txt."""
+    """Folders in `include_directories(...)` lines, relative to each CMakeLists.txt.
+
+    Comments go first, so `# include_directories(old)` names nothing.
+    """
     if ctx.index is None:
         return []
     folders: list[str] = []
@@ -125,8 +129,10 @@ def _read_cmake_folders(ctx: Context) -> list[str]:
             continue
         base = str(PurePosixPath(record.path).parent)
         base = "" if base == "." else base
-        for match in _CMAKE_INCLUDES.finditer(raw.decode("utf-8", "replace")):
-            for word in match.group(1).split():
+        text = _CMAKE_COMMENT.sub("", raw.decode("utf-8", "replace"))
+        for match in _CMAKE_INCLUDES.finditer(text):
+            words = match.group(2).split()
+            for word in words[1:] if match.group(1) else words:  # skip the target name
                 folder = _cmake_folder(base, word)
                 if folder is not None and folder not in folders:
                     folders.append(folder)
@@ -134,8 +140,24 @@ def _read_cmake_folders(ctx: Context) -> list[str]:
 
 
 def _cmake_folder(base: str, word: str) -> str | None:
-    """One argument of `include_directories`: keywords and other variables are skipped."""
-    word = _CMAKE_VARIABLE.sub("", word.strip("\"'"))
+    """One argument of `include_directories`: keywords and other variables are skipped.
+
+    `${CMAKE_CURRENT_SOURCE_DIR}` is the CMakeLists folder; `${CMAKE_SOURCE_DIR}` and
+    `${PROJECT_SOURCE_DIR}` are taken as the repository root (a nested `project()` would
+    move the second, which text reading cannot see). `$<BUILD_INTERFACE:dir>` is `dir`.
+    """
+    word = word.strip("\"'")
+    wrapped = _CMAKE_BUILD_INTERFACE.match(word)
+    if wrapped:
+        word = wrapped.group(1).strip("\"'")
+    if _CMAKE_ROOT_DIR.match(word):
+        base, word = "", _CMAKE_ROOT_DIR.sub("", word)
+        if not word:
+            return ""
+    elif _CMAKE_CURRENT_DIR.match(word):
+        word = _CMAKE_CURRENT_DIR.sub("", word)
+        if not word:
+            return base
     if not word or word.upper() in _CMAKE_KEYWORDS or "$" in word or word.startswith("/"):
         return None
     return _normalise(f"{base}/{word}" if base else word)

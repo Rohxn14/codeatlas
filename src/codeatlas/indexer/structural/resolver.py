@@ -15,7 +15,7 @@ from pathlib import Path
 from codeatlas.indexer.adapter import SymbolIndex
 from codeatlas.indexer.registry import GRAMMARS
 from codeatlas.indexer.structural.c import CppProfile, CProfile
-from codeatlas.indexer.structural.context import Context, FileInfo
+from codeatlas.indexer.structural.context import Context, FileInfo, owner_name
 from codeatlas.indexer.structural.csharp import CSharpProfile
 from codeatlas.indexer.structural.go import GoProfile
 from codeatlas.indexer.structural.java import JavaProfile
@@ -160,15 +160,26 @@ def _in_scope(
         typed = _on_type(ctx, info, profile, state, call)
         if typed:
             return typed
+        if _looks_like_type(receiver):
+            # `\Vendor\Repo::find()` names a class that is not in scope; a same-named
+            # method of the caller's own class is not it. Leave it to a name guess.
+            return None
     tiers = [[info.path]]
     if not unqualified or profile.unqualified_uses_package:
         tiers.append(profile.package_scope(ctx, info))
     for paths in tiers:
         nodes = _functions_in(ctx, paths, name, profile.unqualified_is_toplevel and unqualified)
         nodes = profile.narrow(ctx, info, call, nodes)
+        if receiver is not None and len(nodes) > MAX_GUESSES:
+            return _Targets()  # an untyped receiver with this many candidates: see below
         if nodes:
             return _Targets(tuple(nodes))
     return _from_imports(ctx, info, profile, state, call)
+
+
+def _looks_like_type(receiver: str) -> bool:
+    """`Repo`, `\\App\\Repo` or `A::B`: a class name, not a variable such as `$x` or `x`."""
+    return "\\" in receiver or "::" in receiver or receiver[:1].isupper()
 
 
 def _on_type(
@@ -184,6 +195,7 @@ def _on_type(
     imported = [p for reach in state.reaches if reach.external is None for p in reach.paths]
     for paths in ([info.path], profile.package_scope(ctx, info), imported):
         nodes = _methods_of_type(ctx, paths, type_name, call.name)
+        nodes = profile.narrow(ctx, info, call, nodes) if nodes else nodes
         if nodes:
             for position, reach in enumerate(state.reaches):
                 state.used[position].update(n.path for n in nodes if n.path in reach.paths)
@@ -250,9 +262,9 @@ def _members(ctx: Context, reach: Reach, name: str, any_owner: bool = False) -> 
             if any_owner:
                 found.append(node)
             elif reach.class_name is None:
-                if _owner_name(node) is None:
+                if owner_name(node) is None:
                     found.append(node)
-            elif _owner_name(node) == reach.class_name:
+            elif owner_name(node) == reach.class_name:
                 found.append(node)
     return found
 
@@ -267,7 +279,7 @@ def _functions_in(ctx: Context, paths: Sequence[str], name: str, toplevel: bool)
     found = []
     for path in paths:
         for node in ctx.files[path].functions.get(name, []):
-            if not toplevel or _owner_name(node) is None:
+            if not toplevel or owner_name(node) is None:
                 found.append(node)
     return found
 
@@ -290,15 +302,6 @@ def _enclosing(info: FileInfo, node: Node) -> Node | None:
         return None
     parent = node.qualname.rsplit(".", 1)[0]
     return next((n for n in info.nodes.values() if n.qualname == parent), None)
-
-
-def _owner_name(node: Node) -> str | None:
-    """The class a method belongs to; a Go or Rust method declared away from its type
-    has no `owner_key` but keeps the type's name in `attrs["receiver"]`."""
-    if node.owner_key is None:
-        receiver = node.attrs.get("receiver")
-        return receiver if isinstance(receiver, str) else None
-    return node.owner_key.split("::", 1)[1].rsplit(".", 1)[-1].split("#", 1)[0]
 
 
 def _guess(ctx: Context, info: FileInfo, call: RawCall) -> _Targets:

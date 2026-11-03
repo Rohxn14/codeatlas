@@ -2,7 +2,9 @@
 ; the full name as target. A grouped `use App\{A, B as C};` has one @import per clause:
 ; target `App`, name `A` (the profile joins them with a backslash), alias for `as`.
 ; `require`/`include` (and `_once`) with a literal path are file imports; for
-; `__DIR__ . '/x.php'` the target is `/x.php`, relative to the including file.
+; `__DIR__ . '/x.php'` the target is `/x.php`, relative to the including file. A
+; double-quoted string counts only when it is one piece of text: the `.` anchors on both
+; sides of `string_content` reject `"$dir/x.php"`, whose variable is another child.
 ; The `namespace` declaration is the file's `package`.
 (namespace_definition name: (namespace_name) @package.name)
 
@@ -20,18 +22,26 @@
             [(qualified_name) (name)] @import.name
             alias: (name)? @import.alias) @import))
 
-(require_expression (_ (string_content) @import.target)) @import
+(require_expression [(string . (string_content) @import.target .)
+    (encapsed_string . (string_content) @import.target .)]) @import
 
-(require_once_expression (_ (string_content) @import.target)) @import
+(require_once_expression [(string . (string_content) @import.target .)
+    (encapsed_string . (string_content) @import.target .)]) @import
 
-(include_expression (_ (string_content) @import.target)) @import
+(include_expression [(string . (string_content) @import.target .)
+    (encapsed_string . (string_content) @import.target .)]) @import
 
-(include_once_expression (_ (string_content) @import.target)) @import
+(include_once_expression [(string . (string_content) @import.target .)
+    (encapsed_string . (string_content) @import.target .)]) @import
 
-(require_expression (binary_expression right: (string (string_content) @import.target))) @import
+(require_expression (binary_expression right: [(string . (string_content) @import.target .)
+    (encapsed_string . (string_content) @import.target .)])) @import
 
-(require_once_expression (binary_expression right: (string (string_content) @import.target))) @import
+(require_once_expression (binary_expression right: [(string . (string_content) @import.target .)
+    (encapsed_string . (string_content) @import.target .)])) @import
 
-(include_expression (binary_expression right: (string (string_content) @import.target))) @import
+(include_expression (binary_expression right: [(string . (string_content) @import.target .)
+    (encapsed_string . (string_content) @import.target .)])) @import
 
-(include_once_expression (binary_expression right: (string (string_content) @import.target))) @import
+(include_once_expression (binary_expression right: [(string . (string_content) @import.target .)
+    (encapsed_string . (string_content) @import.target .)])) @import
