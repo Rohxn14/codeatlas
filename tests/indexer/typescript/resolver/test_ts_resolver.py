@@ -128,3 +128,36 @@ def test_tests_edges_skip_test_helpers(proj: Edges) -> None:
     test = "tests/main.test.ts::run > works"
     assert proj.out("tests", test) == {"src/main.ts::run": ("direct", 1.0, 9)}
     assert "tests/main.test.ts::helper" in proj.out("calls", test)  # a call, but not a TESTS edge
+
+
+def _index(tmp_path, files: dict[str, str]) -> Edges:
+    from codeatlas.indexer.pipeline import build_graph
+    from codeatlas.store import GraphStore
+
+    for rel, text in files.items():
+        (tmp_path / rel).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / rel).write_text(text, encoding="utf-8")
+    store = GraphStore(":memory:")
+    built = build_graph(str(tmp_path), store)
+    return Edges(store.export_json(built.snapshot_id))
+
+
+def test_builtin_method_names_are_never_matched_to_repository_functions(tmp_path) -> None:
+    edges = _index(tmp_path, {
+        "src/stack.ts": "export function push(x: number) { return x; }\n",
+        "src/use.ts": ('import { push } from "./stack";\n'
+                       "export function run(items: number[]) { items.push(1); push(2); }\n"),
+    })
+    calls = edges.out("calls", "src/use.ts::run")
+    assert list(calls) == ["src/stack.ts::push"]  # the bare call only, not items.push
+    assert calls["src/stack.ts::push"][0] == "direct"
+
+
+def test_this_method_of_an_external_base_is_not_guessed(tmp_path) -> None:
+    edges = _index(tmp_path, {
+        "src/form.ts": ('import { Component } from "react";\n'
+                        "export class Form extends Component {\n"
+                        "  save() { this.setState({}); }\n}\n"),
+        "src/other.ts": "export function setState(x: object) { return x; }\n",
+    })
+    assert edges.out("calls", "src/form.ts::Form.save") == {}

@@ -120,3 +120,26 @@ def test_indexing_the_same_commit_twice(repo: Path) -> None:
         build_graph(str(repo), store)
     again = build_graph(str(repo), store, replace_existing=True)
     assert again.nodes_written == built.nodes_written
+
+
+class RootResolver:
+    """Records the root it was given and reports one problem of its own."""
+
+    languages = frozenset({"go"})
+    seen_root = None
+
+    def set_repo_root(self, root):
+        RootResolver.seen_root = root
+
+    def resolve(self, results, index):
+        self.problems = ["go.mod unreadable"]
+        return []
+
+
+def test_resolvers_get_the_repo_root_and_their_problems_are_kept(
+    repo: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(plugins, "RESOLVERS", {"root": f"{__name__}:RootResolver"})
+    _, built = build(repo)
+    assert RootResolver.seen_root == repo.resolve()
+    assert "resolver root: go.mod unreadable" in built.problems
