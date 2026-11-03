@@ -1,0 +1,327 @@
+{
+ "snapshot": {
+  "id": "expected",
+  "repo": "ruby",
+  "commit_sha": "2df832e94c6eed6346ad9ca4df6026ddfbbbfb8e",
+  "indexed_at": "2026-11-03T12:43:46Z",
+  "indexer_version": "hand-labelled",
+  "source": "tests/data/structural/ruby",
+  "limits_hit": []
+ },
+ "nodes": [
+  {
+   "key": "lib/shop.rb::",
+   "kind": "module",
+   "language": "ruby",
+   "path": "lib/shop.rb",
+   "span": {
+    "start_line": 1,
+    "end_line": 11
+   }
+  },
+  {
+   "key": "lib/shop.rb::Shop.boot",
+   "kind": "function",
+   "language": "ruby",
+   "path": "lib/shop.rb",
+   "span": {
+    "start_line": 6,
+    "end_line": 10
+   }
+  },
+  {
+   "key": "lib/shop/user.rb::",
+   "kind": "module",
+   "language": "ruby",
+   "path": "lib/shop/user.rb",
+   "span": {
+    "start_line": 1,
+    "end_line": 19
+   }
+  },
+  {
+   "key": "lib/shop/user.rb::Shop.User",
+   "kind": "class",
+   "language": "ruby",
+   "path": "lib/shop/user.rb",
+   "span": {
+    "start_line": 2,
+    "end_line": 18
+   }
+  },
+  {
+   "key": "lib/shop/user.rb::Shop.User.build",
+   "kind": "function",
+   "language": "ruby",
+   "path": "lib/shop/user.rb",
+   "span": {
+    "start_line": 3,
+    "end_line": 5
+   }
+  },
+  {
+   "key": "lib/shop/user.rb::Shop.User.describe",
+   "kind": "function",
+   "language": "ruby",
+   "path": "lib/shop/user.rb",
+   "span": {
+    "start_line": 7,
+    "end_line": 10
+   }
+  },
+  {
+   "key": "lib/shop/user.rb::Shop.User.name",
+   "kind": "function",
+   "language": "ruby",
+   "path": "lib/shop/user.rb",
+   "span": {
+    "start_line": 12,
+    "end_line": 14
+   }
+  },
+  {
+   "key": "lib/shop/user.rb::Shop.User.helper",
+   "kind": "function",
+   "language": "ruby",
+   "path": "lib/shop/user.rb",
+   "span": {
+    "start_line": 16,
+    "end_line": 17
+   }
+  },
+  {
+   "key": "lib/shop/user_extras.rb::",
+   "kind": "module",
+   "language": "ruby",
+   "path": "lib/shop/user_extras.rb",
+   "span": {
+    "start_line": 1,
+    "end_line": 11
+   }
+  },
+  {
+   "key": "lib/shop/user_extras.rb::Shop.User",
+   "kind": "class",
+   "language": "ruby",
+   "path": "lib/shop/user_extras.rb",
+   "span": {
+    "start_line": 4,
+    "end_line": 10
+   }
+  },
+  {
+   "key": "lib/shop/user_extras.rb::Shop.User.shout",
+   "kind": "function",
+   "language": "ruby",
+   "path": "lib/shop/user_extras.rb",
+   "span": {
+    "start_line": 5,
+    "end_line": 9
+   }
+  },
+  {
+   "key": "lib/shop/util.rb::",
+   "kind": "module",
+   "language": "ruby",
+   "path": "lib/shop/util.rb",
+   "span": {
+    "start_line": 1,
+    "end_line": 12
+   }
+  },
+  {
+   "key": "lib/shop/util.rb::Shop.Util.slug",
+   "kind": "function",
+   "language": "ruby",
+   "path": "lib/shop/util.rb",
+   "span": {
+    "start_line": 3,
+    "end_line": 6
+   }
+  },
+  {
+   "key": "lib/shop/util.rb::Shop.Util.clean",
+   "kind": "function",
+   "language": "ruby",
+   "path": "lib/shop/util.rb",
+   "span": {
+    "start_line": 8,
+    "end_line": 10
+   }
+  },
+  {
+   "key": "test/user_test.rb::",
+   "kind": "module",
+   "language": "ruby",
+   "path": "test/user_test.rb",
+   "span": {
+    "start_line": 1,
+    "end_line": 8
+   }
+  },
+  {
+   "key": "test/user_test.rb::UserTest",
+   "kind": "class",
+   "language": "ruby",
+   "path": "test/user_test.rb",
+   "span": {
+    "start_line": 4,
+    "end_line": 8
+   }
+  },
+  {
+   "key": "test/user_test.rb::UserTest.test_boot",
+   "kind": "function",
+   "language": "ruby",
+   "path": "test/user_test.rb",
+   "span": {
+    "start_line": 5,
+    "end_line": 7
+   }
+  },
+  {
+   "key": "::package:ruby",
+   "kind": "package",
+   "language": "ruby",
+   "path": "",
+   "span": {
+    "start_line": 1,
+    "end_line": 1
+   }
+  },
+  {
+   "key": "::external:json.generate",
+   "kind": "external",
+   "language": "ruby",
+   "path": "",
+   "span": {
+    "start_line": 1,
+    "end_line": 1
+   }
+  },
+  {
+   "key": "::external:json",
+   "kind": "external",
+   "language": "ruby",
+   "path": "",
+   "span": {
+    "start_line": 1,
+    "end_line": 1
+   }
+  },
+  {
+   "key": "::external:minitest/autorun",
+   "kind": "external",
+   "language": "ruby",
+   "path": "",
+   "span": {
+    "start_line": 1,
+    "end_line": 1
+   }
+  }
+ ],
+ "edges": [
+  {
+   "src_key": "lib/shop.rb::Shop.boot",
+   "dst_key": "lib/shop/user.rb::Shop.User.build",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "lib/shop.rb::Shop.boot",
+   "dst_key": "lib/shop/util.rb::Shop.Util.slug",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "lib/shop.rb::Shop.boot",
+   "dst_key": "::external:json.generate",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "lib/shop.rb::Shop.boot",
+   "dst_key": "lib/shop/user.rb::Shop.User.describe",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "lib/shop/user.rb::Shop.User.describe",
+   "dst_key": "lib/shop/user.rb::Shop.User.helper",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "lib/shop/user.rb::Shop.User.describe",
+   "dst_key": "lib/shop/user.rb::Shop.User.name",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "lib/shop/user_extras.rb::Shop.User.shout",
+   "dst_key": "lib/shop/user.rb::Shop.User.helper",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "lib/shop/user_extras.rb::Shop.User.shout",
+   "dst_key": "lib/shop/user.rb::Shop.User.describe",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "lib/shop/user_extras.rb::Shop.User.shout",
+   "dst_key": "lib/shop/user.rb::Shop.User.name",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "lib/shop/util.rb::Shop.Util.slug",
+   "dst_key": "lib/shop/util.rb::Shop.Util.clean",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "test/user_test.rb::UserTest.test_boot",
+   "dst_key": "lib/shop.rb::Shop.boot",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "lib/shop.rb::",
+   "dst_key": "::external:json",
+   "kind": "imports",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "lib/shop.rb::",
+   "dst_key": "lib/shop/user.rb::",
+   "kind": "imports",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "lib/shop.rb::",
+   "dst_key": "lib/shop/util.rb::",
+   "kind": "imports",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "lib/shop/user_extras.rb::",
+   "dst_key": "lib/shop/user.rb::",
+   "kind": "imports",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "test/user_test.rb::",
+   "dst_key": "::external:minitest/autorun",
+   "kind": "imports",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "test/user_test.rb::",
+   "dst_key": "lib/shop.rb::",
+   "kind": "imports",
+   "confidence": 1.0
+  }
+ ]
+}

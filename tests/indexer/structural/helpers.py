@@ -22,9 +22,11 @@ def parse(path: str, source: str) -> ParseResult:
 
 
 def _language(path: str) -> str:
-    return {".java": "java", ".go": "go", ".rb": "ruby", ".py": "python"}[
-        "." + path.rsplit(".", 1)[-1]
-    ]
+    suffixes = {
+        ".java": "java", ".go": "go", ".rb": "ruby", ".py": "python", ".cs": "c_sharp",
+        ".php": "php", ".lua": "lua",
+    }
+    return suffixes["." + path.rsplit(".", 1)[-1]]
 
 
 class FakeIndex:

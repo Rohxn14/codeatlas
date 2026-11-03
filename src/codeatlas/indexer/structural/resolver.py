@@ -7,15 +7,19 @@ get name guesses, so each has some CALLS edges.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 from codeatlas.indexer.adapter import SymbolIndex
 from codeatlas.indexer.registry import GRAMMARS
 from codeatlas.indexer.structural.context import Context, FileInfo
+from codeatlas.indexer.structural.csharp import CSharpProfile
 from codeatlas.indexer.structural.go import GoProfile
 from codeatlas.indexer.structural.java import JavaProfile
+from codeatlas.indexer.structural.php import PhpProfile
 from codeatlas.indexer.structural.profile import Profile, Reach
+from codeatlas.indexer.structural.ruby import RubyProfile
 from codeatlas.models import (
     DEEP_LANGUAGES,
     Edge,
@@ -30,9 +34,10 @@ from codeatlas.models import (
 MAX_GUESSES = 5  # a name defined more than this often is too common to guess at
 MAX_GUESS_CONFIDENCE = 0.3
 MAX_IMPORT_FILES = 10  # IMPORTS edges for a package nobody calls into
-_SELF_RECEIVERS = frozenset({"this", "self", "super"})
 
-PROFILES: tuple[Profile, ...] = (JavaProfile(), GoProfile())
+PROFILES: tuple[Profile, ...] = (
+    JavaProfile(), GoProfile(), CSharpProfile(), PhpProfile(), RubyProfile()
+)
 _PROFILE_BY_LANGUAGE: dict[str, Profile] = {
     language: profile for profile in PROFILES for language in profile.languages
 }
@@ -124,12 +129,18 @@ def _in_scope(
     """Nearest scope with a definition wins: class chain, own file, package, imports."""
     name, receiver = call.name, call.receiver
     unqualified = receiver is None
-    if (unqualified or receiver in _SELF_RECEIVERS) and profile.has_class_chain:
+    is_self = receiver in profile.self_receivers
+    bare_method_possible = unqualified and not profile.unqualified_is_toplevel
+    if (bare_method_possible or is_self) and profile.has_class_chain:
         chain = _class_chain(ctx, info, call.caller_key, name)
         if chain:
             return _Targets(tuple(chain))
-        if receiver in _SELF_RECEIVERS:
+        if is_self:
             return None
+    if profile.type_receivers and receiver is not None and not is_self:
+        typed = _on_type(ctx, info, profile, state, call)
+        if typed:
+            return typed
     tiers = [[info.path]]
     if not unqualified or profile.unqualified_uses_package:
         tiers.append(profile.package_scope(ctx, info))
@@ -138,6 +149,49 @@ def _in_scope(
         if nodes:
             return _Targets(tuple(nodes))
     return _from_imports(ctx, state, call)
+
+
+def _on_type(
+    ctx: Context, info: FileInfo, profile: Profile, state: _FileState, call: RawCall
+) -> _Targets | None:
+    """`Foo.bar()` with `Foo` a class in scope: only `Foo`'s methods can be meant.
+
+    Scopes are tried nearest first (own file, package scope, imported files), so a class
+    reopened in several files (Ruby, C# partial) is one scope. A receiver that names no
+    class in scope (a variable) returns None and the usual rules run.
+    """
+    type_name = re.split(r"[.\\:]+", call.receiver or "")[-1]
+    imported = [p for reach in state.reaches if reach.external is None for p in reach.paths]
+    for paths in ([info.path], profile.package_scope(ctx, info), imported):
+        nodes = _methods_of_type(ctx, paths, type_name, call.name)
+        if nodes:
+            for position, reach in enumerate(state.reaches):
+                state.used[position].update(n.path for n in nodes if n.path in reach.paths)
+            return _Targets(tuple(nodes))
+    return None
+
+
+def _methods_of_type(
+    ctx: Context, paths: Sequence[str], type_name: str, name: str
+) -> list[Node]:
+    owners = {t.key for p in paths for t in ctx.files[p].types.get(type_name, [])}
+    return [
+        n
+        for p in paths
+        for n in ctx.files[p].functions.get(name, [])
+        if n.owner_key in owners or (n.owner_key is None and _container(n) == type_name)
+    ]
+
+
+def _container(node: Node) -> str | None:
+    """The name just before the method in its qualname: `Util` for `Util#4c31.slug`.
+
+    Ruby modules have no node, so their methods look like top-level functions; this
+    recovers the module name from the qualname the tags tier gave them.
+    """
+    if "." not in node.qualname:
+        return None
+    return node.qualname.rsplit(".", 1)[0].rsplit(".", 1)[-1].split("#", 1)[0]
 
 
 def _from_imports(ctx: Context, state: _FileState, call: RawCall) -> _Targets | None:
