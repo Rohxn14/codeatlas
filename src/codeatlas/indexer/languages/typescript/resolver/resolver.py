@@ -133,6 +133,8 @@ class _Run:
         self._add(caller.key, hit.dst_key, EdgeKind.CALLS, hit.resolution, hit.confidence, line,
                   hit.attrs)
         target = self._t.nodes.get(hit.dst_key)
+        if hit.resolution is Resolution.NAME_GUESS:
+            return  # D-23: a guess is too weak to say which tests cover a function
         if caller.kind is NodeKind.TEST and target is not None and _is_source_function(target):
             self._add(caller.key, hit.dst_key, EdgeKind.TESTS, hit.resolution, hit.confidence,
                       line, hit.attrs)

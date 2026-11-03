@@ -130,6 +130,13 @@ def test_tests_edges_skip_test_helpers(proj: Edges) -> None:
     assert "tests/main.test.ts::helper" in proj.out("calls", test)  # a call, but not a TESTS edge
 
 
+def test_name_guesses_do_not_become_tests_edges(proj: Edges) -> None:
+    """D-23: deep() is not imported in the test, so it is only guessed."""
+    test = "tests/main.test.ts::run > works"
+    assert proj.out("calls", test)["src/chain/deep.ts::deep"][0] == "name_guess"
+    assert "src/chain/deep.ts::deep" not in proj.out("tests", test)
+
+
 def _index(tmp_path, files: dict[str, str]) -> Edges:
     from codeatlas.indexer.pipeline import build_graph
     from codeatlas.store import GraphStore

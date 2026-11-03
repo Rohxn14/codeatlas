@@ -45,7 +45,7 @@ Do not edit `cli.py` (wired up later), the resolvers, the store or the pipeline.
 
 1. Depth and decay defaults, and why.
 2. Whether several weak signals should add up (Q3); if you change the v1 rule, keep "highest signal" as a switch so both can be scored.
-3. How TESTS edges that came from name guesses (confidence at most 0.3) should count.
+3. How weak TESTS edges should count. D-23 is applied: the deep resolvers no longer make TESTS edges from name guesses, but the repository layer's naming-convention TESTS edges (`convention`, from `repo/test_conventions.py`) remain.
 
 ## Tests
 

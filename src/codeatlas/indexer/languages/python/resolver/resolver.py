@@ -18,7 +18,15 @@ from codeatlas.indexer.languages.python.resolver.tables import (
     build_tables,
 )
 from codeatlas.indexer.languages.python.resolver.types import Typer
-from codeatlas.models import Edge, EdgeKind, Node, NodeKind, ParseResult, make_node_id
+from codeatlas.models import (
+    Edge,
+    EdgeKind,
+    Node,
+    NodeKind,
+    ParseResult,
+    Resolution,
+    make_node_id,
+)
 
 
 class PythonResolver:
@@ -95,6 +103,8 @@ def tests_edges(calls: list[Edge], tables: dict[str, ModuleTable], snapshot: str
             continue
         if target.kind is not NodeKind.FUNCTION or _is_test_file(target.path, test_paths):
             continue
+        if edge.resolution is Resolution.NAME_GUESS:
+            continue  # D-23: a guess is too weak to say which tests cover a function
         found.append(Edge(edge.src_id, edge.dst_id, EdgeKind.TESTS, edge.confidence,
                           edge.resolution, edge.line, dict(edge.attrs)))
     return found

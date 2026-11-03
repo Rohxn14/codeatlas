@@ -7,6 +7,7 @@ describe("run", () => {
   it("works", () => {
     helper();
     run();
+    deep(); // not imported: guessed (D-23)
     expect(1).toBe(1);
   });
 });

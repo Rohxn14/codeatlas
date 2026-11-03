@@ -41,6 +41,8 @@ From the Wave 1 reviews and the Wave 2 plan. For each, write "yes", "no" or your
 
 **Applied on Nov 2, before your review, so Wave 2 could start**: D-11 (T01 fix), D-12 (T15 fix), D-13, D-14, D-19 (pipeline core), D-15, D-16 (contract text), D-17 (T04 fix), D-21. Each is one commit in the "Wave 1 review fixes" pull request and can be reversed. D-18 and D-20 are plan changes.
 
+**Applied on Nov 3, while you delegated decisions**: D-23 (both deep resolvers drop TESTS edges whose resolution is `name_guess`; one test each). D-22 stays half-applied: T06 does it, T07 waits until the TypeScript adapter records receiver types, which is a post-Nov 5 task. Q2 and Q3 stay open: T12 decides Q3 in its plan with "highest signal" kept as a switch.
+
 **Your call**: D-11: · D-12: · D-13: · D-14: · D-15: · D-16: · D-17: · D-18: · D-19: · D-20: · D-21: · D-22: · D-23:
 
 ### Contract text (for the decisions you accept)

@@ -72,7 +72,7 @@ claude --cloud "Execute docs/tasks/T17b-c-cpp-rust.md. Follow CLAUDE.md."
 In `docs/decisions.md`: D-11 to D-21 (applied, reversible), and two new ones:
 
 - **D-22** typed receivers at `SELF_METHOD` 0.9 in both deep languages (T06 does this; T07 does not yet).
-- **D-23** no TESTS edges from name guesses.
+- **D-23** no TESTS edges from name guesses (applied on Nov 3, while you delegated; one commit, reversible).
 
 And Q2 (the name-guess cut-off: every resolver uses 5) and Q3 (whether weak signals add up: T12 will use your answer, or "highest signal" if there is none).
 
