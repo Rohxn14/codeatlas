@@ -18,7 +18,9 @@ RESOLVERS: dict[str, str] = {
     "typescript": "codeatlas.indexer.languages.typescript.resolver:TypeScriptResolver",  # T07
     "structural": "codeatlas.indexer.structural:StructuralResolver",  # T16
 }
-LINKERS: dict[str, str] = {}
+LINKERS: dict[str, str] = {
+    "http": "codeatlas.indexer.linker:HttpLinker",  # T11
+}
 
 
 @dataclass(frozen=True, slots=True)

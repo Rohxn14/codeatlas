@@ -54,7 +54,7 @@ def test_go_single_grouped_alias_dot_and_blank_imports() -> None:
 
 
 def test_a_language_without_an_imports_query_has_no_imports() -> None:
-    result = parse("a.rb", "require 'json'\nclass A; end\n")
+    result = parse("a.lua", "local json = require('json')\nfunction a() end\n")
     assert result.imports == ()
 
 

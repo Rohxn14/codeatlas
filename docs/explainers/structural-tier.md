@@ -21,10 +21,36 @@ still gets `NAME_GUESS` edges, so every structural language has some CALLS edges
 
 | Depth | Languages |
 | --- | --- |
-| Import-scoped (profile) | Java, Go, C, C++, Rust |
-| Name guesses only | C#, Elixir, Lua, PHP, Ruby, Scala, Swift |
+| Import-scoped (profile) | Java, Go, C#, PHP, Ruby, C, C++, Rust |
+| Name guesses only | Elixir, Lua, Scala, Swift |
 
-(T17a and T17b add profiles; update this table when a language gets one.)
+(Update this table when a language gets a profile.) What each profile maps,
+and what it gets wrong:
+
+- **C#** (`structural/csharp.py`). A file belongs to the namespace it declares, not to its
+  folder (the `package` attribute, file-scoped or block). `using A.B;` reaches every file of
+  namespace `A.B`; `using static A.B.C;` only the members of class `C`, unqualified;
+  `using X = A.B.C;` binds `X` to that class. `Foo.Bar()` with `Foo` a class of the same
+  namespace or an imported one looks only at `Foo`'s methods. Wrong: `Console.WriteLine` after
+  a bare `using System;` stays unresolved (nothing says `Console` is in `System`); an aliased
+  or fully qualified external name is exact; `var x = ...; x.M()` is an untyped receiver
+  (up to 5 candidates); only the first namespace of a file is recorded.
+- **PHP** (`structural/php.py`). `use App\Models\User;` (also `as`, grouped `use App\{A, B}`,
+  `use function`) is looked up in the PSR-4 table T15 stored on each Composer Package node
+  (`App\` -> `src/` gives `src/Models/User.php`); with no table, a file declaring that
+  namespace and class. `require`/`include` with a literal path is a file import (relative
+  to the file, then to the repository root). `User::find()` follows the binding;
+  `$this->m()`, `self::m()` and `static::m()` stay in the class; a bare `foo()` is a
+  function of the same namespace, never a method. Wrong: `parent::m()`, dynamic includes,
+  classmap autoloading, magic methods and facades.
+- **Ruby** (`structural/ruby.py`). `require_relative "x"` is a path from the file;
+  `require "x"` is `lib/x.rb` (the nearest gem's `lib/` if several), else external, with
+  the constant guessed from the name (`json` -> `JSON`). Ruby brings no names in, so an
+  import reaches files and `Foo.bar` is resolved by the class or module named `Foo` in
+  scope. A class or module reopened in several files is one scope. Wrong: a bare word that
+  ends a method (`name`) cannot be told from a local variable and is not a call;
+  Rails/Zeitwerk autoloading has no `require` to follow, so Rails apps lean on name
+  guesses; mixins (`include`) and `method_missing` are not followed.
 
 ## Why
 
@@ -62,7 +88,9 @@ still gets `NAME_GUESS` edges, so every structural language has some CALLS edges
       (`profile.qualify`: Rust `crate::util::f()`, `Self::new()`): look only in the reached
       files. An external import gives `::external:<import>.<name>`, confidence 1.0.
    2. *Class chain* (profiles with it: Java `m()` or `this.m()`): methods of the enclosing
-      class, then the classes around it.
+      class, then the classes around it. Then, for profiles with `type_receivers`
+      (C#, PHP, Ruby): `Foo.bar()` where `Foo` names a class in scope (own file, package
+      scope, imported files) looks only at `Foo`'s methods.
    3. *Own file*, then *package scope* (`profile.package_scope`).
    4. *Files reached by imports*: any member, for a receiver of unknown type; only the
       names the import brings in, for a bare call (Go dot import, Java static import).

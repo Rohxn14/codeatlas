@@ -175,9 +175,11 @@ def test_traverse_depth_is_capped_at_three(tools):
 
 def test_impact(tools):
     out = tools.call("impact", {"keys": ["app/repo.py::Repo.save"]})
+    # Engine scores: confidence times 0.8 per hop; the highest signal wins per target.
     assert [(r["key"], r["confidence"]) for r in out["affected"]] == [
-        ("app/service.py::", 1.0), ("tests/test_service.py::", 1.0),
-        ("app/service.py::create", 0.5), ("app/service.py::rename", 0.5)]
+        ("app/repo.py::Repo", 0.8), ("app/service.py::", 0.42), ("app/service.py::create", 0.4),
+        ("app/service.py::rename", 0.32), ("tests/test_service.py::test_create", 0.288)]
+    assert {e["signal"] for e in out["affected"][2]["evidence"]} == {"graph"}
     assert keys(out["co_changed_files"]) == ["app/service.py::"]
     assert out["co_changed_files"][0]["changed_with"] == "app/repo.py"
 
@@ -190,7 +192,7 @@ def test_impact_unknown_key(tools):
 def test_select_tests(tools):
     out = tools.call("select_tests", {"keys": ["app/repo.py::Repo.save"]})
     assert [(t["key"], t["confidence"], t["covers"]) for t in out["tests"]] == [
-        ("tests/test_service.py::test_create", 0.4, "app/service.py::create")]
+        ("tests/test_service.py::test_create", 0.288, "app/service.py::create")]
 
 
 def test_unknown_tool_and_bad_arguments(tools):

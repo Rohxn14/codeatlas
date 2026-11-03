@@ -1,0 +1,433 @@
+{
+ "snapshot": {
+  "id": "expected",
+  "repo": "php",
+  "commit_sha": "6d9b9cb0d94a6eb78ed4471db333a6ee733cb817",
+  "indexed_at": "2026-11-03T12:43:14Z",
+  "indexer_version": "hand-labelled",
+  "source": "tests/data/structural/php",
+  "limits_hit": []
+ },
+ "nodes": [
+  {
+   "key": "bin/app.php::",
+   "kind": "module",
+   "language": "php",
+   "path": "bin/app.php",
+   "span": {
+    "start_line": 1,
+    "end_line": 8
+   }
+  },
+  {
+   "key": "src/Models/Post.php::",
+   "kind": "module",
+   "language": "php",
+   "path": "src/Models/Post.php",
+   "span": {
+    "start_line": 1,
+    "end_line": 15
+   }
+  },
+  {
+   "key": "src/Models/Post.php::Post",
+   "kind": "class",
+   "language": "php",
+   "path": "src/Models/Post.php",
+   "span": {
+    "start_line": 4,
+    "end_line": 15
+   }
+  },
+  {
+   "key": "src/Models/Post.php::Post.describe",
+   "kind": "function",
+   "language": "php",
+   "path": "src/Models/Post.php",
+   "span": {
+    "start_line": 6,
+    "end_line": 9
+   }
+  },
+  {
+   "key": "src/Models/Post.php::Post.find",
+   "kind": "function",
+   "language": "php",
+   "path": "src/Models/Post.php",
+   "span": {
+    "start_line": 11,
+    "end_line": 14
+   }
+  },
+  {
+   "key": "src/Models/User.php::",
+   "kind": "module",
+   "language": "php",
+   "path": "src/Models/User.php",
+   "span": {
+    "start_line": 1,
+    "end_line": 20
+   }
+  },
+  {
+   "key": "src/Models/User.php::User",
+   "kind": "class",
+   "language": "php",
+   "path": "src/Models/User.php",
+   "span": {
+    "start_line": 4,
+    "end_line": 20
+   }
+  },
+  {
+   "key": "src/Models/User.php::User.describe",
+   "kind": "function",
+   "language": "php",
+   "path": "src/Models/User.php",
+   "span": {
+    "start_line": 6,
+    "end_line": 9
+   }
+  },
+  {
+   "key": "src/Models/User.php::User.name",
+   "kind": "function",
+   "language": "php",
+   "path": "src/Models/User.php",
+   "span": {
+    "start_line": 11,
+    "end_line": 14
+   }
+  },
+  {
+   "key": "src/Models/User.php::User.find",
+   "kind": "function",
+   "language": "php",
+   "path": "src/Models/User.php",
+   "span": {
+    "start_line": 16,
+    "end_line": 19
+   }
+  },
+  {
+   "key": "src/Services/Legacy.php::",
+   "kind": "module",
+   "language": "php",
+   "path": "src/Services/Legacy.php",
+   "span": {
+    "start_line": 1,
+    "end_line": 12
+   }
+  },
+  {
+   "key": "src/Services/Legacy.php::Legacy",
+   "kind": "class",
+   "language": "php",
+   "path": "src/Services/Legacy.php",
+   "span": {
+    "start_line": 6,
+    "end_line": 12
+   }
+  },
+  {
+   "key": "src/Services/Legacy.php::Legacy.run",
+   "kind": "function",
+   "language": "php",
+   "path": "src/Services/Legacy.php",
+   "span": {
+    "start_line": 8,
+    "end_line": 11
+   }
+  },
+  {
+   "key": "src/Services/UserService.php::",
+   "kind": "module",
+   "language": "php",
+   "path": "src/Services/UserService.php",
+   "span": {
+    "start_line": 1,
+    "end_line": 24
+   }
+  },
+  {
+   "key": "src/Services/UserService.php::UserService",
+   "kind": "class",
+   "language": "php",
+   "path": "src/Services/UserService.php",
+   "span": {
+    "start_line": 9,
+    "end_line": 24
+   }
+  },
+  {
+   "key": "src/Services/UserService.php::UserService.save",
+   "kind": "function",
+   "language": "php",
+   "path": "src/Services/UserService.php",
+   "span": {
+    "start_line": 11,
+    "end_line": 19
+   }
+  },
+  {
+   "key": "src/Services/UserService.php::UserService.validate",
+   "kind": "function",
+   "language": "php",
+   "path": "src/Services/UserService.php",
+   "span": {
+    "start_line": 21,
+    "end_line": 23
+   }
+  },
+  {
+   "key": "src/Util/Format.php::",
+   "kind": "module",
+   "language": "php",
+   "path": "src/Util/Format.php",
+   "span": {
+    "start_line": 1,
+    "end_line": 10
+   }
+  },
+  {
+   "key": "src/Util/Format.php::Format",
+   "kind": "class",
+   "language": "php",
+   "path": "src/Util/Format.php",
+   "span": {
+    "start_line": 4,
+    "end_line": 10
+   }
+  },
+  {
+   "key": "src/Util/Format.php::Format.slug",
+   "kind": "function",
+   "language": "php",
+   "path": "src/Util/Format.php",
+   "span": {
+    "start_line": 6,
+    "end_line": 9
+   }
+  },
+  {
+   "key": "src/Util/helpers.php::",
+   "kind": "module",
+   "language": "php",
+   "path": "src/Util/helpers.php",
+   "span": {
+    "start_line": 1,
+    "end_line": 7
+   }
+  },
+  {
+   "key": "src/Util/helpers.php::money",
+   "kind": "function",
+   "language": "php",
+   "path": "src/Util/helpers.php",
+   "span": {
+    "start_line": 4,
+    "end_line": 7
+   }
+  },
+  {
+   "key": "tests/UserServiceTest.php::",
+   "kind": "module",
+   "language": "php",
+   "path": "tests/UserServiceTest.php",
+   "span": {
+    "start_line": 1,
+    "end_line": 13
+   }
+  },
+  {
+   "key": "tests/UserServiceTest.php::UserServiceTest",
+   "kind": "class",
+   "language": "php",
+   "path": "tests/UserServiceTest.php",
+   "span": {
+    "start_line": 6,
+    "end_line": 13
+   }
+  },
+  {
+   "key": "tests/UserServiceTest.php::UserServiceTest.testSave",
+   "kind": "function",
+   "language": "php",
+   "path": "tests/UserServiceTest.php",
+   "span": {
+    "start_line": 8,
+    "end_line": 12
+   }
+  },
+  {
+   "key": "composer.json::package:acme/shop",
+   "kind": "package",
+   "language": "php",
+   "path": "composer.json",
+   "span": {
+    "start_line": 1,
+    "end_line": 1
+   }
+  },
+  {
+   "key": "::external:Illuminate\\Support\\Str.slug",
+   "kind": "external",
+   "language": "php",
+   "path": "",
+   "span": {
+    "start_line": 1,
+    "end_line": 1
+   }
+  },
+  {
+   "key": "::external:Illuminate\\Support\\Str",
+   "kind": "external",
+   "language": "php",
+   "path": "",
+   "span": {
+    "start_line": 1,
+    "end_line": 1
+   }
+  }
+ ],
+ "edges": [
+  {
+   "src_key": "src/Services/UserService.php::UserService.save",
+   "dst_key": "src/Services/UserService.php::UserService.validate",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/Services/UserService.php::UserService.save",
+   "dst_key": "src/Util/Format.php::Format.slug",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/Services/UserService.php::UserService.save",
+   "dst_key": "::external:Illuminate\\Support\\Str.slug",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/Services/UserService.php::UserService.save",
+   "dst_key": "src/Util/helpers.php::money",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/Services/UserService.php::UserService.save",
+   "dst_key": "src/Models/User.php::User.describe",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/Services/UserService.php::UserService.save",
+   "dst_key": "src/Models/User.php::User.name",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/Services/UserService.php::UserService.save",
+   "dst_key": "src/Models/User.php::User.find",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/Util/Format.php::Format.slug",
+   "dst_key": "src/Util/helpers.php::money",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/Services/Legacy.php::Legacy.run",
+   "dst_key": "src/Util/helpers.php::money",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/Models/User.php::User.describe",
+   "dst_key": "src/Models/User.php::User.name",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "bin/app.php::",
+   "dst_key": "src/Models/User.php::User.find",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "bin/app.php::",
+   "dst_key": "src/Models/Post.php::Post.find",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "bin/app.php::",
+   "dst_key": "src/Services/UserService.php::UserService.save",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "tests/UserServiceTest.php::UserServiceTest.testSave",
+   "dst_key": "src/Services/UserService.php::UserService.save",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/Services/UserService.php::",
+   "dst_key": "src/Models/User.php::",
+   "kind": "imports",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/Services/UserService.php::",
+   "dst_key": "src/Util/Format.php::",
+   "kind": "imports",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/Services/UserService.php::",
+   "dst_key": "::external:Illuminate\\Support\\Str",
+   "kind": "imports",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/Services/UserService.php::",
+   "dst_key": "src/Util/helpers.php::",
+   "kind": "imports",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/Services/Legacy.php::",
+   "dst_key": "src/Util/helpers.php::",
+   "kind": "imports",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "bin/app.php::",
+   "dst_key": "src/Models/User.php::",
+   "kind": "imports",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "bin/app.php::",
+   "dst_key": "src/Models/Post.php::",
+   "kind": "imports",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "bin/app.php::",
+   "dst_key": "src/Services/UserService.php::",
+   "kind": "imports",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "tests/UserServiceTest.php::",
+   "dst_key": "src/Services/UserService.php::",
+   "kind": "imports",
+   "confidence": 1.0
+  }
+ ]
+}
