@@ -8,16 +8,21 @@ and is counted by reason in `unmatched`.
 
 from __future__ import annotations
 
+import posixpath
 from collections import Counter
 from collections.abc import Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
+from functools import lru_cache
 
 from codeatlas.indexer.adapter import SymbolIndex
 from codeatlas.indexer.linker.urls import (
+    IMPORTED_AXIOS,
     PARAM,
     ClientUrl,
+    join_client_url,
     normalise_client_url,
     route_segments,
+    segment_pattern,
 )
 from codeatlas.models import (
     Edge,
@@ -26,6 +31,7 @@ from codeatlas.models import (
     NodeKind,
     ParseResult,
     RawHttpCall,
+    RawImport,
     RawRoute,
     Resolution,
     Span,
@@ -69,6 +75,10 @@ class HttpLinker:
         nodes = [_route_node(r, snapshot_id) for r in routes.values()]
         edges = _handles_edges(routes, snapshot_id)
         edges += self._calls_edges(results, routes, snapshot_id)
+        self.problems += [
+            f"unmatched http calls: {reason}={count}"
+            for reason, count in sorted(self.unmatched.items())
+        ]
         return nodes, edges
 
     def _calls_edges(
@@ -78,8 +88,13 @@ class HttpLinker:
         snapshot_id: str,
     ) -> list[Edge]:
         edges: dict[tuple[str, str], Edge] = {}
+        instances = _axios_instances(results)
         for result in results:
-            for call in result.http_calls:
+            for raw_call in result.http_calls:
+                call = _through_instance(raw_call, result, instances)
+                if call is None:
+                    self.unmatched["unknown_client"] += 1
+                    continue
                 found = _match(call, routes)
                 if isinstance(found, str):
                     self.unmatched[found] += 1
@@ -90,6 +105,87 @@ class HttpLinker:
                     if old is None or edge.confidence > old.confidence:
                         edges[(edge.src_id, edge.dst_id)] = edge
         return list(edges.values())
+
+
+# path -> exported name -> (base URL, url kind), from module nodes' `axios_instances`.
+_Instances = dict[str, dict[str, tuple[str, str]]]
+_SCRIPT_EXTENSIONS = (".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs")
+
+
+def _axios_instances(results: Sequence[ParseResult]) -> _Instances:
+    """Axios instances each module exports, as the TypeScript adapter recorded them."""
+    found: _Instances = {}
+    for result in results:
+        for node in result.nodes:
+            exported = node.attrs.get("axios_instances") if node.kind is NodeKind.MODULE else None
+            if isinstance(exported, dict):
+                found[result.path] = {
+                    name: (str(v.get("base_url", "")), str(v.get("url_kind", "literal")))
+                    for name, v in exported.items()
+                    if isinstance(v, dict)
+                }
+    return found
+
+
+def _through_instance(
+    call: RawHttpCall, result: ParseResult, instances: _Instances
+) -> RawHttpCall | None:
+    """The call with its instance's base URL joined, or None when the instance is unknown.
+
+    A call whose client is not `axios:<name>` is returned unchanged.
+    """
+    if not call.client.startswith(IMPORTED_AXIOS):
+        return call
+    local = call.client[len(IMPORTED_AXIOS):]
+    for raw in result.imports:
+        exported = _bound_name(raw, local)
+        if exported is None:
+            continue
+        base = _instance_for(result.path, raw.target, exported, instances)
+        if base is None:
+            return None
+        url_text, url_kind = join_client_url(*base, call.url_text, call.url_kind)
+        return replace(call, client="axios", url_text=url_text, url_kind=url_kind)
+    return None
+
+
+def _bound_name(raw: RawImport, local: str) -> str | None:
+    """The exported name an import binds to `local`, or None if it binds no such name."""
+    if raw.is_reexport:
+        return None
+    for name, alias in raw.names:
+        if (alias or name) == local:
+            return name
+    return None
+
+
+def _instance_for(
+    importer: str, target: str, exported: str, instances: _Instances
+) -> tuple[str, str] | None:
+    """Find `exported` in the module `target` names, relative to `importer`.
+
+    A relative target is resolved like a bundler would (extensions, `index` files). A
+    bare or aliased one (`@/api/http`) cannot be resolved without the build config, so it
+    is accepted only when exactly one module exports an instance under that name.
+    """
+    if target.startswith("."):
+        for path in _module_candidates(posixpath.dirname(importer), target):
+            if path in instances:
+                return instances[path].get(exported)
+        return None
+    matches = [names[exported] for names in instances.values() if exported in names]
+    return matches[0] if len(matches) == 1 else None
+
+
+@lru_cache(maxsize=1024)
+def _module_candidates(directory: str, target: str) -> tuple[str, ...]:
+    base = posixpath.normpath(posixpath.join(directory, target))
+    stem = posixpath.splitext(base)[0] if base.endswith((".js", ".mjs", ".cjs")) else base
+    return (
+        base,
+        *(stem + ext for ext in _SCRIPT_EXTENSIONS),
+        *(f"{base}/index{ext}" for ext in _SCRIPT_EXTENSIONS),
+    )
 
 
 def _collect_routes(
@@ -180,6 +276,8 @@ def _match(call: RawHttpCall, routes: dict[tuple[str, str], _Route]) -> _Hit | s
     hits = [r for r in routes.values() if _method_ok(method, r) and _segments_ok(url, r)]
     if not hits:
         return "no_route"
+    if any(r.method == method for r in hits):  # a route for this very method beats ANY
+        hits = [r for r in hits if r.method == method]
     best = max(_literal_count(r) for r in hits)
     hits = [r for r in hits if _literal_count(r) == best]
     exact = (
@@ -203,7 +301,16 @@ def _segments_ok(url: ClientUrl, route: _Route) -> bool:
 
 
 def _segment_ok(client: str, server: str) -> bool:
-    return server == PARAM or client == server
+    """A route `{}` takes any segment; `{}.json` takes a literal `report.json`.
+
+    A client parameter matches only a whole route parameter or the same text: what it
+    holds at run time is unknown, so it cannot be said to fit a partly literal segment.
+    """
+    if server == PARAM or client == server:
+        return True
+    if PARAM not in server or PARAM in client:
+        return False
+    return segment_pattern(server).match(client) is not None
 
 
 def _literal_count(route: _Route) -> int:

@@ -5,10 +5,12 @@ Recognised forms:
     requests.get(url) / httpx.post(url, ...)       module-level helpers
     requests.request("GET", url)                   method given as an argument
     client.get(url)                                 `client` made from httpx.Client(),
-                                                    httpx.AsyncClient() or
-                                                    requests.Session() in the same
-                                                    function, or at module level
-                                                    (by assignment or `with ... as`)
+                                                    httpx.AsyncClient(),
+                                                    requests.Session() or a test client
+                                                    (`TestClient(app)`, FastAPI and
+                                                    Starlette) in the same function, or
+                                                    at module level (by assignment or
+                                                    `with ... as`)
 
 The URL is `literal` for a plain string, `template` for an f-string or a
 `"...".format(...)` call (the text inside the quotes is kept), `dynamic` otherwise
@@ -39,6 +41,12 @@ _CLIENT_FACTORIES = {
     "httpx.AsyncClient": "httpx",
     "requests.Session": "requests",
     "requests.session": "requests",
+    # Test clients send requests to the app in-process; for the linker they are clients
+    # like any other, and the calls in tests are the ones that cover the routes.
+    "TestClient": "testclient",
+    "testclient.TestClient": "testclient",
+    "fastapi.testclient.TestClient": "testclient",
+    "starlette.testclient.TestClient": "testclient",
 }
 
 
