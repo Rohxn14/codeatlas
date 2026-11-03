@@ -3,7 +3,13 @@
 from __future__ import annotations
 
 from codeatlas.indexer.languages.python.resolver.calls import EXTERNAL_PREFIX
-from codeatlas.indexer.languages.python.resolver.names import Names, Ref, base_names
+from codeatlas.indexer.languages.python.resolver.names import (
+    MAX_REEXPORT_HOPS,
+    Names,
+    Ref,
+    base_names,
+    base_scope_hide,
+)
 from codeatlas.indexer.languages.python.resolver.project import Project
 from codeatlas.indexer.languages.python.resolver.tables import ModuleTable, module_paths
 from codeatlas.models import (
@@ -51,7 +57,7 @@ def _import_targets(
 
 def _target_key(path: str, name: str, names: Names) -> str:
     """The symbol or submodule `name` of module `path`; the module itself for a variable."""
-    ref = names.export(path, name, 3)
+    ref = names.export(path, name, MAX_REEXPORT_HOPS)
     if ref is not None and ref.kind == "node":
         return ref.nodes[0].key
     if ref is not None and ref.kind == "module" and ref.paths and ref.paths[0] in names.tables:
@@ -76,7 +82,7 @@ def inherit_edges(classes: list[Node], names: Names, snapshot: str) -> list[Edge
     edges: list[Edge] = []
     for cls in classes:
         for text in base_names(cls):
-            ref = names.ref(cls.path, text) if text else None
+            ref = names.ref(cls.path, text, base_scope_hide(cls)) if text else None
             for key in _base_keys(ref):
                 edges.append(Edge(
                     cls.id, make_node_id(snapshot, key), EdgeKind.INHERITS,

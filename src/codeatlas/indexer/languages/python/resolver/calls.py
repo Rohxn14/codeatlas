@@ -19,7 +19,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from codeatlas.indexer.languages.python.resolver.names import Names, Ref
+from codeatlas.indexer.languages.python.resolver.names import MAX_REEXPORT_HOPS, Names, Ref
 from codeatlas.indexer.languages.python.resolver.tables import ModuleTable
 from codeatlas.indexer.languages.python.resolver.types import Typer
 from codeatlas.models import Node, NodeKind, RawCall, Resolution
@@ -207,7 +207,7 @@ class CallResolver:
             paths = {table.path}
             for binding in [*table.bindings.values(), *table.star_imports]:
                 paths.update(binding.paths)
-                ref = self.names.follow(binding, 3) if binding.name else None
+                ref = self.names.follow(binding, MAX_REEXPORT_HOPS) if binding.name else None
                 if ref is not None and ref.kind == "node":
                     paths.update(n.path for n in ref.nodes)
             cached = self._scope[table.path] = frozenset(paths)
