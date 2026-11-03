@@ -101,3 +101,54 @@ class SameFolderPredictor:
                 seen[path] += 1
                 order.append(path)
         return order
+
+
+class ImpactPredictor:
+    """The impact engine as a predictor: graph, imports and tests from one index, history to `rev`.
+
+    The graph is built once, at the checkout's HEAD, so structure is slightly newer than
+    the held-out commit; history is not: co-change comes from `read_history(.., rev)`,
+    and predictions are limited to files that exist at `rev`.
+    """
+
+    name = "impact"
+
+    def __init__(self, store: object, snapshot_id: str, max_commits: int = 2_000) -> None:
+        from codeatlas.impact.engine import ImpactEngine
+
+        self._cache = _Cached(max_commits)
+        self._analyzer = CoChangeAnalyzer(max_commits=max_commits)
+        self._neighbours: dict[str, list[tuple[str, float, int, int]]] = {}
+        self._engine = ImpactEngine(store, snapshot_id, cochange=self._history)  # type: ignore[arg-type]
+
+    def _history(self, path: str) -> list[tuple[str, float, int, int]]:
+        return self._neighbours.get(path, [])
+
+    def predict(self, repo_root: Path, rev: str, changed_file: str, k: int) -> list[str]:
+        from codeatlas.impact.models import Change
+
+        if self._cache.load(repo_root, rev):
+            self._neighbours = self._index()
+        result = self._engine.impact([Change(changed_file)])
+        ranked: list[str] = []
+        for target in result.targets:
+            path = target.path
+            if (path and path != changed_file and path in self._cache.present
+                    and path not in ranked):
+                ranked.append(path)
+            if len(ranked) >= k:
+                break
+        return ranked
+
+    def _index(self) -> dict[str, list[tuple[str, float, int, int]]]:
+        changed, together, _ = self._analyzer._count(
+            self._cache.history.commits, self._cache.present
+        )
+        found: dict[str, list[tuple[str, float, int, int]]] = defaultdict(list)
+        for (a, b), support in together.items():
+            if support < self._analyzer.min_support:
+                continue
+            found[a].append((b, support / changed[a], support, changed[a]))
+            found[b].append((a, support / changed[b], support, changed[b]))
+        return {p: sorted(v, key=lambda t: (-t[1], -t[2], t[0]))[: self._analyzer.max_targets]
+                for p, v in found.items()}

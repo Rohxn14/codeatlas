@@ -479,87 +479,88 @@ def _resolve_all(ctx: ToolContext, keys: list[str]) -> tuple[list[Node], list[di
     return found, problems
 
 
-def impact(ctx: ToolContext, keys: list[str]) -> dict[str, Any]:
-    """v0 impact: what reaches the symbols over CALLS and IMPORTS, plus co-change neighbours.
+def _run_engine(ctx: ToolContext, nodes: list[Node]) -> Any:
+    """The impact engine on these symbols, reusing the context's cached graph."""
+    from codeatlas.impact import Change, ImpactEngine
+    from codeatlas.impact.engine import LOAD_KINDS
 
-    T12 replaces this with the real impact engine; the signature stays.
-    """
+    engine = ImpactEngine(ctx.store, ctx.snapshot_id, graph=ctx.graph(LOAD_KINDS))
+    return engine.impact([Change(n.path, symbol_keys=(n.key,)) for n in nodes])
+
+
+def _evidence_rows(evidence: Any) -> list[dict[str, Any]]:
+    """Evidence as JSON: signal, score, the path as 'key -kind(confidence)-> key', detail."""
+    rows = []
+    for e in evidence:
+        steps = [e.path[0].key] if e.path else []
+        for hop in e.path[1:]:
+            steps.append(f"<-{hop.kind}({hop.confidence:g})- {hop.key}")
+        rows.append({"signal": e.signal, "score": round(e.score, 3),
+                     "path": " ".join(steps), "detail": e.detail})
+    return rows
+
+
+def impact(ctx: ToolContext, keys: list[str]) -> dict[str, Any]:
+    """What a change to these symbols could break, ranked, each with its evidence (T12)."""
     nodes, problems = _resolve_all(ctx, list(keys))
     if not nodes:
         return _error("none of the keys matched a symbol", problems=problems)
-    scores = _impact_scores(ctx, nodes)
-    affected = []
-    for node_id, confidence in sorted(scores.items(), key=lambda item: (-item[1], item[0])):
-        other = ctx.store.node(node_id)
-        if other is not None and other.kind not in (NodeKind.PACKAGE, NodeKind.EXTERNAL):
-            affected.append(_symbol(ctx, other, confidence=round(confidence, 3)))
-    co_changed: dict[str, dict[str, Any]] = {}
-    for path in sorted({n.path for n in nodes}):
-        module = ctx.store.module_for_path(ctx.snapshot_id, path)
-        if module is None:
+    result = _run_engine(ctx, nodes)
+    affected, co_changed = [], []
+    for target in result.targets:
+        other = ctx.store.nodes_by_key(target.key, ctx.snapshot_id)
+        if not other:
             continue
-        for edge in ctx.store.edges_from(module.id, [EdgeKind.CO_CHANGES]):
-            other = ctx.store.node(edge.dst_id)
-            if other is not None and other.path not in {n.path for n in nodes}:
-                row = _symbol(ctx, other, confidence=round(edge.confidence, 3),
-                              changed_with=path)
-                best = co_changed.get(other.path)
-                if best is None or row["confidence"] > best["confidence"]:
-                    co_changed[other.path] = row
-    result: dict[str, Any] = {
+        row = _symbol(ctx, other[0], confidence=round(target.score, 3),
+                      evidence=_evidence_rows(target.evidence))
+        history = [e for e in target.evidence if e.signal == "cochange"]
+        if len(history) < len(target.evidence):
+            affected.append(row)
+        if history:
+            co_changed.append({**row, "confidence": round(history[0].score, 3),
+                               "changed_with": history[0].path[0].key.split("::")[0]})
+    out: dict[str, Any] = {
         "changed": [_symbol(ctx, n) for n in nodes],
         "problems": problems,
-        "version": "v0: CALLS and IMPORTS reachability plus co-change",
+        "warnings": list(result.warnings),
+        "version": "v1: graph, imports, co-change and test links; highest signal wins",
         "truncated": False,
         "affected": affected,
-        "co_changed_files": sorted(co_changed.values(),
-                                   key=lambda r: (-r["confidence"], r["path"])),
+        "co_changed_files": co_changed,
+        "total_affected": len(affected),
     }
-    result["total_affected"] = len(affected)
     # Cut the longer of the two lists first so neither disappears completely.
-    while len(json.dumps(result)) > MAX_RESULT_CHARS and (result["affected"]
-                                                          or result["co_changed_files"]):
-        longer = (result["affected"]
-                  if len(result["affected"]) >= len(result["co_changed_files"])
-                  else result["co_changed_files"])
-        longer.pop()
-        result["truncated"] = True
-    return result
+    while len(json.dumps(out)) > MAX_RESULT_CHARS and (affected or co_changed):
+        (affected if len(affected) >= len(co_changed) else co_changed).pop()
+        out["truncated"] = True
+    return out
 
 
 def select_tests(ctx: ToolContext, keys: list[str]) -> dict[str, Any]:
-    """v0: tests linked by TESTS edges to the changed symbols and to what `impact` finds."""
+    """Tests to run for a change to these symbols, ranked, each with its evidence (T12)."""
     nodes, problems = _resolve_all(ctx, list(keys))
     if not nodes:
         return _error("none of the keys matched a symbol", problems=problems)
-    reach: dict[str, float] = {n.id: 1.0 for n in nodes}
-    for n in nodes:
-        module = ctx.store.module_for_path(ctx.snapshot_id, n.path)
-        if module is not None:
-            reach.setdefault(module.id, 1.0)
-    for node_id, confidence in _impact_scores(ctx, nodes).items():
-        reach[node_id] = max(reach.get(node_id, 0.0), confidence)
-    tests: dict[str, dict[str, Any]] = {}
-    for target_id, reach_confidence in reach.items():
-        for edge in ctx.store.edges_to(target_id, [EdgeKind.TESTS]):
-            test = ctx.store.node(edge.src_id)
-            if test is None:
-                continue
-            score = round(reach_confidence * edge.confidence, 3)
-            row = _symbol(ctx, test, confidence=score,
-                          covers=target_id.removeprefix(ctx.snapshot_id + "/"))
-            if test.id not in tests or score > tests[test.id]["confidence"]:
-                tests[test.id] = row
-    ranked = sorted(tests.values(), key=lambda r: (-r["confidence"], r["key"]))
-    result = {
+    result = _run_engine(ctx, nodes)
+    ranked = []
+    for pick in result.tests:
+        found = ctx.store.nodes_by_key(pick.key, ctx.snapshot_id)
+        if not found:
+            continue
+        best = pick.evidence[0]
+        covers = best.path[-2].key if len(best.path) > 1 else best.path[0].key
+        ranked.append(_symbol(ctx, found[0], confidence=round(pick.score, 3), covers=covers,
+                              evidence=_evidence_rows(pick.evidence)))
+    out = {
         "changed": [n.key for n in nodes],
         "problems": problems,
-        "version": "v0: TESTS edges to changed and impacted nodes",
+        "warnings": list(result.warnings),
+        "version": "v1: graph, imports, co-change and test links; highest signal wins",
         "total": len(ranked),
         "truncated": False,
         "tests": ranked,
     }
-    return _fit(result, "tests")
+    return _fit(out, "tests")
 
 
 # Specs and registry
