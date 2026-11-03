@@ -90,8 +90,13 @@ and what it gets wrong:
    2. *Class chain* (profiles with it: Java `m()` or `this.m()`): methods of the enclosing
       class, then the classes around it. Then, for profiles with `type_receivers`
       (C#, PHP, Ruby): `Foo.bar()` where `Foo` names a class in scope (own file, package
-      scope, imported files) looks only at `Foo`'s methods.
-   3. *Own file*, then *package scope* (`profile.package_scope`).
+      scope, imported files) looks only at `Foo`'s methods. If the receiver looks like a
+      type (`Repo`, `\Vendor\Repo`, `A::B`) but names no class in scope, steps 3 and 4
+      are skipped: a same-named method of the caller's own class is not the one meant,
+      so the call falls to a name guess (at most 0.3) instead of a 1.0 edge.
+   3. *Own file*, then *package scope* (`profile.package_scope`). For a call with a
+      receiver, more than 5 candidates in a tier means the receiver's type is unknown:
+      the call gets no edge, as a name guess with that many candidates would.
    4. *Files reached by imports*: any member, for a receiver of unknown type; only the
       names the import brings in, for a bare call (Go dot import, Java static import).
    5. Otherwise a **name guess**: functions with that name in the same language, if there
@@ -208,6 +213,46 @@ namespace check rejects them all.
   ordinary candidates, cut off above 5.
 - C++ classes in `.h` files are parsed with the C grammar (the extension table maps `.h`
   to C), so their methods are not seen.
+
+## Review fixes (T17f)
+
+The reviews of T17a and T17b found wrong edges at confidence 1.0, the worst kind for
+the impact engine. What changed, and the example each test pins:
+
+- **Rust `narrow`**: in `X::m()` with `X` capitalised, `X` is a type, so only methods
+  whose owner is called `X` stay (`Self` is the impl type; a `use a::Item as Product`
+  alias is followed to `Item`). Before, `HashMap::new()` beside `impl A { fn new() }`
+  gave `A.new` at 1.0; now it gives nothing, and so do `T::new()` and `E::V(1)`.
+- **Rust paths stay inside**: `qualify` never makes an external out of `crate::`,
+  `self::` or `super::` (even when no crate root is found), or out of `inner::f()` when
+  the file holds an inline `mod inner { }` (qualnames starting `inner.`). The last now
+  resolves to `inner.f` in the own-file tier.
+- **The 5-candidate cut-off** applies in the own-file and package tiers too, not only in
+  imported files: seven classes with `Save()` in one C# namespace gave 7 edges at 0.14.
+- **Out-of-scope class receivers** (`\Vendor\Lib\Repo::find()` inside `User::find`)
+  fall to a name guess (step 3.2 above).
+- **Ruby** binds a guessed constant (`require 'util'` -> `Util`) only when no Ruby file
+  of the repository defines a class or opens a module of that name.
+- **PHP** includes: a double-quoted string counts only when it holds no variable (the
+  query anchors `string_content` as the only child), so `require "$dir/x.php"` is no
+  longer an import of root `x.php`. A target ending `.php` is a path even with
+  backslashes, and class names in `use` compare case-insensitively.
+- **CMake**: comments (`#` and `#[[ ]]`) are removed first; `${CMAKE_SOURCE_DIR}` and
+  `${PROJECT_SOURCE_DIR}` mean the repository root, `${CMAKE_CURRENT_SOURCE_DIR}` the
+  CMakeLists folder; `$<BUILD_INTERFACE:dir>` is `dir`; the first argument of
+  `target_include_directories` is a target, not a folder.
+- **`Context.read`** guards itself: absolute paths, `..`, a symlink leaving the checkout,
+  folders and files over 4 MiB all give None. Paths come from the repository, so a
+  crafted repository must not make CodeAtlas read outside it.
+- `narrow` now also runs on the class-receiver step (no profile changes it there yet).
+
+**Worked example**: `struct A; impl A { fn new() -> A { A } } fn g() { HashMap::new(); }`.
+`qualify`: `HashMap` is no binding, no type of the file, not prelude, and not a module or
+crate the walk finds; being capitalised it is not an outside crate either, so no Reach.
+Own-file tier: `A.new`. `narrow`: the owner of `A.new` is `A`, not `HashMap`, so it is
+dropped; imports and the name guess are narrowed the same way. No edge.
+
+Sample scores were unchanged by these fixes (Java, Go, C#, PHP, Ruby, C, C++, Rust).
 
 ## Where
 

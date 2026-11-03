@@ -79,10 +79,15 @@ If the language needs something the shared code cannot express, say so in the PR
    Three optional hooks, for what `reach` alone cannot say (C, C++ and Rust use them):
    `reaches` (one statement brings several `Reach`es: Rust `use a::{B, c::D}`),
    `qualify` (a path written in the call: `crate::m::f()`, `Self::new()`) and `narrow`
-   (drop or swap candidates: C++ namespaces, C prototypes). A profile that must read a
+   (drop or swap candidates: C++ namespaces, C prototypes, Rust `X::m()` keeps only
+   methods of a type `X`). `qualify` must never turn a path that is certainly inside the
+   repository (Rust `crate::`/`self::`/`super::`, an inline module) into an external:
+   return None and let the scopes decide. A profile that must read a
    build file or a source as text uses `ctx.read(path)` (the checkout, given by the
    pipeline through `StructuralResolver.set_repo_root`; `None` in unit tests without a
-   root, so keep working without it).
+   root, so keep working without it; it refuses paths outside the checkout). A guessed
+   binding for an external import (Ruby's constant) must not shadow a name the
+   repository defines.
 
 4. **Write a sample project** in `tests/data/structural/<language>/`: two or three
    packages, an aliased or wildcard import, same-package calls, a test file, one call into

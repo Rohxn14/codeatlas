@@ -38,15 +38,34 @@ class RubyProfile(Profile):
             found = _load_path_files(ctx, file, target)
         if found:
             return Reach(imp, tuple(found), None, None, None, None)
-        return Reach(imp, external=imp.target, binding=_constant(imp.target))
+        constant = _constant(imp.target)
+        if _defined_in_repo(ctx, constant):
+            # `require 'util'` that no `lib/util.rb` answers, with `module Util` in the
+            # repository: the guessed constant must not turn `Util.slug` external.
+            return Reach(imp, external=imp.target)
+        return Reach(imp, external=imp.target, binding=constant)
 
     def package_scope(self, ctx: Context, file: FileInfo) -> list[str]:
         """Other files that open a class or module this file also opens."""
-        table = ctx.cache.get("ruby_containers")
-        if table is None:
-            table = ctx.cache["ruby_containers"] = _containers(ctx)
-        mine = {c for c, paths in table.items() if file.path in paths}  # type: ignore[attr-defined]
-        return sorted({p for c in mine for p in table[c] if p != file.path})  # type: ignore[index]
+        table = _container_table(ctx)
+        mine = {c for c, paths in table.items() if file.path in paths}
+        return sorted({p for c in mine for p in table[c] if p != file.path})
+
+
+def _container_table(ctx: Context) -> dict[str, set[str]]:
+    table = ctx.cache.get("ruby_containers")
+    if table is None:
+        table = ctx.cache["ruby_containers"] = _containers(ctx)
+    return table  # type: ignore[return-value]
+
+
+def _defined_in_repo(ctx: Context, constant: str) -> bool:
+    """Whether any Ruby file defines a class, or opens a module, called `constant`."""
+    if any(constant == name.rsplit(".", 1)[-1] for name in _container_table(ctx)):
+        return True
+    return any(
+        info.language == LANGUAGE and constant in info.types for info in ctx.files.values()
+    )
 
 
 def _load_path_files(ctx: Context, file: FileInfo, target: str) -> list[str]:

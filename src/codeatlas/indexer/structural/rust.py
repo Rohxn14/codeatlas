@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import PurePosixPath
 
-from codeatlas.indexer.structural.context import Context, FileInfo
+from codeatlas.indexer.structural.context import Context, FileInfo, owner_name
 from codeatlas.indexer.structural.profile import Profile, Reach
 from codeatlas.models import Node, NodeKind, RawCall, RawImport
 
@@ -81,7 +81,35 @@ class RustProfile(Profile):
             return Reach(imp, (file.path,), class_name=first)
         if first in _PRELUDE:
             return Reach(imp, external=receiver)
-        return _path_reach(ctx, file, imp, segments, unknown_is_external=first.islower())
+        return _path_reach(ctx, file, imp, segments, _may_be_external(file, first))
+
+    def narrow(self, ctx: Context, file: FileInfo, call: RawCall, nodes: list[Node]) -> list[Node]:
+        """`HashMap::new()`, `T::new()`, `E::V(1)`: a capitalised qualifier is a type, so
+        only methods of a type with that name can be meant, never `A::new` beside it."""
+        if not call.receiver or not call.callee_text.endswith("::" + call.name):
+            return nodes
+        type_name = call.receiver.rsplit("::", 1)[-1].strip()
+        if type_name == "Self":
+            type_name = _impl_type(file, call.caller_key) or type_name
+        elif not type_name[:1].isupper():
+            return nodes
+        bound = _bindings(ctx, file).get(type_name)  # `use store::Item as Product;`
+        if bound is not None and "::" not in call.receiver:
+            type_name = bound.path[-1]
+        return [n for n in nodes if owner_name(n) == type_name]
+
+
+def _may_be_external(file: FileInfo, first: str) -> bool:
+    """Whether a path that leaves the repository names an outside crate (`regex::...`).
+
+    `crate`, `self` and `super` are always inside it, even when the module tree cannot be
+    walked (no crate root found), and so is an inline `mod inner { }` of the file, seen
+    as qualnames starting `inner.`. A capitalised first segment is a type, not a crate.
+    """
+    if not first.islower() or first in ("crate", "self", "super"):
+        return False
+    prefix = first + "."
+    return not any(n.qualname.startswith(prefix) for n in file.nodes.values())
 
 
 # Expanding a `use` statement into leaves
