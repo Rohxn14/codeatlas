@@ -34,7 +34,10 @@ def main(argv: list[str] | None = None) -> int:
 
         embedder = EmbeddingClient.from_config()
         if args.embed:
-            print(f"embedded {build_embeddings(store, snapshot_id, embedder)} new nodes")
+            try:
+                print(f"embedded {build_embeddings(store, snapshot_id, embedder)} new nodes")
+            except Exception as exc:  # no model here: search still works with BM25
+                print(f"could not embed ({exc}); searching with BM25 only")
         search = HybridSearch(store, snapshot_id, embedder)
         hits = search.search(args.query, k=args.k, expand=not args.no_expand)
         for note in search.notes:

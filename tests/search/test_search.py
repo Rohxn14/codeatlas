@@ -100,7 +100,7 @@ def test_fusion_marks_both_sources(store):
 
 def test_expansion_adds_neighbours_without_duplicates_and_respects_confidence(store):
     save, load, helper, weak = seed(store)
-    hits = HybridSearch(store, SID, None).search("persist", k=1, min_confidence=0.5)
+    hits = HybridSearch(store, SID, None).search("persist", k=3, min_confidence=0.5)
     ids = [h.node.id for h in hits]
     assert ids[0] == save.id
     assert set(ids) == {save.id, helper.id, load.id}  # weak (0.3) is cut
@@ -165,3 +165,11 @@ def test_context_pack_stops_at_max_lines():
                           hit("c.py", 1, 10, 0.7)], max_lines=15)
     assert [str(s) for s in spans] == ["a.py:1-10", "b.py:1-5"]
     assert sum(s.lines for s in spans) == 15
+
+
+def test_graph_neighbours_compete_for_the_k_places(store):
+    seed(store)
+    hits = HybridSearch(store, SID, None).search("persist", k=1, min_confidence=0.5)
+    assert len(hits) == 1  # a neighbour may win a place, but never adds one
+    scores = [h.score for h in HybridSearch(store, SID, None).search("persist", k=3)]
+    assert scores == sorted(scores, reverse=True)

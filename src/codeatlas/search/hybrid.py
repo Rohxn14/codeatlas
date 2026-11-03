@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from codeatlas.models import Edge, EdgeKind, Node, Span
+from codeatlas.models import Edge, EdgeKind, Node, NodeKind, Span
 from codeatlas.search.embed import Embedder
 from codeatlas.store import GraphStore
 
@@ -46,6 +46,7 @@ class HybridSearch:
         self.notes: list[str] = []  # human-readable remarks about the last search
         self._ids: list[str] | None = None
         self._matrix: np.ndarray | None = None
+        self._norms: np.ndarray | None = None
 
     def search(
         self,
@@ -67,7 +68,10 @@ class HybridSearch:
         ranked = sorted(fused, key=lambda i: (-fused[i], i))
         hits = [SearchHit(nodes[i], fused[i], sources[i]) for i in ranked[:k]]
         if expand:
+            # Neighbours compete with the fused hits for the k places: appended after the
+            # top k, they could never change what the agent reads first.
             hits.extend(self._expand(hits, min_confidence))
+            hits = sorted(hits, key=lambda h: (-h.score, h.node.id))[:k]
         return hits
 
     def _bm25(self, query: str, nodes: dict[str, Node]) -> list[str]:
@@ -85,15 +89,23 @@ class HybridSearch:
         if not self._ids or self._matrix is None:
             self.notes.append("no embeddings for this snapshot: BM25 only")
             return []
-        q = np.asarray(self.embedder.embed([query])[0], dtype=np.float32)
+        try:
+            q = np.asarray(self.embedder.embed([query])[0], dtype=np.float32)
+        except Exception as exc:  # the model cannot be loaded or downloaded here
+            self.notes.append(f"embedding model unavailable ({exc}): BM25 only")
+            return []
         norm = float(np.linalg.norm(q))
         if norm > 0:
             q = q / norm
-        norms = np.linalg.norm(self._matrix, axis=1)
-        norms[norms == 0] = 1.0
-        sims = (self._matrix @ q) / norms
+        if self._norms is None:  # computed once per snapshot, not per query
+            self._norms = np.linalg.norm(self._matrix, axis=1)
+            self._norms[self._norms == 0] = 1.0
+        sims = (self._matrix @ q) / self._norms
+        # Take a candidate pool with argpartition (linear time), then order only that pool.
         # Stable order: ties break by node id so results never depend on row order.
-        order = sorted(range(len(sims)), key=lambda i: (-float(sims[i]), self._ids[i]))[:POOL]
+        pool = min(POOL, len(sims))
+        candidates = np.argpartition(-sims, pool - 1)[:pool]
+        order = sorted(candidates.tolist(), key=lambda i: (-float(sims[i]), self._ids[i]))
         top = [self._ids[i] for i in order]
         for node_id in top:
             if node_id not in nodes:
@@ -113,8 +125,8 @@ class HybridSearch:
                 if other in present:
                     continue
                 node = self.store.node(other)
-                if node is None:
-                    continue
+                if node is None or not node.path or node.kind is NodeKind.EXTERNAL:
+                    continue  # an external symbol has no lines to show
                 score = hit.score * edge.confidence * GRAPH_DISCOUNT
                 old = added.get(other)
                 if old is None or score > old.score:
