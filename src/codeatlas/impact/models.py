@@ -33,6 +33,12 @@ class ImpactConfig:
     min_score: float = 0.05  # targets below this are dropped
     test_threshold: float = 0.3  # the "natural cut-off": best F1 on both mutation benchmarks
 
+    def __post_init__(self) -> None:
+        # A decay of 1 or more lets a cycle keep its score, so a path never gets worse
+        # by going round it again; 0 or less makes every reached node worthless.
+        if not 0.0 < self.decay < 1.0:
+            raise ValueError(f"decay must be between 0 and 1 (exclusive), got {self.decay}")
+
 
 @dataclass(frozen=True, slots=True)
 class Hop:

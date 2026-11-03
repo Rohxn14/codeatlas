@@ -106,9 +106,12 @@ class SameFolderPredictor:
 class ImpactPredictor:
     """The impact engine as a predictor: graph, imports and tests from one index, history to `rev`.
 
-    The graph is built once, at the checkout's HEAD, so structure is slightly newer than
-    the held-out commit; history is not: co-change comes from `read_history(.., rev)`,
-    and predictions are limited to files that exist at `rev`.
+    The caller builds the index at the parent of the oldest held-out commit, so no
+    held-out commit's own imports or calls are in the graph (structure is never newer
+    than the commit predicted). History is cut per query: co-change comes from
+    `read_history(.., rev)`, and predictions are limited to files that exist at `rev`.
+    A changed file the index does not hold (added after the indexed commit) gets no
+    prediction, and is counted in `not_in_index` rather than dropped silently.
     """
 
     name = "impact"
@@ -120,6 +123,7 @@ class ImpactPredictor:
         self._analyzer = CoChangeAnalyzer(max_commits=max_commits)
         self._neighbours: dict[str, list[tuple[str, float, int, int]]] = {}
         self._engine = ImpactEngine(store, snapshot_id, cochange=self._history)  # type: ignore[arg-type]
+        self.not_in_index = 0
 
     def _history(self, path: str) -> list[tuple[str, float, int, int]]:
         return self._neighbours.get(path, [])
@@ -129,6 +133,9 @@ class ImpactPredictor:
 
         if self._cache.load(repo_root, rev):
             self._neighbours = self._index()
+        if self._engine.store.module_for_path(self._engine.snapshot_id, changed_file) is None:
+            self.not_in_index += 1
+            return []
         result = self._engine.impact([Change(changed_file)])
         ranked: list[str] = []
         for target in result.targets:

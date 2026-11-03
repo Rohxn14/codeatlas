@@ -28,8 +28,10 @@ from codeatlas.repo.test_conventions import classify
 from codeatlas.store import GraphStore
 from codeatlas.store import graph as graph_algos
 
-WALK_KINDS = (EdgeKind.CALLS, EdgeKind.IMPORTS)
-LOAD_KINDS = (EdgeKind.CALLS, EdgeKind.IMPORTS, EdgeKind.TESTS, EdgeKind.CO_CHANGES)
+# HANDLES (route -> handler) and CALLS_HTTP (client -> route) carry a change across the
+# network: a changed handler reaches its route, and the route every client that calls it.
+WALK_KINDS = (EdgeKind.CALLS, EdgeKind.IMPORTS, EdgeKind.HANDLES, EdgeKind.CALLS_HTTP)
+LOAD_KINDS = (*WALK_KINDS, EdgeKind.TESTS, EdgeKind.CO_CHANGES)
 _SUPPORT_FILES = frozenset({"__init__.py", "conftest.py"})
 _NOT_TARGETS = frozenset({NodeKind.PACKAGE, NodeKind.EXTERNAL})
 
@@ -64,7 +66,7 @@ class ImpactEngine:
 
     @staticmethod
     def _decayed(g: nx.MultiDiGraph, decay: float) -> nx.MultiDiGraph:
-        """CALLS and IMPORTS edges with the per-hop decay folded into the confidence.
+        """The walked edges with the per-hop decay folded into the confidence.
 
         `graph.reverse_reach` multiplies confidences along a path, so a decay of 0.8
         per hop is just 0.8 times each edge: a path then scores
@@ -93,7 +95,7 @@ class ImpactEngine:
         return ImpactResult(tuple(n.key for n in changed), tuple(targets), tuple(tests),
                             tuple(warnings))
 
-    # Signal 1: graph reach over CALLS and IMPORTS
+    # Signal 1: graph reach over CALLS, IMPORTS and the HTTP edges
 
     def _owners(self, changed: list[Node], changed_ids: set[str]) -> dict[str, Node]:
         """Classes that own a changed method -> the changed node they were found from.
@@ -146,11 +148,13 @@ class ImpactEngine:
         """
         backwards: list[Hop] = []
         current = node_id
+        visited = {current}
         while current not in starts:
             step = self._previous(current, starts, reach)
-            if step is None:
+            if step is None or step[0] in visited:  # equal scores round a cycle: stop
                 break
             previous, kind, raw = step
+            visited.add(previous)
             backwards.append(Hop(self._key(current), kind, raw))
             current = previous
         backwards.append(Hop(self._key(current)))

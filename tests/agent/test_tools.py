@@ -175,9 +175,9 @@ def test_traverse_depth_is_capped_at_three(tools):
 
 def test_impact(tools):
     out = tools.call("impact", {"keys": ["app/repo.py::Repo.save"]})
-    # Engine scores: confidence times 0.8 per hop; the highest signal wins per target.
+    # Engine scores: confidence times 0.8 per hop; `affected` uses non-history evidence.
     assert [(r["key"], r["confidence"]) for r in out["affected"]] == [
-        ("app/repo.py::Repo", 0.8), ("app/service.py::", 0.42), ("app/service.py::create", 0.4),
+        ("app/repo.py::Repo", 0.8), ("app/service.py::", 0.4), ("app/service.py::create", 0.4),
         ("app/service.py::rename", 0.32), ("tests/test_service.py::test_create", 0.288)]
     assert {e["signal"] for e in out["affected"][2]["evidence"]} == {"graph"}
     assert keys(out["co_changed_files"]) == ["app/service.py::"]

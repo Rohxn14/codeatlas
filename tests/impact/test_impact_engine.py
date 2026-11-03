@@ -5,7 +5,8 @@ from __future__ import annotations
 import pytest
 
 from codeatlas.impact import Change, ImpactConfig, impact, parse_diff
-from tests.impact.impact_graph import SNAP, build_store
+from codeatlas.models import EdgeKind, NodeKind, Resolution, make_node_id
+from tests.impact.impact_graph import SNAP, _edge, _node, build_store
 
 SAVE = Change("app/repo.py", ((3, 3),))
 
@@ -123,9 +124,21 @@ def test_lines_outside_any_symbol_map_to_the_module(store):
     assert result.changed == ("app/service.py::",)
 
 
-def test_a_range_over_two_functions_maps_to_both(store):
+def test_a_range_over_two_functions_maps_to_both_and_the_gap_between(store):
     result = impact(store, SNAP, [Change("app/service.py", ((4, 8),))])
-    assert result.changed == ("app/service.py::create", "app/service.py::rename")
+    # line 6 lies between create (3-5) and rename (7-9): top-level code
+    assert result.changed == (
+        "app/service.py::create", "app/service.py::", "app/service.py::rename")
+
+
+def test_a_range_inside_one_symbol_maps_only_to_it(store):
+    result = impact(store, SNAP, [Change("app/service.py", ((3, 5),))])
+    assert result.changed == ("app/service.py::create",)
+
+
+def test_a_range_from_the_imports_into_a_symbol_keeps_the_module(store):
+    result = impact(store, SNAP, [Change("app/service.py", ((1, 5),))])
+    assert set(result.changed) == {"app/service.py::", "app/service.py::create"}
 
 
 def test_a_file_without_ranges_maps_to_the_module_and_every_symbol(store):
@@ -152,3 +165,42 @@ def test_min_score_drops_weak_targets(store):
     got = scores(impact(store, SNAP, [SAVE], ImpactConfig(min_score=0.5)))
     assert "app/service.py::rename" not in got
     assert "app/service.py::create" in got
+
+
+def test_decay_must_be_strictly_between_zero_and_one():
+    for bad in (0.0, 1.0, 1.5, -0.1):
+        with pytest.raises(ValueError, match="decay"):
+            ImpactConfig(decay=bad)
+
+
+def test_a_changed_handler_reaches_its_route_and_the_http_client(store):
+    route = "http::GET /users"
+    store.write_nodes([
+        _node(route, NodeKind.ROUTE, 0, 0, language="http"),
+        _node("web/client.ts::", NodeKind.MODULE, 1, 5, language="typescript"),
+        _node("web/client.ts::fetchUsers", NodeKind.FUNCTION, 2, 4, language="typescript"),
+    ])
+    store.write_edges(SNAP, [
+        _edge(route, "app/api.py::handler", EdgeKind.HANDLES, 1.0, Resolution.DIRECT),
+        _edge("web/client.ts::fetchUsers", route, EdgeKind.CALLS_HTTP, 0.9,
+              Resolution.ROUTE_EXACT),
+    ])
+    result = impact(store, SNAP, [Change("app/api.py", ((4, 4),))])
+    got = scores(result)
+    assert got[route] == pytest.approx(1.0 * 0.8)
+    assert got["web/client.ts::fetchUsers"] == pytest.approx(1.0 * 0.8 * 0.9 * 0.8)
+    client = next(t for t in result.targets if t.key == "web/client.ts::fetchUsers")
+    assert [(h.key, h.kind) for h in client.evidence[0].path] == [
+        ("app/api.py::handler", None), (route, "handles"),
+        ("web/client.ts::fetchUsers", "calls_http")]
+
+
+def test_trace_stops_on_a_cycle_of_equal_scores(store):
+    from codeatlas.impact import ImpactEngine
+
+    engine = ImpactEngine(store, SNAP)
+    a, b = (make_node_id(SNAP, k) for k in ("app/util.py::", "app/other.py::"))
+    engine._walk.add_edge(a, b, kind="calls", raw=1.0, confidence=1.0)
+    engine._walk.add_edge(b, a, kind="calls", raw=1.0, confidence=1.0)
+    hops = engine._trace(a, {"never"}, {a: 0.5, b: 0.5})
+    assert len(hops) <= 3

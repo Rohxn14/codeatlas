@@ -192,6 +192,71 @@ def evaluate_mutants(
     }
 
 
+# Leave-one-benchmark-out: is the natural cut-off tuned on the data it is scored on?
+
+THRESHOLDS = tuple(round(0.05 * i, 2) for i in range(1, 20))  # 0.05 .. 0.95
+
+
+def f1_by_threshold(
+    engine: ImpactEngine, mutants: Sequence[Mutant], thresholds: Sequence[float] = THRESHOLDS
+) -> dict[float, float]:
+    """The engine's mean natural-cut-off F1 at each threshold, over the scorable mutants.
+
+    One engine run per mutant: a threshold only filters the ranked files, so the sweep
+    costs no more than a single evaluation.
+    """
+    universe = all_test_files(engine)
+    rows: list[tuple[Ranked, frozenset[str]]] = []
+    for mutant in mutants:
+        failing = _resolve_files(mutant.failing_files, universe)
+        change = change_for(engine, mutant.function)
+        if mutant.status != "mutated" or not failing or change is None:
+            continue
+        rows.append((engine_ranking(engine, change), failing))
+    out: dict[float, float] = {}
+    for cut in thresholds:
+        scores = [prf([p for p, s in ranked if s >= cut], truth).f1 for ranked, truth in rows]
+        out[cut] = round(sum(scores) / len(scores), 4) if scores else 0.0
+    return out
+
+
+def leave_one_out(
+    sweeps: Mapping[str, Mapping[float, float]], default: float
+) -> list[dict[str, object]]:
+    """For each benchmark: the cut-off tuned on the others, and the F1 it then scores.
+
+    Tuning picks the threshold with the best mean F1 over the other benchmarks (the
+    lowest threshold on ties). `default_f1` is the shipped cut-off on the held-out one,
+    and `oracle` the best it could have had, so the gap from tuning shows directly.
+    """
+    rows: list[dict[str, object]] = []
+    for held_out, sweep in sweeps.items():
+        others = [s for name, s in sweeps.items() if name != held_out]
+        if not others:
+            continue
+        cuts = sorted(sweep)
+        tuned = max(cuts, key=lambda c: (sum(o.get(c, 0.0) for o in others) / len(others), -c))
+        oracle = max(cuts, key=lambda c: (sweep[c], -c))
+        rows.append({"held_out": held_out, "tuned_on_others": tuned,
+                     "f1_tuned": sweep[tuned], "default": default,
+                     "f1_default": sweep.get(default), "oracle": oracle,
+                     "f1_oracle": sweep[oracle]})
+    return rows
+
+
+def lobo_table(rows: Sequence[Mapping[str, object]]) -> str:
+    """Leave-one-benchmark-out rows as a markdown table."""
+    head = ("| held out | cut-off tuned on the others | F1 there | shipped cut-off | F1 | "
+            "best possible cut-off | F1 |\n| --- | --- | --- | --- | --- | --- | --- |")
+    body = [
+        f"| {r['held_out']} | {r['tuned_on_others']} | {r['f1_tuned']} | {r['default']} | "
+        f"{'-' if r['f1_default'] is None else r['f1_default']} | {r['oracle']} | "
+        f"{r['f1_oracle']} |"
+        for r in rows
+    ]
+    return "### Leave one benchmark out (natural cut-off)\n\n" + "\n".join([head, *body]) + "\n"
+
+
 def _resolve_files(files: frozenset[str], universe: set[str]) -> frozenset[str]:
     """Truth names a test file by path, but vitest reports it relative to its own folder.
 
