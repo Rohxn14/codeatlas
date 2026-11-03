@@ -1,0 +1,3077 @@
+{
+  "date": "20261103",
+  "rows": [
+    {
+      "name": "click",
+      "url": "https://github.com/pallets/click",
+      "sha": "2247b35ea1c47c727d7a06e51fa280e12a863ff6",
+      "size": "small",
+      "declared_languages": [
+        "python"
+      ],
+      "status": "completed",
+      "snapshot_id": "click@2247b35ea1c4",
+      "files": 178,
+      "files_by_tier": {
+        "deep": 91,
+        "text": 87
+      },
+      "files_by_language": {
+        "python": 91,
+        "markdown": 42,
+        "text": 22,
+        "toml": 11,
+        "yaml": 9,
+        "bash": 1,
+        "ini": 1,
+        "json": 1
+      },
+      "files_with_parse_errors": 0,
+      "parse_errors": 0,
+      "parse_error_samples": [],
+      "skipped_by_reason": {
+        "binary": 2
+      },
+      "nodes_by_kind": {
+        "class": 181,
+        "external": 325,
+        "function": 1291,
+        "module": 178,
+        "package": 11,
+        "test": 606
+      },
+      "edges_by_kind": {
+        "calls": 5951,
+        "co_changes": 951,
+        "contains": 2256,
+        "depends_on": 10,
+        "imports": 671,
+        "inherits": 148,
+        "tests": 1220
+      },
+      "raw_calls": 7278,
+      "resolved_calls": 5772,
+      "unresolved_share": 0.2069,
+      "limits_hit": [],
+      "problems": [],
+      "languages_without_resolver": [],
+      "edges_dropped": {
+        "duplicate (merged into one)": 40
+      },
+      "seconds": 2.11,
+      "peak_memory_mb": 68.1
+    },
+    {
+      "name": "requests",
+      "url": "https://github.com/psf/requests",
+      "sha": "3c7baaa05ab4aa49cc819ce3a819d260de19c157",
+      "size": "small",
+      "declared_languages": [
+        "python"
+      ],
+      "status": "completed",
+      "snapshot_id": "requests@3c7baaa05ab4",
+      "files": 128,
+      "files_by_tier": {
+        "deep": 37,
+        "text": 91
+      },
+      "files_by_language": {
+        "text": 38,
+        "python": 37,
+        "rst": 16,
+        "markdown": 13,
+        "yaml": 12,
+        "make": 8,
+        "css": 1,
+        "html": 1,
+        "ini": 1,
+        "toml": 1
+      },
+      "files_with_parse_errors": 0,
+      "parse_errors": 0,
+      "parse_error_samples": [],
+      "skipped_by_reason": {
+        "binary": 5,
+        "over max_file_bytes (1000000)": 1
+      },
+      "nodes_by_kind": {
+        "class": 96,
+        "external": 291,
+        "function": 364,
+        "module": 128,
+        "package": 1,
+        "test": 347
+      },
+      "edges_by_kind": {
+        "calls": 2010,
+        "co_changes": 401,
+        "contains": 935,
+        "imports": 537,
+        "inherits": 66,
+        "tests": 808
+      },
+      "raw_calls": 2740,
+      "resolved_calls": 2038,
+      "unresolved_share": 0.2562,
+      "limits_hit": [
+        "max_file_bytes"
+      ],
+      "problems": [
+        "linker http: unmatched http calls: dynamic=160",
+        "linker http: unmatched http calls: no_route=1"
+      ],
+      "languages_without_resolver": [],
+      "edges_dropped": {
+        "duplicate (merged into one)": 54
+      },
+      "seconds": 1.29,
+      "peak_memory_mb": 62.5
+    },
+    {
+      "name": "itsdangerous",
+      "url": "https://github.com/pallets/itsdangerous",
+      "sha": "672971d66a2ef9f85151e53283113f33d642dabd",
+      "size": "small",
+      "declared_languages": [
+        "python"
+      ],
+      "status": "completed",
+      "snapshot_id": "itsdangerous@672971d66a2e",
+      "files": 50,
+      "files_by_tier": {
+        "deep": 15,
+        "text": 35
+      },
+      "files_by_language": {
+        "python": 15,
+        "rst": 11,
+        "text": 9,
+        "yaml": 7,
+        "markdown": 4,
+        "bash": 1,
+        "json": 1,
+        "make": 1,
+        "toml": 1
+      },
+      "files_with_parse_errors": 0,
+      "parse_errors": 0,
+      "parse_error_samples": [],
+      "skipped_by_reason": {},
+      "nodes_by_kind": {
+        "class": 29,
+        "external": 61,
+        "function": 78,
+        "module": 50,
+        "package": 1,
+        "test": 37
+      },
+      "edges_by_kind": {
+        "calls": 316,
+        "co_changes": 178,
+        "contains": 194,
+        "imports": 127,
+        "inherits": 25,
+        "tests": 111
+      },
+      "raw_calls": 391,
+      "resolved_calls": 310,
+      "unresolved_share": 0.2072,
+      "limits_hit": [],
+      "problems": [],
+      "languages_without_resolver": [],
+      "edges_dropped": {},
+      "seconds": 0.22,
+      "peak_memory_mb": 53.9
+    },
+    {
+      "name": "typer",
+      "url": "https://github.com/tiangolo/typer",
+      "sha": "a5882dedf0bc7a46cd861fdfca020f88519e0f21",
+      "size": "medium",
+      "declared_languages": [
+        "python",
+        "markdown"
+      ],
+      "status": "completed",
+      "snapshot_id": "typer@a5882dedf0bc",
+      "files": 776,
+      "files_by_tier": {
+        "deep": 640,
+        "text": 136
+      },
+      "files_by_language": {
+        "python": 638,
+        "markdown": 80,
+        "yaml": 24,
+        "text": 21,
+        "bash": 6,
+        "css": 2,
+        "javascript": 2,
+        "dockerfile": 1,
+        "html": 1,
+        "toml": 1
+      },
+      "files_with_parse_errors": 0,
+      "parse_errors": 0,
+      "parse_error_samples": [],
+      "skipped_by_reason": {
+        "binary": 4
+      },
+      "nodes_by_kind": {
+        "class": 137,
+        "external": 319,
+        "function": 1361,
+        "module": 776,
+        "package": 1,
+        "test": 969
+      },
+      "edges_by_kind": {
+        "calls": 4492,
+        "co_changes": 1476,
+        "contains": 3243,
+        "imports": 2164,
+        "inherits": 101,
+        "tests": 977
+      },
+      "raw_calls": 7754,
+      "resolved_calls": 5134,
+      "unresolved_share": 0.3379,
+      "limits_hit": [],
+      "problems": [],
+      "languages_without_resolver": [],
+      "edges_dropped": {
+        "duplicate (merged into one)": 49
+      },
+      "seconds": 2.31,
+      "peak_memory_mb": 69.9
+    },
+    {
+      "name": "is",
+      "url": "https://github.com/sindresorhus/is",
+      "sha": "e9c026c611c1160eaad50da00be4e676b626018f",
+      "size": "small",
+      "declared_languages": [
+        "typescript"
+      ],
+      "status": "completed",
+      "snapshot_id": "is@e9c026c611c1",
+      "files": 18,
+      "files_by_tier": {
+        "deep": 5,
+        "text": 13
+      },
+      "files_by_language": {
+        "text": 6,
+        "typescript": 5,
+        "json": 3,
+        "markdown": 3,
+        "yaml": 1
+      },
+      "files_with_parse_errors": 0,
+      "parse_errors": 0,
+      "parse_error_samples": [],
+      "skipped_by_reason": {
+        "binary": 1
+      },
+      "nodes_by_kind": {
+        "class": 5,
+        "external": 55,
+        "function": 260,
+        "interface": 1,
+        "module": 18,
+        "package": 1,
+        "test": 62
+      },
+      "edges_by_kind": {
+        "calls": 609,
+        "co_changes": 38,
+        "contains": 346,
+        "imports": 19,
+        "tests": 2
+      },
+      "raw_calls": 2297,
+      "resolved_calls": 1028,
+      "unresolved_share": 0.5525,
+      "limits_hit": [],
+      "problems": [],
+      "languages_without_resolver": [],
+      "edges_dropped": {},
+      "seconds": 0.54,
+      "peak_memory_mb": 60.3
+    },
+    {
+      "name": "zod",
+      "url": "https://github.com/colinhacks/zod",
+      "sha": "2554b70c3d4a80273381e61d527d820720626440",
+      "size": "medium",
+      "declared_languages": [
+        "typescript"
+      ],
+      "status": "completed",
+      "snapshot_id": "zod@2554b70c3d4a",
+      "files": 737,
+      "files_by_tier": {
+        "deep": 522,
+        "text": 215
+      },
+      "files_by_language": {
+        "typescript": 481,
+        "text": 132,
+        "json": 41,
+        "tsx": 34,
+        "markdown": 24,
+        "yaml": 11,
+        "javascript": 7,
+        "bash": 2,
+        "css": 2,
+        "html": 2,
+        "xml": 1
+      },
+      "files_with_parse_errors": 5,
+      "parse_errors": 22,
+      "parse_error_samples": [
+        "duplicate node id 'packages/zod/src/v3/tests/language-server.test.ts::': kept the first, dropped this one",
+        "syntax error at line 35, column 2",
+        "syntax error at line 28, column 30",
+        "syntax error at line 181, column 39",
+        "syntax error at line 10, column 2"
+      ],
+      "skipped_by_reason": {
+        "binary": 48
+      },
+      "nodes_by_kind": {
+        "class": 79,
+        "external": 257,
+        "function": 1628,
+        "interface": 706,
+        "module": 737,
+        "package": 9,
+        "test": 2669
+      },
+      "edges_by_kind": {
+        "calls": 17590,
+        "co_changes": 882,
+        "contains": 5819,
+        "depends_on": 8,
+        "imports": 4797,
+        "inherits": 641,
+        "tests": 6436
+      },
+      "raw_calls": 54764,
+      "resolved_calls": 30181,
+      "unresolved_share": 0.4489,
+      "limits_hit": [],
+      "problems": [
+        "linker http: unmatched http calls: dynamic=2",
+        "linker http: unmatched http calls: external_host=3"
+      ],
+      "languages_without_resolver": [],
+      "edges_dropped": {},
+      "seconds": 7.4,
+      "peak_memory_mb": 109.6
+    },
+    {
+      "name": "express",
+      "url": "https://github.com/expressjs/express",
+      "sha": "bcc0551cb7a785b7772f77cb59ce55a2bc94975a",
+      "size": "small",
+      "declared_languages": [
+        "javascript"
+      ],
+      "status": "completed",
+      "snapshot_id": "express@bcc0551cb7a7",
+      "files": 216,
+      "files_by_tier": {
+        "deep": 142,
+        "text": 74
+      },
+      "files_by_language": {
+        "javascript": 142,
+        "text": 50,
+        "html": 8,
+        "yaml": 7,
+        "css": 4,
+        "markdown": 4,
+        "json": 1
+      },
+      "files_with_parse_errors": 0,
+      "parse_errors": 0,
+      "parse_error_samples": [],
+      "skipped_by_reason": {},
+      "nodes_by_kind": {
+        "external": 109,
+        "function": 125,
+        "module": 216,
+        "package": 1,
+        "route": 84,
+        "test": 1154
+      },
+      "edges_by_kind": {
+        "calls": 2314,
+        "co_changes": 802,
+        "contains": 1495,
+        "imports": 302,
+        "tests": 4
+      },
+      "raw_calls": 11649,
+      "resolved_calls": 1536,
+      "unresolved_share": 0.8681,
+      "limits_hit": [],
+      "problems": [
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /restricted: inline handler, no HANDLES edge",
+        "linker http: route GET /logout: inline handler, no HANDLES edge",
+        "linker http: route GET /login: inline handler, no HANDLES edge",
+        "linker http: route POST /login: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /users: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /forget: inline handler, no HANDLES edge",
+        "linker http: route POST /: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /files/*file: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /404: inline handler, no HANDLES edge",
+        "linker http: route GET /403: inline handler, no HANDLES edge",
+        "linker http: route GET /500: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /next: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /fail: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /users: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /users: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /user/{user}: inline handler, no HANDLES edge",
+        "linker http: route GET /users/{from}-{to}: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /user/{id}: inline handler, no HANDLES edge",
+        "linker http: route GET /user/{id}/edit: inline handler, no HANDLES edge",
+        "linker http: route DELETE /user/{id}: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /users: inline handler, no HANDLES edge",
+        "linker http: route ANY /user/{id}{/{op}}: inline handler, no HANDLES edge",
+        "linker http: route GET /user/{id}: inline handler, no HANDLES edge",
+        "linker http: route GET /user/{id}/view: inline handler, no HANDLES edge",
+        "linker http: route GET /user/{id}/edit: inline handler, no HANDLES edge",
+        "linker http: route PUT /user/{id}/edit: inline handler, no HANDLES edge",
+        "linker http: route GET /posts: inline handler, no HANDLES edge",
+        "linker http: route GET /search/{{query}}: inline handler, no HANDLES edge",
+        "linker http: route GET /client.js: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /{sub}: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /Readme.md: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /middleware: inline handler, no HANDLES edge",
+        "linker http: route GET /middleware-locals: inline handler, no HANDLES edge",
+        "linker http: route GET /api/users: inline handler, no HANDLES edge",
+        "linker http: route GET /api/repos: inline handler, no HANDLES edge",
+        "linker http: route GET /api/user/{name}/repos: inline handler, no HANDLES edge",
+        "linker http: route GET /bar: inline handler, no HANDLES edge",
+        "linker http: route GET /{bar}: inline handler, no HANDLES edge",
+        "linker http: route GET /foo: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /foo: inline handler, no HANDLES edge",
+        "linker http: route GET /foo: inline handler, no HANDLES edge",
+        "linker http: route GET /foo: inline handler, no HANDLES edge",
+        "linker http: route GET /foo: inline handler, no HANDLES edge",
+        "linker http: route ANY /foo: inline handler, no HANDLES edge",
+        "linker http: route ANY /foo: inline handler, no HANDLES edge",
+        "linker http: route GET /foo: inline handler, no HANDLES edge",
+        "linker http: route GET /bar: inline handler, no HANDLES edge",
+        "linker http: route GET /foo/{id}: inline handler, no HANDLES edge",
+        "linker http: route ANY /foo: inline handler, no HANDLES edge",
+        "linker http: route GET /foo/{id}/bar: inline handler, no HANDLES edge",
+        "linker http: route GET /bar: inline handler, no HANDLES edge",
+        "linker http: route GET /bar: inline handler, no HANDLES edge",
+        "linker http: route GET /bar: inline handler, no HANDLES edge",
+        "linker http: route ANY /tobi: inline handler, no HANDLES edge",
+        "linker http: route ANY /*splat: inline handler, no HANDLES edge",
+        "linker http: route GET /tobi: inline handler, no HANDLES edge",
+        "linker http: route GET /tobi: inline handler, no HANDLES edge",
+        "linker http: route HEAD /tobi: inline handler, no HANDLES edge",
+        "linker http: route GET /tobi: inline handler, no HANDLES edge",
+        "linker http: route POST /: inline handler, no HANDLES edge",
+        "linker http: route GET /users: inline handler, no HANDLES edge",
+        "linker http: route PUT /users: inline handler, no HANDLES edge",
+        "linker http: route DELETE /: inline handler, no HANDLES edge",
+        "linker http: route GET /users: inline handler, no HANDLES edge",
+        "linker http: route PUT /users: inline handler, no HANDLES edge",
+        "linker http: route GET /users: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /users: inline handler, no HANDLES edge",
+        "linker http: route PUT /users: inline handler, no HANDLES edge",
+        "linker http: route ANY /users: inline handler, no HANDLES edge",
+        "linker http: route GET /users: inline handler, no HANDLES edge",
+        "linker http: route GET /users: inline handler, no HANDLES edge",
+        "linker http: route GET /other: inline handler, no HANDLES edge",
+        "linker http: route GET /users: inline handler, no HANDLES edge",
+        "linker http: route OPTIONS /users: inline handler, no HANDLES edge",
+        "linker http: route GET /users: inline handler, no HANDLES edge",
+        "linker http: route PUT /users: inline handler, no HANDLES edge",
+        "linker http: route GET /post/{id}: inline handler, no HANDLES edge",
+        "linker http: route GET /user/{uid}: inline handler, no HANDLES edge",
+        "linker http: route GET /user/{id}: inline handler, no HANDLES edge",
+        "linker http: route GET /foo/{user}: inline handler, no HANDLES edge",
+        "linker http: route GET /foo/{user}: inline handler, no HANDLES edge",
+        "linker http: route GET /{user}/bob: inline handler, no HANDLES edge",
+        "linker http: route GET /foo/{user}: inline handler, no HANDLES edge",
+        "linker http: route GET /{user}: inline handler, no HANDLES edge",
+        "linker http: route GET /{user}: inline handler, no HANDLES edge",
+        "linker http: route POST /{user}: inline handler, no HANDLES edge",
+        "linker http: route GET /{thing}: inline handler, no HANDLES edge",
+        "linker http: route GET /user/{name}: inline handler, no HANDLES edge",
+        "linker http: route GET /user/{id}: inline handler, no HANDLES edge",
+        "linker http: route GET /user/{id}: inline handler, no HANDLES edge",
+        "linker http: route GET /user/{id}: inline handler, no HANDLES edge",
+        "linker http: route GET /{name}/123: inline handler, no HANDLES edge",
+        "linker http: route ANY /user/{id}: inline handler, no HANDLES edge",
+        "linker http: route GET /user/{id}: inline handler, no HANDLES edge",
+        "linker http: route GET /user/new: inline handler, no HANDLES edge",
+        "linker http: route GET /{user}/bob: inline handler, no HANDLES edge",
+        "linker http: route GET /foo/{user}: inline handler, no HANDLES edge",
+        "linker http: route GET /{user}/bob: inline handler, no HANDLES edge",
+        "linker http: route GET /foo/{user}: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /sub/foo: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /sub/foo: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route POST /foo: inline handler, no HANDLES edge",
+        "linker http: route GET /foo: inline handler, no HANDLES edge",
+        "linker http: route POST /foo: inline handler, no HANDLES edge",
+        "linker http: route GET /foo: inline handler, no HANDLES edge",
+        "linker http: route ANY /foo: inline handler, no HANDLES edge",
+        "linker http: route GET /{foo}: inline handler, no HANDLES edge",
+        "linker http: route GET /user/{id}: inline handler, no HANDLES edge",
+        "linker http: route DELETE /: inline handler, no HANDLES edge",
+        "linker http: route GET /{name}: inline handler, no HANDLES edge",
+        "linker http: route GET /{name}: inline handler, no HANDLES edge",
+        "linker http: route GET /{name}: inline handler, no HANDLES edge",
+        "linker http: route GET /{name}: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /user: inline handler, no HANDLES edge",
+        "linker http: route GET /uSer: inline handler, no HANDLES edge",
+        "linker http: route GET /uSer: inline handler, no HANDLES edge",
+        "linker http: route GET /{action}: inline handler, no HANDLES edge",
+        "linker http: route GET /{action}: inline handler, no HANDLES edge",
+        "linker http: route GET /{thing}: inline handler, no HANDLES edge",
+        "linker http: route GET /{name}: inline handler, no HANDLES edge",
+        "linker http: route GET /user: inline handler, no HANDLES edge",
+        "linker http: route GET /user: inline handler, no HANDLES edge",
+        "linker http: route GET /user: inline handler, no HANDLES edge",
+        "linker http: route GET /user/test: inline handler, no HANDLES edge",
+        "linker http: route GET /user: inline handler, no HANDLES edge",
+        "linker http: route GET /user: inline handler, no HANDLES edge",
+        "linker http: route GET /user: inline handler, no HANDLES edge",
+        "linker http: route GET /api/users/{from}..{to}: inline handler, no HANDLES edge",
+        "linker http: route GET /user/{user}: inline handler, no HANDLES edge",
+        "linker http: route GET /user/{user}: inline handler, no HANDLES edge",
+        "linker http: route GET /user/{user}/{op}: inline handler, no HANDLES edge",
+        "linker http: route GET /user{s}/{user}/{op}: inline handler, no HANDLES edge",
+        "linker http: route GET /{user}\\\\({op}\\\\): inline handler, no HANDLES edge",
+        "linker http: route GET /user/{user}{/{op}}: inline handler, no HANDLES edge",
+        "linker http: route GET /user/{user}{/{op}}: inline handler, no HANDLES edge",
+        "linker http: route GET /user/*user: inline handler, no HANDLES edge",
+        "linker http: route GET /user/*user: inline handler, no HANDLES edge",
+        "linker http: route GET /user{/*user}: inline handler, no HANDLES edge",
+        "linker http: route GET /user/*user: inline handler, no HANDLES edge",
+        "linker http: route GET /user/*user: inline handler, no HANDLES edge",
+        "linker http: route GET /user/*user: inline handler, no HANDLES edge",
+        "linker http: route GET /{name}.{format}: inline handler, no HANDLES edge",
+        "linker http: route GET /{name}{.{format}}: inline handler, no HANDLES edge",
+        "linker http: route GET /foo{/{bar}}: inline handler, no HANDLES edge",
+        "linker http: route GET /bar: inline handler, no HANDLES edge",
+        "linker http: route GET /foo: inline handler, no HANDLES edge",
+        "linker http: route GET /foo: inline handler, no HANDLES edge",
+        "linker http: route GET /foo: inline handler, no HANDLES edge",
+        "linker http: route GET /foo: inline handler, no HANDLES edge",
+        "linker http: route GET /foo: inline handler, no HANDLES edge",
+        "linker http: route GET /foo: inline handler, no HANDLES edge",
+        "linker http: route GET /foo: inline handler, no HANDLES edge",
+        "linker http: route GET /foo{/{bar}}: inline handler, no HANDLES edge",
+        "linker http: route GET /bar: inline handler, no HANDLES edge",
+        "linker http: route GET /foo: inline handler, no HANDLES edge",
+        "linker http: route GET /foo: inline handler, no HANDLES edge",
+        "linker http: route GET /foo: inline handler, no HANDLES edge",
+        "linker http: route GET /account/edit: inline handler, no HANDLES edge",
+        "linker http: route GET /user/{id}/edit: inline handler, no HANDLES edge",
+        "linker http: route GET /*path: inline handler, no HANDLES edge",
+        "linker http: route GET /user/{id}: inline handler, no HANDLES edge",
+        "linker http: route ANY /user/{id}: inline handler, no HANDLES edge",
+        "linker http: route GET /*splat: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /bar: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /blog: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route POST /: inline handler, no HANDLES edge",
+        "linker http: route POST /: inline handler, no HANDLES edge",
+        "linker http: route POST /: inline handler, no HANDLES edge",
+        "linker http: route POST /: inline handler, no HANDLES edge",
+        "linker http: route POST /: inline handler, no HANDLES edge",
+        "linker http: route POST /: inline handler, no HANDLES edge",
+        "linker http: route POST /: inline handler, no HANDLES edge",
+        "linker http: route POST /: inline handler, no HANDLES edge",
+        "linker http: route POST /: inline handler, no HANDLES edge",
+        "linker http: route POST /: inline handler, no HANDLES edge",
+        "linker http: route POST /: inline handler, no HANDLES edge",
+        "linker http: route POST /: inline handler, no HANDLES edge",
+        "linker http: route POST /: inline handler, no HANDLES edge",
+        "linker http: route POST /: inline handler, no HANDLES edge",
+        "linker http: route POST /: inline handler, no HANDLES edge",
+        "linker http: route POST /: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /{a}: inline handler, no HANDLES edge",
+        "linker http: route GET /{b}: inline handler, no HANDLES edge",
+        "linker http: route GET /{d}: inline handler, no HANDLES edge",
+        "linker http: route GET /{d}: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /user/{id}{/{op}}: inline handler, no HANDLES edge",
+        "linker http: route GET /user/{id}/edit: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge",
+        "linker http: route GET /: inline handler, no HANDLES edge"
+      ],
+      "languages_without_resolver": [],
+      "edges_dropped": {},
+      "seconds": 1.62,
+      "peak_memory_mb": 63.9
+    },
+    {
+      "name": "lodash",
+      "url": "https://github.com/lodash/lodash",
+      "sha": "2b5e6f7399a7b48005140b5d5c6bc6c0e62919a8",
+      "size": "medium",
+      "declared_languages": [
+        "javascript"
+      ],
+      "status": "completed",
+      "snapshot_id": "lodash@2b5e6f7399a7",
+      "files": 153,
+      "files_by_tier": {
+        "deep": 48,
+        "text": 105
+      },
+      "files_by_language": {
+        "text": 76,
+        "javascript": 48,
+        "yaml": 8,
+        "markdown": 7,
+        "html": 6,
+        "css": 5,
+        "json": 3
+      },
+      "files_with_parse_errors": 0,
+      "parse_errors": 0,
+      "parse_error_samples": [],
+      "skipped_by_reason": {
+        "binary": 57
+      },
+      "nodes_by_kind": {
+        "external": 56,
+        "function": 824,
+        "module": 153,
+        "package": 1,
+        "test": 4
+      },
+      "edges_by_kind": {
+        "calls": 1045,
+        "co_changes": 112,
+        "contains": 981,
+        "imports": 77
+      },
+      "raw_calls": 31777,
+      "resolved_calls": 1159,
+      "unresolved_share": 0.9635,
+      "limits_hit": [],
+      "problems": [],
+      "languages_without_resolver": [],
+      "edges_dropped": {},
+      "seconds": 4.21,
+      "peak_memory_mb": 122.0
+    },
+    {
+      "name": "slugify",
+      "url": "https://github.com/sindresorhus/slugify",
+      "sha": "3b17b2e84b97624a683aafaa38184bf2746fab22",
+      "size": "small",
+      "declared_languages": [
+        "javascript",
+        "typescript"
+      ],
+      "status": "completed",
+      "snapshot_id": "slugify@3b17b2e84b97",
+      "files": 13,
+      "files_by_tier": {
+        "deep": 4,
+        "text": 9
+      },
+      "files_by_language": {
+        "text": 5,
+        "javascript": 3,
+        "markdown": 2,
+        "json": 1,
+        "typescript": 1,
+        "yaml": 1
+      },
+      "files_with_parse_errors": 0,
+      "parse_errors": 0,
+      "parse_error_samples": [],
+      "skipped_by_reason": {},
+      "nodes_by_kind": {
+        "external": 8,
+        "function": 6,
+        "module": 13,
+        "package": 1
+      },
+      "edges_by_kind": {
+        "calls": 15,
+        "co_changes": 30,
+        "contains": 19,
+        "imports": 6
+      },
+      "raw_calls": 443,
+      "resolved_calls": 14,
+      "unresolved_share": 0.9684,
+      "limits_hit": [],
+      "problems": [],
+      "languages_without_resolver": [],
+      "edges_dropped": {},
+      "seconds": 0.11,
+      "peak_memory_mb": 53.8
+    },
+    {
+      "name": "cobra",
+      "url": "https://github.com/spf13/cobra",
+      "sha": "adbc8813901bba65827259daa8e22ff94ec1f30e",
+      "size": "small",
+      "declared_languages": [
+        "go"
+      ],
+      "status": "completed",
+      "snapshot_id": "cobra@adbc8813901b",
+      "files": 66,
+      "files_by_tier": {
+        "structural": 36,
+        "text": 30
+      },
+      "files_by_language": {
+        "go": 36,
+        "markdown": 17,
+        "text": 7,
+        "yaml": 5,
+        "make": 1
+      },
+      "files_with_parse_errors": 0,
+      "parse_errors": 0,
+      "parse_error_samples": [],
+      "skipped_by_reason": {
+        "binary": 1
+      },
+      "nodes_by_kind": {
+        "class": 14,
+        "external": 96,
+        "function": 595,
+        "interface": 1,
+        "module": 66,
+        "package": 1
+      },
+      "edges_by_kind": {
+        "calls": 2095,
+        "co_changes": 506,
+        "contains": 676,
+        "imports": 194,
+        "tests": 15
+      },
+      "raw_calls": 4408,
+      "resolved_calls": 3078,
+      "unresolved_share": 0.3017,
+      "limits_hit": [],
+      "problems": [],
+      "languages_without_resolver": [],
+      "edges_dropped": {
+        "duplicate (merged into one)": 994
+      },
+      "seconds": 0.68,
+      "peak_memory_mb": 59.6
+    },
+    {
+      "name": "mux",
+      "url": "https://github.com/gorilla/mux",
+      "sha": "db9d1d0073d27a0a2d9a8c1bc52aa0af4374d265",
+      "size": "small",
+      "declared_languages": [
+        "go"
+      ],
+      "status": "completed",
+      "snapshot_id": "mux@db9d1d0073d2",
+      "files": 27,
+      "files_by_tier": {
+        "structural": 17,
+        "text": 10
+      },
+      "files_by_language": {
+        "go": 17,
+        "text": 4,
+        "yaml": 4,
+        "make": 1,
+        "markdown": 1
+      },
+      "files_with_parse_errors": 0,
+      "parse_errors": 0,
+      "parse_error_samples": [],
+      "skipped_by_reason": {},
+      "nodes_by_kind": {
+        "class": 21,
+        "external": 65,
+        "function": 228,
+        "interface": 2,
+        "module": 27,
+        "package": 1
+      },
+      "edges_by_kind": {
+        "calls": 927,
+        "co_changes": 52,
+        "contains": 278,
+        "imports": 76,
+        "tests": 4
+      },
+      "raw_calls": 2290,
+      "resolved_calls": 1502,
+      "unresolved_share": 0.3441,
+      "limits_hit": [],
+      "problems": [],
+      "languages_without_resolver": [],
+      "edges_dropped": {
+        "duplicate (merged into one)": 1073
+      },
+      "seconds": 0.26,
+      "peak_memory_mb": 57.5
+    },
+    {
+      "name": "logrus",
+      "url": "https://github.com/sirupsen/logrus",
+      "sha": "6ef0748d1177dadaeee9aa79ffef604570f487d7",
+      "size": "small",
+      "declared_languages": [
+        "go"
+      ],
+      "status": "completed",
+      "snapshot_id": "logrus@6ef0748d1177",
+      "files": 64,
+      "files_by_tier": {
+        "structural": 53,
+        "text": 11
+      },
+      "files_by_language": {
+        "go": 53,
+        "markdown": 4,
+        "text": 4,
+        "yaml": 3
+      },
+      "files_with_parse_errors": 0,
+      "parse_errors": 0,
+      "parse_error_samples": [],
+      "skipped_by_reason": {},
+      "nodes_by_kind": {
+        "class": 39,
+        "external": 165,
+        "function": 491,
+        "interface": 12,
+        "module": 64,
+        "package": 1
+      },
+      "edges_by_kind": {
+        "calls": 2391,
+        "co_changes": 238,
+        "contains": 606,
+        "imports": 360,
+        "tests": 14
+      },
+      "raw_calls": 2804,
+      "resolved_calls": 2209,
+      "unresolved_share": 0.2122,
+      "limits_hit": [],
+      "problems": [],
+      "languages_without_resolver": [],
+      "edges_dropped": {
+        "duplicate (merged into one)": 1044
+      },
+      "seconds": 0.44,
+      "peak_memory_mb": 58.3
+    },
+    {
+      "name": "gson",
+      "url": "https://github.com/google/gson",
+      "sha": "57731049da3e415be3d5d34db1ca3b80f3c73810",
+      "size": "medium",
+      "declared_languages": [
+        "java"
+      ],
+      "status": "completed",
+      "snapshot_id": "gson@57731049da3e",
+      "files": 313,
+      "files_by_tier": {
+        "structural": 264,
+        "text": 49
+      },
+      "files_by_language": {
+        "java": 264,
+        "markdown": 16,
+        "text": 12,
+        "xml": 8,
+        "yaml": 8,
+        "proto": 4,
+        "json": 1
+      },
+      "files_with_parse_errors": 0,
+      "parse_errors": 0,
+      "parse_error_samples": [],
+      "skipped_by_reason": {
+        "binary": 1
+      },
+      "nodes_by_kind": {
+        "class": 673,
+        "external": 387,
+        "function": 3139,
+        "interface": 27,
+        "module": 313,
+        "package": 8
+      },
+      "edges_by_kind": {
+        "calls": 12085,
+        "co_changes": 1663,
+        "contains": 4152,
+        "depends_on": 6,
+        "imports": 2605,
+        "tests": 41
+      },
+      "raw_calls": 19912,
+      "resolved_calls": 13012,
+      "unresolved_share": 0.3465,
+      "limits_hit": [],
+      "problems": [],
+      "languages_without_resolver": [],
+      "edges_dropped": {
+        "duplicate (merged into one)": 6373
+      },
+      "seconds": 2.6,
+      "peak_memory_mb": 84.9
+    },
+    {
+      "name": "spring-petclinic",
+      "url": "https://github.com/spring-projects/spring-petclinic",
+      "sha": "500158f732419217507c7656904b8e6aa1bcc0d6",
+      "size": "small",
+      "declared_languages": [
+        "java",
+        "kotlin"
+      ],
+      "status": "completed",
+      "snapshot_id": "spring-petclinic@500158f73241",
+      "files": 132,
+      "files_by_tier": {
+        "structural": 50,
+        "text": 82
+      },
+      "files_by_language": {
+        "java": 50,
+        "text": 44,
+        "html": 12,
+        "yaml": 8,
+        "sql": 7,
+        "scss": 4,
+        "xml": 3,
+        "css": 1,
+        "dockerfile": 1,
+        "json": 1,
+        "markdown": 1
+      },
+      "files_with_parse_errors": 0,
+      "parse_errors": 0,
+      "parse_error_samples": [],
+      "skipped_by_reason": {
+        "binary": 11
+      },
+      "nodes_by_kind": {
+        "class": 47,
+        "external": 230,
+        "function": 189,
+        "interface": 3,
+        "module": 132,
+        "package": 2
+      },
+      "edges_by_kind": {
+        "calls": 555,
+        "co_changes": 1048,
+        "contains": 371,
+        "imports": 453,
+        "tests": 10
+      },
+      "raw_calls": 1609,
+      "resolved_calls": 698,
+      "unresolved_share": 0.5662,
+      "limits_hit": [],
+      "problems": [],
+      "languages_without_resolver": [],
+      "edges_dropped": {
+        "duplicate (merged into one)": 196
+      },
+      "seconds": 0.33,
+      "peak_memory_mb": 57.7
+    },
+    {
+      "name": "commons-lang",
+      "url": "https://github.com/apache/commons-lang",
+      "sha": "9b2a3771a21c9879976830afef0fc78459df487f",
+      "size": "medium",
+      "declared_languages": [
+        "java"
+      ],
+      "status": "completed",
+      "snapshot_id": "commons-lang@9b2a3771a21c",
+      "files": 725,
+      "files_by_tier": {
+        "structural": 634,
+        "text": 91
+      },
+      "files_by_language": {
+        "java": 635,
+        "text": 45,
+        "xml": 31,
+        "markdown": 6,
+        "yaml": 6,
+        "html": 1,
+        "json": 1
+      },
+      "files_with_parse_errors": 0,
+      "parse_errors": 0,
+      "parse_error_samples": [],
+      "skipped_by_reason": {
+        "binary": 8
+      },
+      "nodes_by_kind": {
+        "class": 1067,
+        "external": 512,
+        "function": 10944,
+        "interface": 106,
+        "module": 725,
+        "package": 1
+      },
+      "edges_by_kind": {
+        "calls": 45735,
+        "co_changes": 773,
+        "contains": 12842,
+        "imports": 3669,
+        "tests": 211
+      },
+      "raw_calls": 83030,
+      "resolved_calls": 65514,
+      "unresolved_share": 0.211,
+      "limits_hit": [],
+      "problems": [],
+      "languages_without_resolver": [],
+      "edges_dropped": {
+        "duplicate (merged into one)": 60969
+      },
+      "seconds": 7.83,
+      "peak_memory_mb": 175.8
+    },
+    {
+      "name": "ripgrep",
+      "url": "https://github.com/BurntSushi/ripgrep",
+      "sha": "91f5d22ef48bde459d90a8c7dbeab416e97d0f2b",
+      "size": "medium",
+      "declared_languages": [
+        "rust"
+      ],
+      "status": "completed",
+      "snapshot_id": "ripgrep@91f5d22ef48b",
+      "files": 225,
+      "files_by_tier": {
+        "structural": 104,
+        "text": 121
+      },
+      "files_by_language": {
+        "rust": 102,
+        "text": 76,
+        "markdown": 23,
+        "toml": 13,
+        "yaml": 5,
+        "bash": 3,
+        "lua": 1,
+        "ruby": 1,
+        "xml": 1
+      },
+      "files_with_parse_errors": 0,
+      "parse_errors": 0,
+      "parse_error_samples": [],
+      "skipped_by_reason": {
+        "binary": 7
+      },
+      "nodes_by_kind": {
+        "class": 422,
+        "external": 283,
+        "function": 2906,
+        "interface": 7,
+        "module": 225,
+        "package": 11
+      },
+      "edges_by_kind": {
+        "calls": 8783,
+        "co_changes": 867,
+        "contains": 3560,
+        "depends_on": 18,
+        "imports": 587,
+        "tests": 15
+      },
+      "raw_calls": 16854,
+      "resolved_calls": 8777,
+      "unresolved_share": 0.4792,
+      "limits_hit": [],
+      "problems": [],
+      "languages_without_resolver": [],
+      "edges_dropped": {
+        "duplicate (merged into one)": 3971
+      },
+      "seconds": 2.07,
+      "peak_memory_mb": 79.1
+    },
+    {
+      "name": "anyhow",
+      "url": "https://github.com/dtolnay/anyhow",
+      "sha": "bb1b0f9af0f645d5fdf1ac63a1fcbf3975ee452c",
+      "size": "small",
+      "declared_languages": [
+        "rust"
+      ],
+      "status": "completed",
+      "snapshot_id": "anyhow@bb1b0f9af0f6",
+      "files": 54,
+      "files_by_tier": {
+        "structural": 37,
+        "text": 17
+      },
+      "files_by_language": {
+        "rust": 37,
+        "text": 11,
+        "toml": 3,
+        "yaml": 2,
+        "markdown": 1
+      },
+      "files_with_parse_errors": 2,
+      "parse_errors": 21,
+      "parse_error_samples": [
+        "syntax error at line 134, column 27",
+        "syntax error at line 165, column 28"
+      ],
+      "skipped_by_reason": {},
+      "nodes_by_kind": {
+        "class": 45,
+        "external": 106,
+        "function": 258,
+        "interface": 13,
+        "module": 54,
+        "package": 2
+      },
+      "edges_by_kind": {
+        "calls": 465,
+        "co_changes": 116,
+        "contains": 370,
+        "depends_on": 1,
+        "imports": 176,
+        "tests": 23
+      },
+      "raw_calls": 1032,
+      "resolved_calls": 607,
+      "unresolved_share": 0.4118,
+      "limits_hit": [],
+      "problems": [],
+      "languages_without_resolver": [],
+      "edges_dropped": {
+        "duplicate (merged into one)": 274
+      },
+      "seconds": 0.47,
+      "peak_memory_mb": 56.2
+    },
+    {
+      "name": "serde_json",
+      "url": "https://github.com/serde-rs/json",
+      "sha": "8c535a260ce561eaab4111aafc29038eb9f77ff3",
+      "size": "small",
+      "declared_languages": [
+        "rust"
+      ],
+      "status": "completed",
+      "snapshot_id": "serde_json@8c535a260ce5",
+      "files": 93,
+      "files_by_tier": {
+        "structural": 72,
+        "text": 21
+      },
+      "files_by_language": {
+        "rust": 72,
+        "text": 15,
+        "toml": 3,
+        "markdown": 2,
+        "yaml": 1
+      },
+      "files_with_parse_errors": 1,
+      "parse_errors": 1,
+      "parse_error_samples": [
+        "syntax error at line 4, column 18"
+      ],
+      "skipped_by_reason": {},
+      "nodes_by_kind": {
+        "class": 338,
+        "external": 199,
+        "function": 1280,
+        "interface": 18,
+        "module": 93,
+        "package": 3
+      },
+      "edges_by_kind": {
+        "calls": 2353,
+        "co_changes": 849,
+        "contains": 1729,
+        "depends_on": 2,
+        "imports": 381,
+        "tests": 32
+      },
+      "raw_calls": 4802,
+      "resolved_calls": 2310,
+      "unresolved_share": 0.519,
+      "limits_hit": [],
+      "problems": [],
+      "languages_without_resolver": [],
+      "edges_dropped": {
+        "duplicate (merged into one)": 735
+      },
+      "seconds": 0.8,
+      "peak_memory_mb": 64.0
+    },
+    {
+      "name": "Newtonsoft.Json",
+      "url": "https://github.com/JamesNK/Newtonsoft.Json",
+      "sha": "52fa3aef1f2cadcd3a3f874251eddc98d3efbbaa",
+      "size": "large",
+      "declared_languages": [
+        "csharp"
+      ],
+      "status": "completed",
+      "snapshot_id": "Newtonsoft.Json@52fa3aef1f2c",
+      "files": 1176,
+      "files_by_tier": {
+        "structural": 951,
+        "text": 225
+      },
+      "files_by_language": {
+        "c_sharp": 951,
+        "text": 187,
+        "json": 25,
+        "markdown": 5,
+        "powershell": 4,
+        "xml": 2,
+        "yaml": 2
+      },
+      "files_with_parse_errors": 66,
+      "parse_errors": 249,
+      "parse_error_samples": [
+        "syntax error",
+        "syntax error",
+        "syntax error",
+        "syntax error",
+        "syntax error"
+      ],
+      "skipped_by_reason": {
+        "binary": 8,
+        "over max_file_bytes (1000000)": 2
+      },
+      "nodes_by_kind": {
+        "class": 1636,
+        "external": 101,
+        "function": 6862,
+        "interface": 52,
+        "module": 1176,
+        "package": 5
+      },
+      "edges_by_kind": {
+        "calls": 29873,
+        "co_changes": 3721,
+        "contains": 9726,
+        "depends_on": 3,
+        "imports": 10175,
+        "tests": 67
+      },
+      "raw_calls": 35519,
+      "resolved_calls": 28147,
+      "unresolved_share": 0.2076,
+      "limits_hit": [
+        "max_file_bytes"
+      ],
+      "problems": [],
+      "languages_without_resolver": [],
+      "edges_dropped": {
+        "duplicate (merged into one)": 20778
+      },
+      "seconds": 7.9,
+      "peak_memory_mb": 133.4
+    },
+    {
+      "name": "Humanizer",
+      "url": "https://github.com/Humanizr/Humanizer",
+      "sha": "4574b93883bf48e3f0f3bca73297054537317ab2",
+      "size": "medium",
+      "declared_languages": [
+        "csharp"
+      ],
+      "status": "completed",
+      "snapshot_id": "Humanizer@4574b93883bf",
+      "files": 2769,
+      "files_by_tier": {
+        "deep": 31,
+        "structural": 735,
+        "text": 2003
+      },
+      "files_by_language": {
+        "markdown": 1099,
+        "c_sharp": 735,
+        "text": 701,
+        "yaml": 119,
+        "json": 59,
+        "powershell": 23,
+        "javascript": 16,
+        "tsx": 8,
+        "typescript": 6,
+        "css": 2,
+        "python": 1
+      },
+      "files_with_parse_errors": 12,
+      "parse_errors": 27,
+      "parse_error_samples": [
+        "syntax error at line 1388, column 22",
+        "syntax error at line 80, column 0",
+        "syntax error at line 1, column 0",
+        "syntax error",
+        "syntax error at line 39, column 4"
+      ],
+      "skipped_by_reason": {
+        "binary": 11
+      },
+      "nodes_by_kind": {
+        "class": 826,
+        "external": 177,
+        "function": 5451,
+        "interface": 22,
+        "module": 2769,
+        "package": 150,
+        "test": 71
+      },
+      "edges_by_kind": {
+        "calls": 12519,
+        "co_changes": 938,
+        "contains": 9139,
+        "depends_on": 12,
+        "imports": 1880,
+        "tests": 28
+      },
+      "raw_calls": 27944,
+      "resolved_calls": 11868,
+      "unresolved_share": 0.5753,
+      "limits_hit": [],
+      "problems": [],
+      "languages_without_resolver": [],
+      "edges_dropped": {
+        "duplicate (merged into one)": 6252
+      },
+      "seconds": 6.05,
+      "peak_memory_mb": 114.9
+    },
+    {
+      "name": "guzzle",
+      "url": "https://github.com/guzzle/guzzle",
+      "sha": "7d9b1f430bb65ac664e120af227bf9a795ad6333",
+      "size": "small",
+      "declared_languages": [
+        "php"
+      ],
+      "status": "completed",
+      "snapshot_id": "guzzle@7d9b1f430bb6",
+      "files": 184,
+      "files_by_tier": {
+        "structural": 145,
+        "text": 39
+      },
+      "files_by_language": {
+        "php": 145,
+        "markdown": 20,
+        "text": 9,
+        "json": 4,
+        "yaml": 4,
+        "dockerfile": 1,
+        "make": 1
+      },
+      "files_with_parse_errors": 0,
+      "parse_errors": 0,
+      "parse_error_samples": [],
+      "skipped_by_reason": {
+        "binary": 1
+      },
+      "nodes_by_kind": {
+        "class": 164,
+        "external": 72,
+        "function": 3065,
+        "interface": 8,
+        "module": 184,
+        "package": 4
+      },
+      "edges_by_kind": {
+        "calls": 7301,
+        "co_changes": 1713,
+        "contains": 3421,
+        "imports": 856,
+        "tests": 57
+      },
+      "raw_calls": 18962,
+      "resolved_calls": 8155,
+      "unresolved_share": 0.5699,
+      "limits_hit": [],
+      "problems": [],
+      "languages_without_resolver": [],
+      "edges_dropped": {
+        "duplicate (merged into one)": 1692
+      },
+      "seconds": 2.45,
+      "peak_memory_mb": 78.8
+    },
+    {
+      "name": "Carbon",
+      "url": "https://github.com/briannesbitt/Carbon",
+      "sha": "16c07968d5d346424ae69c2ea7814c586f62d37d",
+      "size": "medium",
+      "declared_languages": [
+        "php"
+      ],
+      "status": "completed",
+      "snapshot_id": "Carbon@16c07968d5d3",
+      "files": 2050,
+      "files_by_tier": {
+        "structural": 2015,
+        "text": 35
+      },
+      "files_by_language": {
+        "php": 2015,
+        "yaml": 16,
+        "text": 12,
+        "markdown": 5,
+        "json": 1,
+        "xml": 1
+      },
+      "files_with_parse_errors": 2,
+      "parse_errors": 2,
+      "parse_error_samples": [
+        "syntax error at line 148, column 61",
+        "syntax error at line 44, column 54"
+      ],
+      "skipped_by_reason": {
+        "binary": 1
+      },
+      "nodes_by_kind": {
+        "class": 1127,
+        "external": 125,
+        "function": 4753,
+        "interface": 47,
+        "module": 2050,
+        "package": 1
+      },
+      "edges_by_kind": {
+        "calls": 19301,
+        "co_changes": 2505,
+        "contains": 7977,
+        "imports": 3091,
+        "tests": 56
+      },
+      "raw_calls": 34172,
+      "resolved_calls": 18573,
+      "unresolved_share": 0.4565,
+      "limits_hit": [],
+      "problems": [],
+      "languages_without_resolver": [],
+      "edges_dropped": {
+        "duplicate (merged into one)": 19810
+      },
+      "seconds": 5.38,
+      "peak_memory_mb": 109.3
+    },
+    {
+      "name": "sinatra",
+      "url": "https://github.com/sinatra/sinatra",
+      "sha": "cb22afd7902b566b6eaba6c4ea89739494a65d12",
+      "size": "small",
+      "declared_languages": [
+        "ruby"
+      ],
+      "status": "completed",
+      "snapshot_id": "sinatra@cb22afd7902b",
+      "files": 292,
+      "files_by_tier": {
+        "structural": 147,
+        "text": 145
+      },
+      "files_by_language": {
+        "ruby": 147,
+        "text": 122,
+        "markdown": 12,
+        "yaml": 10,
+        "scss": 1
+      },
+      "files_with_parse_errors": 0,
+      "parse_errors": 0,
+      "parse_error_samples": [],
+      "skipped_by_reason": {
+        "binary": 2
+      },
+      "nodes_by_kind": {
+        "class": 131,
+        "external": 80,
+        "function": 963,
+        "module": 292,
+        "package": 1
+      },
+      "edges_by_kind": {
+        "calls": 4486,
+        "co_changes": 974,
+        "contains": 1386,
+        "imports": 219,
+        "tests": 39
+      },
+      "raw_calls": 14258,
+      "resolved_calls": 8718,
+      "unresolved_share": 0.3886,
+      "limits_hit": [],
+      "problems": [],
+      "languages_without_resolver": [],
+      "edges_dropped": {
+        "duplicate (merged into one)": 14075
+      },
+      "seconds": 1.63,
+      "peak_memory_mb": 71.6
+    },
+    {
+      "name": "thor",
+      "url": "https://github.com/rails/thor",
+      "sha": "cb11e8e87b3cfe6bc9f6d4b092897f0dfda2476d",
+      "size": "small",
+      "declared_languages": [
+        "ruby"
+      ],
+      "status": "completed",
+      "snapshot_id": "thor@cb11e8e87b3c",
+      "files": 118,
+      "files_by_tier": {
+        "structural": 78,
+        "text": 40
+      },
+      "files_by_language": {
+        "ruby": 78,
+        "text": 29,
+        "yaml": 5,
+        "markdown": 3,
+        "bash": 2,
+        "json": 1
+      },
+      "files_with_parse_errors": 2,
+      "parse_errors": 3,
+      "parse_error_samples": [
+        "syntax error at line 1, column 0",
+        "syntax error at line 1, column 0"
+      ],
+      "skipped_by_reason": {},
+      "nodes_by_kind": {
+        "class": 88,
+        "external": 32,
+        "function": 553,
+        "module": 118,
+        "package": 1
+      },
+      "edges_by_kind": {
+        "calls": 1274,
+        "co_changes": 1039,
+        "contains": 759,
+        "imports": 130,
+        "tests": 28
+      },
+      "raw_calls": 10171,
+      "resolved_calls": 2548,
+      "unresolved_share": 0.7495,
+      "limits_hit": [],
+      "problems": [],
+      "languages_without_resolver": [],
+      "edges_dropped": {
+        "duplicate (merged into one)": 2001
+      },
+      "seconds": 0.86,
+      "peak_memory_mb": 63.0
+    },
+    {
+      "name": "jq",
+      "url": "https://github.com/jqlang/jq",
+      "sha": "5c001b18d7237cce1fdba63608732163f978dd23",
+      "size": "medium",
+      "declared_languages": [
+        "c"
+      ],
+      "status": "completed",
+      "snapshot_id": "jq@5c001b18d723",
+      "files": 433,
+      "files_by_tier": {
+        "deep": 6,
+        "structural": 81,
+        "text": 346
+      },
+      "files_by_language": {
+        "text": 314,
+        "c": 79,
+        "yaml": 20,
+        "markdown": 5,
+        "python": 5,
+        "bash": 2,
+        "cpp": 2,
+        "json": 2,
+        "css": 1,
+        "dockerfile": 1,
+        "html": 1,
+        "javascript": 1
+      },
+      "files_with_parse_errors": 27,
+      "parse_errors": 148,
+      "parse_error_samples": [
+        "syntax error: missing ';' at line 49, column 6",
+        "syntax error: missing ';' at line 25, column 6",
+        "syntax error at line 23, column 0",
+        "syntax error at line 7, column 0",
+        "syntax error: missing ';' at line 804, column 39"
+      ],
+      "skipped_by_reason": {
+        "binary": 1,
+        "over max_file_bytes (1000000)": 1
+      },
+      "nodes_by_kind": {
+        "class": 71,
+        "external": 80,
+        "function": 1692,
+        "module": 433,
+        "package": 1
+      },
+      "edges_by_kind": {
+        "calls": 1330,
+        "co_changes": 562,
+        "contains": 2196,
+        "imports": 438,
+        "inherits": 2,
+        "tests": 1
+      },
+      "raw_calls": 9920,
+      "resolved_calls": 6502,
+      "unresolved_share": 0.3446,
+      "limits_hit": [
+        "max_file_bytes"
+      ],
+      "problems": [],
+      "languages_without_resolver": [],
+      "edges_dropped": {
+        "duplicate (merged into one)": 5147
+      },
+      "seconds": 1.77,
+      "peak_memory_mb": 71.9
+    },
+    {
+      "name": "kilo",
+      "url": "https://github.com/antirez/kilo",
+      "sha": "323d93b29bd89a2cb446de90c4ed4fea1764176e",
+      "size": "small",
+      "declared_languages": [
+        "c"
+      ],
+      "status": "completed",
+      "snapshot_id": "kilo@323d93b29bd8",
+      "files": 6,
+      "files_by_tier": {
+        "structural": 1,
+        "text": 5
+      },
+      "files_by_language": {
+        "text": 3,
+        "c": 1,
+        "make": 1,
+        "markdown": 1
+      },
+      "files_with_parse_errors": 0,
+      "parse_errors": 0,
+      "parse_error_samples": [],
+      "skipped_by_reason": {},
+      "nodes_by_kind": {
+        "class": 7,
+        "external": 15,
+        "function": 37,
+        "module": 6,
+        "package": 1
+      },
+      "edges_by_kind": {
+        "calls": 32,
+        "contains": 50,
+        "imports": 15
+      },
+      "raw_calls": 177,
+      "resolved_calls": 80,
+      "unresolved_share": 0.548,
+      "limits_hit": [],
+      "problems": [],
+      "languages_without_resolver": [],
+      "edges_dropped": {
+        "duplicate (merged into one)": 48
+      },
+      "seconds": 0.13,
+      "peak_memory_mb": 53.8
+    },
+    {
+      "name": "nlohmann_json",
+      "url": "https://github.com/nlohmann/json",
+      "sha": "b2674a4a2fb6de549973208dc01c5c1864e2c1b9",
+      "size": "large",
+      "declared_languages": [
+        "cpp"
+      ],
+      "status": "completed",
+      "snapshot_id": "nlohmann_json@b2674a4a2fb6",
+      "files": 1611,
+      "files_by_tier": {
+        "deep": 35,
+        "structural": 624,
+        "text": 952
+      },
+      "files_by_language": {
+        "cpp": 620,
+        "text": 445,
+        "markdown": 425,
+        "cmake": 32,
+        "python": 25,
+        "yaml": 25,
+        "javascript": 10,
+        "css": 9,
+        "json": 6,
+        "make": 6,
+        "c": 2,
+        "html": 2,
+        "swift": 2,
+        "lua": 1,
+        "toml": 1
+      },
+      "files_with_parse_errors": 240,
+      "parse_errors": 2419,
+      "parse_error_samples": [
+        "syntax error at line 7, column 0",
+        "syntax error: missing ';' at line 22, column 62",
+        "syntax error: missing ';' at line 22, column 62",
+        "syntax error: missing ';' at line 22, column 75",
+        "syntax error: missing ';' at line 16, column 62"
+      ],
+      "skipped_by_reason": {
+        "binary": 11,
+        "over max_file_bytes (1000000)": 6
+      },
+      "nodes_by_kind": {
+        "class": 758,
+        "external": 293,
+        "function": 6433,
+        "module": 1611,
+        "package": 2
+      },
+      "edges_by_kind": {
+        "calls": 10286,
+        "co_changes": 2532,
+        "contains": 8802,
+        "imports": 2981,
+        "inherits": 7
+      },
+      "raw_calls": 74855,
+      "resolved_calls": 34740,
+      "unresolved_share": 0.5359,
+      "limits_hit": [
+        "max_file_bytes"
+      ],
+      "problems": [],
+      "languages_without_resolver": [],
+      "edges_dropped": {
+        "duplicate (merged into one)": 45787
+      },
+      "seconds": 15.94,
+      "peak_memory_mb": 138.6
+    },
+    {
+      "name": "fmt",
+      "url": "https://github.com/fmtlib/fmt",
+      "sha": "4ed3535092a96ac9f56fab80df83416d51bcc78e",
+      "size": "medium",
+      "declared_languages": [
+        "cpp"
+      ],
+      "status": "completed",
+      "snapshot_id": "fmt@4ed3535092a9",
+      "files": 145,
+      "files_by_tier": {
+        "deep": 5,
+        "structural": 74,
+        "text": 66
+      },
+      "files_by_language": {
+        "cpp": 47,
+        "text": 30,
+        "c": 27,
+        "markdown": 12,
+        "yaml": 12,
+        "cmake": 9,
+        "python": 4,
+        "bash": 1,
+        "css": 1,
+        "javascript": 1,
+        "xml": 1
+      },
+      "files_with_parse_errors": 43,
+      "parse_errors": 559,
+      "parse_error_samples": [
+        "syntax error at line 20, column 10",
+        "syntax error: missing ';' at line 27, column 60",
+        "syntax error: missing ';' at line 14, column 16",
+        "syntax error: missing ';' at line 20, column 69",
+        "syntax error: missing ';' at line 237, column 28"
+      ],
+      "skipped_by_reason": {},
+      "nodes_by_kind": {
+        "class": 288,
+        "external": 219,
+        "function": 4363,
+        "module": 145,
+        "package": 2
+      },
+      "edges_by_kind": {
+        "calls": 3809,
+        "co_changes": 463,
+        "contains": 4796,
+        "imports": 650,
+        "inherits": 16
+      },
+      "raw_calls": 18827,
+      "resolved_calls": 8371,
+      "unresolved_share": 0.5554,
+      "limits_hit": [],
+      "problems": [],
+      "languages_without_resolver": [],
+      "edges_dropped": {
+        "duplicate (merged into one)": 10092
+      },
+      "seconds": 7.17,
+      "peak_memory_mb": 81.8
+    },
+    {
+      "name": "okhttp",
+      "url": "https://github.com/square/okhttp",
+      "sha": "16fb6aef3aee1c4645fc8d24af01f8a4dc128ebf",
+      "size": "large",
+      "declared_languages": [
+        "kotlin",
+        "java"
+      ],
+      "status": "completed",
+      "snapshot_id": "okhttp@16fb6aef3aee",
+      "files": 845,
+      "files_by_tier": {
+        "structural": 71,
+        "text": 774
+      },
+      "files_by_language": {
+        "kotlin": 619,
+        "java": 71,
+        "text": 67,
+        "markdown": 55,
+        "xml": 14,
+        "json": 9,
+        "bash": 4,
+        "yaml": 4,
+        "css": 1,
+        "toml": 1
+      },
+      "files_with_parse_errors": 0,
+      "parse_errors": 0,
+      "parse_error_samples": [],
+      "skipped_by_reason": {
+        "binary": 12
+      },
+      "nodes_by_kind": {
+        "class": 71,
+        "external": 161,
+        "function": 244,
+        "interface": 3,
+        "module": 845,
+        "package": 37
+      },
+      "edges_by_kind": {
+        "calls": 350,
+        "co_changes": 1707,
+        "contains": 1163,
+        "depends_on": 84,
+        "imports": 454,
+        "tests": 84
+      },
+      "raw_calls": 1072,
+      "resolved_calls": 298,
+      "unresolved_share": 0.722,
+      "limits_hit": [],
+      "problems": [],
+      "languages_without_resolver": [],
+      "edges_dropped": {
+        "duplicate (merged into one)": 15
+      },
+      "seconds": 1.38,
+      "peak_memory_mb": 60.1
+    },
+    {
+      "name": "koin",
+      "url": "https://github.com/InsertKoinIO/koin",
+      "sha": "d486a5e8748f90db43f939e227083f2bd2c47c12",
+      "size": "medium",
+      "declared_languages": [
+        "kotlin"
+      ],
+      "status": "completed",
+      "snapshot_id": "koin@d486a5e8748f",
+      "files": 811,
+      "files_by_tier": {
+        "structural": 4,
+        "text": 807
+      },
+      "files_by_language": {
+        "kotlin": 541,
+        "text": 108,
+        "markdown": 93,
+        "xml": 44,
+        "bash": 12,
+        "yaml": 8,
+        "java": 4,
+        "toml": 1
+      },
+      "files_with_parse_errors": 0,
+      "parse_errors": 0,
+      "parse_error_samples": [],
+      "skipped_by_reason": {
+        "binary": 23
+      },
+      "nodes_by_kind": {
+        "class": 4,
+        "external": 29,
+        "function": 7,
+        "module": 811,
+        "package": 43
+      },
+      "edges_by_kind": {
+        "calls": 19,
+        "co_changes": 801,
+        "contains": 822,
+        "depends_on": 62,
+        "imports": 24,
+        "tests": 21
+      },
+      "raw_calls": 53,
+      "resolved_calls": 28,
+      "unresolved_share": 0.4717,
+      "limits_hit": [],
+      "problems": [],
+      "languages_without_resolver": [],
+      "edges_dropped": {
+        "duplicate (merged into one)": 9
+      },
+      "seconds": 0.92,
+      "peak_memory_mb": 59.1
+    },
+    {
+      "name": "play-samples",
+      "url": "https://github.com/playframework/play-samples",
+      "sha": "510fc1319b8bea39db80798479ba22ceb3080c3e",
+      "size": "medium",
+      "declared_languages": [
+        "scala",
+        "java"
+      ],
+      "status": "completed",
+      "snapshot_id": "play-samples@510fc1319b8b",
+      "files": 867,
+      "files_by_tier": {
+        "deep": 25,
+        "structural": 240,
+        "text": 602
+      },
+      "files_by_language": {
+        "text": 361,
+        "scala": 140,
+        "java": 100,
+        "html": 79,
+        "markdown": 49,
+        "css": 33,
+        "xml": 33,
+        "javascript": 28,
+        "yaml": 18,
+        "bash": 10,
+        "sql": 9,
+        "kotlin": 2,
+        "less": 2,
+        "proto": 2,
+        "toml": 1
+      },
+      "files_with_parse_errors": 0,
+      "parse_errors": 0,
+      "parse_error_samples": [],
+      "skipped_by_reason": {
+        "binary": 67,
+        "minified": 6
+      },
+      "nodes_by_kind": {
+        "class": 293,
+        "external": 378,
+        "function": 665,
+        "interface": 33,
+        "module": 867,
+        "package": 2
+      },
+      "edges_by_kind": {
+        "calls": 758,
+        "co_changes": 2762,
+        "contains": 1858,
+        "imports": 796,
+        "tests": 8
+      },
+      "raw_calls": 5782,
+      "resolved_calls": 717,
+      "unresolved_share": 0.876,
+      "limits_hit": [],
+      "problems": [],
+      "languages_without_resolver": [],
+      "edges_dropped": {
+        "duplicate (merged into one)": 104
+      },
+      "seconds": 1.49,
+      "peak_memory_mb": 77.2
+    },
+    {
+      "name": "cats",
+      "url": "https://github.com/typelevel/cats",
+      "sha": "e28985fe2a0d7123a8fb84cbb70c72b5e3d935ca",
+      "size": "large",
+      "declared_languages": [
+        "scala"
+      ],
+      "status": "completed",
+      "snapshot_id": "cats@e28985fe2a0d",
+      "files": 962,
+      "files_by_tier": {
+        "deep": 1,
+        "structural": 835,
+        "text": 126
+      },
+      "files_by_language": {
+        "scala": 835,
+        "markdown": 73,
+        "text": 49,
+        "yaml": 4,
+        "javascript": 1
+      },
+      "files_with_parse_errors": 1,
+      "parse_errors": 2,
+      "parse_error_samples": [
+        "syntax error at line 31, column 2"
+      ],
+      "skipped_by_reason": {
+        "binary": 23
+      },
+      "nodes_by_kind": {
+        "class": 988,
+        "external": 4,
+        "function": 8864,
+        "interface": 1201,
+        "module": 962,
+        "package": 1
+      },
+      "edges_by_kind": {
+        "calls": 2332,
+        "co_changes": 2158,
+        "contains": 12015
+      },
+      "raw_calls": 11797,
+      "resolved_calls": 1952,
+      "unresolved_share": 0.8345,
+      "limits_hit": [],
+      "problems": [
+        "linker http: unmatched http calls: external_host=1"
+      ],
+      "languages_without_resolver": [],
+      "edges_dropped": {
+        "duplicate (merged into one)": 573
+      },
+      "seconds": 4.01,
+      "peak_memory_mb": 88.5
+    },
+    {
+      "name": "Alamofire",
+      "url": "https://github.com/Alamofire/Alamofire",
+      "sha": "6c2892ea5adb5a03fa81c510933dd782c5ddd9cb",
+      "size": "medium",
+      "declared_languages": [
+        "swift"
+      ],
+      "status": "completed",
+      "snapshot_id": "Alamofire@6c2892ea5adb",
+      "files": 571,
+      "files_by_tier": {
+        "deep": 6,
+        "structural": 101,
+        "text": 464
+      },
+      "files_by_language": {
+        "html": 332,
+        "swift": 101,
+        "text": 83,
+        "json": 23,
+        "markdown": 12,
+        "javascript": 10,
+        "yaml": 5,
+        "css": 4,
+        "xml": 1
+      },
+      "files_with_parse_errors": 5,
+      "parse_errors": 12,
+      "parse_error_samples": [
+        "syntax error at line 90, column 4",
+        "syntax error: missing '!' at line 203, column 66",
+        "syntax error: missing '!' at line 86, column 29",
+        "syntax error: missing '!' at line 36, column 29",
+        "syntax error: missing '!' at line 716, column 29"
+      ],
+      "skipped_by_reason": {
+        "binary": 38,
+        "minified": 4
+      },
+      "nodes_by_kind": {
+        "class": 124,
+        "external": 8,
+        "function": 2308,
+        "interface": 5,
+        "module": 571,
+        "package": 1
+      },
+      "edges_by_kind": {
+        "calls": 74,
+        "co_changes": 1177,
+        "contains": 3008,
+        "imports": 2
+      },
+      "raw_calls": 1548,
+      "resolved_calls": 136,
+      "unresolved_share": 0.9121,
+      "limits_hit": [],
+      "problems": [],
+      "languages_without_resolver": [],
+      "edges_dropped": {},
+      "seconds": 2.04,
+      "peak_memory_mb": 68.8
+    },
+    {
+      "name": "SwiftyJSON",
+      "url": "https://github.com/SwiftyJSON/SwiftyJSON",
+      "sha": "3d2544101a03f22b2217d464dc7d359eeb86e159",
+      "size": "small",
+      "declared_languages": [
+        "swift"
+      ],
+      "status": "completed",
+      "snapshot_id": "SwiftyJSON@3d2544101a03",
+      "files": 65,
+      "files_by_tier": {
+        "structural": 24,
+        "text": 41
+      },
+      "files_by_language": {
+        "text": 31,
+        "swift": 23,
+        "json": 5,
+        "yaml": 3,
+        "markdown": 2,
+        "c": 1
+      },
+      "files_with_parse_errors": 1,
+      "parse_errors": 3,
+      "parse_error_samples": [
+        "syntax error at line 23, column 0"
+      ],
+      "skipped_by_reason": {
+        "binary": 1
+      },
+      "nodes_by_kind": {
+        "class": 6,
+        "function": 205,
+        "interface": 1,
+        "module": 65,
+        "package": 1
+      },
+      "edges_by_kind": {
+        "co_changes": 104,
+        "contains": 277
+      },
+      "raw_calls": 0,
+      "resolved_calls": 0,
+      "unresolved_share": null,
+      "limits_hit": [],
+      "problems": [],
+      "languages_without_resolver": [],
+      "edges_dropped": {},
+      "seconds": 0.72,
+      "peak_memory_mb": 62.6
+    },
+    {
+      "name": "lume",
+      "url": "https://github.com/rxi/lume",
+      "sha": "98847e7812cf28d3d64b289b03fad71dc704547d",
+      "size": "small",
+      "declared_languages": [
+        "lua"
+      ],
+      "status": "completed",
+      "snapshot_id": "lume@98847e7812cf",
+      "files": 5,
+      "files_by_tier": {
+        "structural": 3,
+        "text": 2
+      },
+      "files_by_language": {
+        "lua": 3,
+        "markdown": 1,
+        "text": 1
+      },
+      "files_with_parse_errors": 0,
+      "parse_errors": 0,
+      "parse_error_samples": [],
+      "skipped_by_reason": {},
+      "nodes_by_kind": {
+        "function": 106,
+        "module": 5,
+        "package": 1
+      },
+      "edges_by_kind": {
+        "calls": 252,
+        "co_changes": 8,
+        "contains": 111
+      },
+      "raw_calls": 834,
+      "resolved_calls": 427,
+      "unresolved_share": 0.488,
+      "limits_hit": [],
+      "problems": [],
+      "languages_without_resolver": [],
+      "edges_dropped": {
+        "duplicate (merged into one)": 275
+      },
+      "seconds": 0.12,
+      "peak_memory_mb": 53.1
+    },
+    {
+      "name": "kong",
+      "url": "https://github.com/Kong/kong",
+      "sha": "21032122ab80c973f368f6bc539f53985e7164e8",
+      "size": "large",
+      "declared_languages": [
+        "lua",
+        "sql"
+      ],
+      "status": "completed",
+      "snapshot_id": "kong@21032122ab80",
+      "files": 2408,
+      "files_by_tier": {
+        "deep": 16,
+        "structural": 1323,
+        "text": 1069
+      },
+      "files_by_language": {
+        "lua": 1311,
+        "yaml": 525,
+        "text": 297,
+        "json": 150,
+        "proto": 39,
+        "markdown": 28,
+        "python": 15,
+        "bash": 13,
+        "rust": 8,
+        "go": 4,
+        "html": 4,
+        "make": 3,
+        "toml": 3,
+        "dockerfile": 2,
+        "perl": 2,
+        "css": 1,
+        "javascript": 1,
+        "sql": 1,
+        "xml": 1
+      },
+      "files_with_parse_errors": 1,
+      "parse_errors": 1,
+      "parse_error_samples": [
+        "syntax error at line 5, column 17"
+      ],
+      "skipped_by_reason": {
+        "binary": 3,
+        "over max_file_bytes (1000000)": 1
+      },
+      "nodes_by_kind": {
+        "class": 34,
+        "external": 160,
+        "function": 5100,
+        "interface": 3,
+        "module": 2408,
+        "package": 5,
+        "test": 2
+      },
+      "edges_by_kind": {
+        "calls": 22758,
+        "co_changes": 1931,
+        "contains": 7547,
+        "imports": 127,
+        "inherits": 3
+      },
+      "raw_calls": 98848,
+      "resolved_calls": 38416,
+      "unresolved_share": 0.6114,
+      "limits_hit": [
+        "max_file_bytes"
+      ],
+      "problems": [
+        "linker http: unmatched http calls: dynamic=1"
+      ],
+      "languages_without_resolver": [],
+      "edges_dropped": {
+        "duplicate (merged into one)": 43850
+      },
+      "seconds": 8.67,
+      "peak_memory_mb": 134.9
+    },
+    {
+      "name": "plug",
+      "url": "https://github.com/elixir-plug/plug",
+      "sha": "575a8454a216c47c940304d01287dcf62dfbe280",
+      "size": "small",
+      "declared_languages": [
+        "elixir"
+      ],
+      "status": "completed",
+      "snapshot_id": "plug@575a8454a216",
+      "files": 106,
+      "files_by_tier": {
+        "structural": 78,
+        "text": 28
+      },
+      "files_by_language": {
+        "elixir": 78,
+        "text": 23,
+        "markdown": 4,
+        "yaml": 1
+      },
+      "files_with_parse_errors": 0,
+      "parse_errors": 0,
+      "parse_error_samples": [],
+      "skipped_by_reason": {},
+      "nodes_by_kind": {
+        "function": 991,
+        "module": 106,
+        "package": 1
+      },
+      "edges_by_kind": {
+        "calls": 3793,
+        "co_changes": 749,
+        "contains": 1097
+      },
+      "raw_calls": 12117,
+      "resolved_calls": 3984,
+      "unresolved_share": 0.6712,
+      "limits_hit": [],
+      "problems": [],
+      "languages_without_resolver": [],
+      "edges_dropped": {
+        "duplicate (merged into one)": 5037
+      },
+      "seconds": 0.92,
+      "peak_memory_mb": 66.1
+    },
+    {
+      "name": "phoenix",
+      "url": "https://github.com/phoenixframework/phoenix",
+      "sha": "11e038409d89c94b68732721d0c92e61f3901e6a",
+      "size": "medium",
+      "declared_languages": [
+        "elixir",
+        "javascript"
+      ],
+      "status": "completed",
+      "snapshot_id": "phoenix@11e038409d89",
+      "files": 510,
+      "files_by_tier": {
+        "deep": 26,
+        "structural": 207,
+        "text": 277
+      },
+      "files_by_language": {
+        "elixir": 207,
+        "text": 189,
+        "markdown": 60,
+        "javascript": 27,
+        "yaml": 9,
+        "json": 8,
+        "css": 6,
+        "bash": 3,
+        "dockerfile": 1
+      },
+      "files_with_parse_errors": 0,
+      "parse_errors": 0,
+      "parse_error_samples": [],
+      "skipped_by_reason": {
+        "binary": 14,
+        "minified": 1
+      },
+      "nodes_by_kind": {
+        "class": 29,
+        "external": 52,
+        "function": 2756,
+        "module": 510,
+        "package": 2,
+        "test": 285
+      },
+      "edges_by_kind": {
+        "calls": 11337,
+        "co_changes": 759,
+        "contains": 3580,
+        "imports": 40,
+        "tests": 8
+      },
+      "raw_calls": 34287,
+      "resolved_calls": 11657,
+      "unresolved_share": 0.66,
+      "limits_hit": [],
+      "problems": [],
+      "languages_without_resolver": [],
+      "edges_dropped": {
+        "duplicate (merged into one)": 9346
+      },
+      "seconds": 3.04,
+      "peak_memory_mb": 84.9
+    },
+    {
+      "name": "nvm",
+      "url": "https://github.com/nvm-sh/nvm",
+      "sha": "5e38bc0caed342356ffd26eb21e0e9b995ac228b",
+      "size": "small",
+      "declared_languages": [
+        "shell"
+      ],
+      "status": "completed",
+      "snapshot_id": "nvm@5e38bc0caed3",
+      "files": 507,
+      "files_by_tier": {
+        "deep": 1,
+        "text": 506
+      },
+      "files_by_language": {
+        "text": 458,
+        "yaml": 19,
+        "markdown": 12,
+        "bash": 8,
+        "json": 6,
+        "make": 2,
+        "dockerfile": 1,
+        "javascript": 1
+      },
+      "files_with_parse_errors": 0,
+      "parse_errors": 0,
+      "parse_error_samples": [],
+      "skipped_by_reason": {
+        "binary": 2
+      },
+      "nodes_by_kind": {
+        "module": 507,
+        "package": 6
+      },
+      "edges_by_kind": {
+        "co_changes": 529,
+        "contains": 507
+      },
+      "raw_calls": 1,
+      "resolved_calls": 0,
+      "unresolved_share": 1.0,
+      "limits_hit": [],
+      "problems": [],
+      "languages_without_resolver": [],
+      "edges_dropped": {},
+      "seconds": 0.5,
+      "peak_memory_mb": 54.9
+    },
+    {
+      "name": "shellcheck",
+      "url": "https://github.com/koalaman/shellcheck",
+      "sha": "919d37c4d77a7ce16cfc76ebdd781dd6e8081fa5",
+      "size": "medium",
+      "declared_languages": [
+        "haskell",
+        "shell"
+      ],
+      "status": "completed",
+      "snapshot_id": "shellcheck@919d37c4d77a",
+      "files": 92,
+      "files_by_tier": {
+        "text": 92
+      },
+      "files_by_language": {
+        "text": 41,
+        "haskell": 31,
+        "dockerfile": 7,
+        "markdown": 7,
+        "yaml": 5,
+        "json": 1
+      },
+      "files_with_parse_errors": 0,
+      "parse_errors": 0,
+      "parse_error_samples": [],
+      "skipped_by_reason": {
+        "binary": 3
+      },
+      "nodes_by_kind": {
+        "module": 92,
+        "package": 1
+      },
+      "edges_by_kind": {
+        "co_changes": 329,
+        "contains": 92
+      },
+      "raw_calls": 0,
+      "resolved_calls": 0,
+      "unresolved_share": null,
+      "limits_hit": [],
+      "problems": [],
+      "languages_without_resolver": [],
+      "edges_dropped": {},
+      "seconds": 0.2,
+      "peak_memory_mb": 51.9
+    },
+    {
+      "name": "bats-core",
+      "url": "https://github.com/bats-core/bats-core",
+      "sha": "48d8d75a836fb322cf98bd305e2db5a84c1be419",
+      "size": "small",
+      "declared_languages": [
+        "shell"
+      ],
+      "status": "completed",
+      "snapshot_id": "bats-core@48d8d75a836f",
+      "files": 375,
+      "files_by_tier": {
+        "deep": 2,
+        "text": 373
+      },
+      "files_by_language": {
+        "text": 276,
+        "bash": 52,
+        "markdown": 18,
+        "rst": 10,
+        "yaml": 10,
+        "json": 3,
+        "dockerfile": 2,
+        "make": 2,
+        "python": 2
+      },
+      "files_with_parse_errors": 0,
+      "parse_errors": 0,
+      "parse_error_samples": [],
+      "skipped_by_reason": {},
+      "nodes_by_kind": {
+        "external": 3,
+        "function": 1,
+        "module": 375,
+        "package": 1
+      },
+      "edges_by_kind": {
+        "co_changes": 477,
+        "contains": 376,
+        "imports": 3
+      },
+      "raw_calls": 5,
+      "resolved_calls": 0,
+      "unresolved_share": 1.0,
+      "limits_hit": [],
+      "problems": [],
+      "languages_without_resolver": [],
+      "edges_dropped": {},
+      "seconds": 0.37,
+      "peak_memory_mb": 54.3
+    },
+    {
+      "name": "full-stack-fastapi-template",
+      "url": "https://github.com/tiangolo/full-stack-fastapi-template",
+      "sha": "f4bcfaba7c85be3c6332cc74a20819f586dcdbc6",
+      "size": "medium",
+      "declared_languages": [
+        "python",
+        "typescript"
+      ],
+      "status": "completed",
+      "snapshot_id": "full-stack-fastapi-template@f4bcfaba7c85",
+      "files": 248,
+      "files_by_tier": {
+        "deep": 152,
+        "text": 96
+      },
+      "files_by_language": {
+        "tsx": 70,
+        "python": 43,
+        "typescript": 39,
+        "text": 32,
+        "yaml": 23,
+        "json": 14,
+        "markdown": 10,
+        "bash": 8,
+        "html": 4,
+        "toml": 2,
+        "css": 1,
+        "dockerfile": 1,
+        "ini": 1
+      },
+      "files_with_parse_errors": 0,
+      "parse_errors": 0,
+      "parse_error_samples": [],
+      "skipped_by_reason": {
+        "binary": 9
+      },
+      "nodes_by_kind": {
+        "class": 27,
+        "external": 337,
+        "function": 343,
+        "interface": 37,
+        "module": 248,
+        "package": 4,
+        "route": 23,
+        "test": 119
+      },
+      "edges_by_kind": {
+        "calls": 1225,
+        "co_changes": 685,
+        "contains": 774,
+        "handles": 23,
+        "imports": 979,
+        "inherits": 28,
+        "tests": 108
+      },
+      "raw_calls": 3370,
+      "resolved_calls": 1599,
+      "unresolved_share": 0.5255,
+      "limits_hit": [],
+      "problems": [],
+      "languages_without_resolver": [],
+      "edges_dropped": {
+        "duplicate (merged into one)": 3
+      },
+      "seconds": 0.77,
+      "peak_memory_mb": 62.8
+    },
+    {
+      "name": "django",
+      "url": "https://github.com/django/django",
+      "sha": "308b6d6ac0927d2095d380c84d9c7d101c851d4f",
+      "size": "large",
+      "declared_languages": [
+        "python",
+        "javascript"
+      ],
+      "status": "completed",
+      "snapshot_id": "django@308b6d6ac092",
+      "files": 7085,
+      "files_by_tier": {
+        "deep": 3047,
+        "text": 4038
+      },
+      "files_by_language": {
+        "text": 3504,
+        "python": 2939,
+        "html": 371,
+        "javascript": 111,
+        "json": 55,
+        "css": 44,
+        "yaml": 27,
+        "xml": 16,
+        "markdown": 8,
+        "rst": 4,
+        "bash": 2,
+        "toml": 2,
+        "ini": 1,
+        "make": 1
+      },
+      "files_with_parse_errors": 3,
+      "parse_errors": 12,
+      "parse_error_samples": [
+        "syntax error at line 1, column 1",
+        "syntax error at line 23, column 6",
+        "syntax error"
+      ],
+      "skipped_by_reason": {
+        "binary": 1378,
+        "minified": 4
+      },
+      "nodes_by_kind": {
+        "class": 11130,
+        "external": 1228,
+        "function": 24391,
+        "module": 7085,
+        "package": 2,
+        "test": 8835
+      },
+      "edges_by_kind": {
+        "calls": 123275,
+        "co_changes": 1945,
+        "contains": 51441,
+        "imports": 18938,
+        "inherits": 9626,
+        "tests": 24354
+      },
+      "raw_calls": 199626,
+      "resolved_calls": 114698,
+      "unresolved_share": 0.4254,
+      "limits_hit": [],
+      "problems": [
+        "linker http: unmatched http calls: dynamic=1"
+      ],
+      "languages_without_resolver": [],
+      "edges_dropped": {
+        "duplicate (merged into one)": 540
+      },
+      "seconds": 37.75,
+      "peak_memory_mb": 328.4
+    },
+    {
+      "name": "notebook",
+      "url": "https://github.com/jupyter/notebook",
+      "sha": "b5a05a862382c90bda0343af3535098a5548c023",
+      "size": "large",
+      "declared_languages": [
+        "typescript",
+        "python",
+        "jupyter"
+      ],
+      "status": "completed",
+      "snapshot_id": "notebook@b5a05a862382",
+      "files": 376,
+      "files_by_tier": {
+        "deep": 92,
+        "text": 284
+      },
+      "files_by_language": {
+        "text": 134,
+        "json": 61,
+        "typescript": 52,
+        "markdown": 29,
+        "css": 27,
+        "javascript": 26,
+        "yaml": 23,
+        "python": 11,
+        "html": 6,
+        "tsx": 3,
+        "bash": 1,
+        "make": 1,
+        "rst": 1,
+        "toml": 1
+      },
+      "files_with_parse_errors": 1,
+      "parse_errors": 1,
+      "parse_error_samples": [
+        "syntax error at line 1, column 0"
+      ],
+      "skipped_by_reason": {
+        "binary": 86
+      },
+      "nodes_by_kind": {
+        "class": 18,
+        "external": 233,
+        "function": 163,
+        "interface": 13,
+        "module": 376,
+        "package": 18,
+        "test": 101
+      },
+      "edges_by_kind": {
+        "calls": 573,
+        "co_changes": 1837,
+        "contains": 671,
+        "depends_on": 33,
+        "imports": 403,
+        "inherits": 23,
+        "tests": 30
+      },
+      "raw_calls": 2939,
+      "resolved_calls": 795,
+      "unresolved_share": 0.7295,
+      "limits_hit": [],
+      "problems": [
+        "linker http: unmatched http calls: dynamic=2"
+      ],
+      "languages_without_resolver": [],
+      "edges_dropped": {
+        "duplicate (merged into one)": 1
+      },
+      "seconds": 1.77,
+      "peak_memory_mb": 63.1
+    },
+    {
+      "name": "ohmyzsh",
+      "url": "https://github.com/ohmyzsh/ohmyzsh",
+      "sha": "b509b1c6ed0c1ba37de12cbd37f30b2b2f61193a",
+      "size": "large",
+      "declared_languages": [
+        "shell"
+      ],
+      "status": "completed",
+      "snapshot_id": "ohmyzsh@b509b1c6ed0c",
+      "files": 1177,
+      "files_by_tier": {
+        "deep": 8,
+        "text": 1169
+      },
+      "files_by_language": {
+        "bash": 411,
+        "markdown": 391,
+        "text": 349,
+        "yaml": 14,
+        "python": 8,
+        "json": 3,
+        "make": 1
+      },
+      "files_with_parse_errors": 0,
+      "parse_errors": 0,
+      "parse_error_samples": [],
+      "skipped_by_reason": {
+        "binary": 21,
+        "over max_file_bytes (1000000)": 2
+      },
+      "nodes_by_kind": {
+        "class": 12,
+        "external": 56,
+        "function": 48,
+        "module": 1177,
+        "package": 1
+      },
+      "edges_by_kind": {
+        "calls": 122,
+        "co_changes": 240,
+        "contains": 1237,
+        "imports": 41,
+        "inherits": 5
+      },
+      "raw_calls": 408,
+      "resolved_calls": 167,
+      "unresolved_share": 0.5907,
+      "limits_hit": [
+        "max_file_bytes"
+      ],
+      "problems": [
+        "linker http: unmatched http calls: dynamic=2"
+      ],
+      "languages_without_resolver": [],
+      "edges_dropped": {},
+      "seconds": 0.89,
+      "peak_memory_mb": 57.8
+    },
+    {
+      "name": "TypeScript",
+      "url": "https://github.com/microsoft/TypeScript",
+      "sha": "6161772c1370bdd4a82f808e6823bd755eb1870d",
+      "size": "very large",
+      "declared_languages": [
+        "typescript"
+      ],
+      "status": "completed",
+      "snapshot_id": "TypeScript@6161772c1370",
+      "files": 20000,
+      "files_by_tier": {
+        "deep": 4179,
+        "structural": 5212,
+        "text": 10609
+      },
+      "files_by_language": {
+        "text": 10470,
+        "go": 5216,
+        "javascript": 3853,
+        "typescript": 327,
+        "json": 73,
+        "yaml": 35,
+        "markdown": 26
+      },
+      "files_with_parse_errors": 3858,
+      "parse_errors": 23197,
+      "parse_error_samples": [
+        "syntax error at line 3197, column 28",
+        "syntax error at line 6574, column 28",
+        "syntax error at line 331, column 24",
+        "syntax error at line 4, column 7",
+        "syntax error at line 1653, column 80"
+      ],
+      "skipped_by_reason": {
+        "binary": 14,
+        "over max_file_bytes (1000000)": 10
+      },
+      "nodes_by_kind": {
+        "class": 7626,
+        "external": 1192,
+        "function": 33219,
+        "interface": 2151,
+        "module": 20000,
+        "package": 11,
+        "test": 1048
+      },
+      "edges_by_kind": {
+        "calls": 125626,
+        "co_changes": 2267,
+        "contains": 64044,
+        "depends_on": 1,
+        "imports": 43405,
+        "inherits": 1471,
+        "tests": 790
+      },
+      "raw_calls": 217481,
+      "resolved_calls": 158850,
+      "unresolved_share": 0.2696,
+      "limits_hit": [
+        "max_file_bytes",
+        "max_files"
+      ],
+      "problems": [
+        "linker http: unmatched http calls: dynamic=4",
+        "linker http: unmatched http calls: no_route=2"
+      ],
+      "languages_without_resolver": [],
+      "edges_dropped": {
+        "duplicate (merged into one)": 54822
+      },
+      "seconds": 79.93,
+      "peak_memory_mb": 470.1
+    },
+    {
+      "name": "linux",
+      "url": "https://github.com/torvalds/linux",
+      "sha": "6628e7d4c6b25c8d18f1345e3a20d21829aae7e4",
+      "size": "very large",
+      "declared_languages": [
+        "c"
+      ],
+      "status": "completed",
+      "snapshot_id": "linux@6628e7d4c6b2",
+      "files": 20000,
+      "files_by_tier": {
+        "deep": 14,
+        "structural": 1646,
+        "text": 18340
+      },
+      "files_by_language": {
+        "text": 8099,
+        "yaml": 5926,
+        "rst": 4098,
+        "c": 1646,
+        "make": 198,
+        "python": 14,
+        "bash": 9,
+        "css": 3,
+        "perl": 3,
+        "html": 2,
+        "toml": 2
+      },
+      "files_with_parse_errors": 855,
+      "parse_errors": 4950,
+      "parse_error_samples": [
+        "syntax error: missing ';' at line 149, column 24",
+        "syntax error: missing ';' at line 289, column 24",
+        "syntax error at line 46, column 5",
+        "syntax error at line 200, column 25",
+        "syntax error at line 195, column 6"
+      ],
+      "skipped_by_reason": {
+        "binary": 1
+      },
+      "nodes_by_kind": {
+        "class": 715,
+        "external": 835,
+        "function": 10493,
+        "module": 20000,
+        "package": 1
+      },
+      "edges_by_kind": {
+        "calls": 7962,
+        "contains": 31208,
+        "imports": 9395,
+        "inherits": 21
+      },
+      "raw_calls": 39827,
+      "resolved_calls": 13887,
+      "unresolved_share": 0.6513,
+      "limits_hit": [
+        "max_files"
+      ],
+      "problems": [],
+      "languages_without_resolver": [],
+      "edges_dropped": {
+        "duplicate (merged into one)": 8631
+      },
+      "seconds": 44.87,
+      "peak_memory_mb": 154.8
+    }
+  ]
+}
