@@ -22,7 +22,10 @@ def parse(path: str, source: str) -> ParseResult:
 
 
 def _language(path: str) -> str:
-    return {".java": "java", ".go": "go", ".rb": "ruby", ".py": "python"}[
+    return {
+        ".java": "java", ".go": "go", ".rb": "ruby", ".py": "python", ".rs": "rust",
+        ".c": "c", ".h": "c", ".cpp": "cpp", ".hpp": "cpp",
+    }[
         "." + path.rsplit(".", 1)[-1]
     ]
 
