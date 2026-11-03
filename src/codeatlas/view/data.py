@@ -44,7 +44,7 @@ def build_view_data(
     snapshot = store.get_snapshot(snapshot_id)
     if snapshot is None:
         raise KeyError(f"no snapshot {snapshot_id!r}")
-    focus = focus.strip().strip("/")
+    focus = normalise_focus(focus)
     nodes = store.nodes(snapshot_id)
     edges = store.edges(snapshot_id)
     files = store.files(snapshot_id)
@@ -98,6 +98,22 @@ def _plain(snapshot: Any) -> dict[str, Any]:
     }
 
 
+def normalise_focus(focus: str) -> str:
+    """`backend\\`, `./backend/` and `backend` all mean the folder `backend`."""
+    focus = focus.strip().replace("\\", "/")
+    while focus.startswith("./"):
+        focus = focus[2:]
+    return focus.strip("/")
+
+
+def focus_matches(store: GraphStore, snapshot_id: str, focus: str) -> bool:
+    """True when some file of the snapshot is the focus or lies under it."""
+    focus = normalise_focus(focus)
+    return not focus or any(
+        f.path == focus or f.path.startswith(focus + "/") for f in store.files(snapshot_id)
+    )
+
+
 def _in_focus(node: Node, focus: str) -> bool:
     if not focus:
         return True
@@ -114,18 +130,20 @@ def _capped(nodes: list[Node], focus: str, max_nodes: int) -> bool:
 
 
 def _select(nodes: list[Node], focus: str, max_nodes: int) -> tuple[set[str], list[Node]]:
-    """Path-less nodes first (few and useful), then whole files in path order up to the cap."""
-    pathless = [n for n in nodes if not n.path]
+    """Path-less nodes (packages, externals) up to half the cap, then whole files in path
+    order while they fit. A file too big to fit is skipped, not a reason to stop: the
+    smaller files after it still appear."""
+    pathless = [n for n in nodes if not n.path][: max_nodes // 2]
     by_file: dict[str, list[Node]] = {}
     for n in nodes:
         if n.path and _in_focus(n, focus):
             by_file.setdefault(n.path, []).append(n)
-    kept = list(pathless)[:max_nodes]
+    kept = list(pathless)
     files: set[str] = set()
     for path in sorted(by_file):
         group = by_file[path]
         if len(kept) + len(group) > max_nodes:
-            break
+            continue
         kept += group
         files.add(path)
     return files, kept
@@ -236,5 +254,7 @@ def _problems(nodes: list[Node], report: dict[str, Any] | None) -> dict[str, Any
         "languages_without_resolver": saved.get("languages_without_resolver", []),
         "failures": saved.get("plugin_and_resolver_failures", []),
         "dropped_edges": ((report or {}).get("edges") or {}).get("dropped", {}),
+        "not_entered": (((report or {}).get("files") or {}).get("not_entered") or {}).get(
+            "paths", []),
         "report_missing": report is None,
     }

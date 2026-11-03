@@ -78,3 +78,30 @@ def test_a_deleted_report_is_recreated(repo: Path, config: Config) -> None:
     assert load_report(config, first.snapshot["id"]) is None
     assert index_repository(str(repo), config, db).nodes == first.nodes
     assert load_report(config, first.snapshot["id"]) is not None
+
+
+def test_force_really_rebuilds(repo: Path, config: Config, monkeypatch) -> None:
+    from codeatlas.indexer.pipeline import index as index_module
+
+    db = Path(config.data_dir) / "codeatlas.db"
+    index_repository(str(repo), config, db)
+    calls = []
+    real = index_module.build_graph
+
+    def spy(*args, **kwargs):
+        calls.append(kwargs.get("replace_existing"))
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(index_module, "build_graph", spy)
+    index_repository(str(repo), config, db, force=True)
+    assert calls == [True]
+
+
+def test_folders_discovery_did_not_enter_are_in_the_report(
+    make_repo: Callable[..., Path], config: Config
+) -> None:
+    repo = make_repo({"src/a.py": "def a():\n    pass\n", "node_modules/x/i.js": "x = 1\n"},
+                     name="withdeps")
+    report = index_repository(str(repo), config, Path(config.data_dir) / "c.db")
+    not_entered = report.files["not_entered"]
+    assert not_entered["total"] == 1 and not_entered["paths"][0]["path"] == "node_modules"

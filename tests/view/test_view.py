@@ -109,3 +109,36 @@ def test_commands_without_a_database_fail_clearly(tmp_path: Path, capsys) -> Non
     toml.write_text(f'[paths]\ndata_dir = "{(tmp_path / "none").as_posix()}"\n', encoding="utf-8")
     assert main(["view", "--config", str(toml), "--no-open"]) == 2
     assert "codeatlas index" in capsys.readouterr().err
+
+
+def test_focus_accepts_windows_and_dotted_spellings_but_not_prefixes(setup) -> None:
+    from codeatlas.view.data import focus_matches, normalise_focus
+
+    assert normalise_focus("app\\") == normalise_focus("./app/") == "app"
+    repo, _, db = setup
+    config = Config(data_dir=str(db.parent))
+    report = index_repository(str(repo), config, db)
+    with GraphStore(db) as store:
+        sid = report.snapshot["id"]
+        windows = build_view_data(store, sid, None, focus="app\\")
+        assert {f["path"] for f in windows["files"]} == {"app/service.py", "app/broken.py"}
+        assert focus_matches(store, sid, "app") and not focus_matches(store, sid, "ap")
+        assert build_view_data(store, sid, None, focus="ap")["files"] == []
+
+
+def test_a_file_too_big_for_the_cap_does_not_hide_later_files(setup) -> None:
+    repo, _, db = setup
+    config = Config(data_dir=str(db.parent))
+    report = index_repository(str(repo), config, db)
+    with GraphStore(db) as store:
+        data = build_view_data(store, report.snapshot["id"], None, max_nodes=6)
+    shown = {f["path"] for f in data["files"]}
+    assert "main.go" in shown or "README.md" in shown  # smaller files after a big one fit
+
+
+def test_view_refuses_a_focus_that_matches_nothing(setup, capsys) -> None:
+    repo, toml, db = setup
+    assert main(["index", str(repo), "--db", str(db), "--config", str(toml)]) == 0
+    code = main(["view", "--db", str(db), "--focus", "nope", "--config", str(toml),
+                 "--no-open", "--out", str(db.parent / "v.html")])
+    assert code == 2 and "matches no file" in capsys.readouterr().err

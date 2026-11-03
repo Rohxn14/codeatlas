@@ -32,7 +32,7 @@ On the fixture today: CONTAINS precision and recall 1.0 (53 of 53), TESTS by nam
 
 ## The index report (T18)
 
-`index_repository(source, config, db_path, force=False)` opens the store, calls `build_graph`, and counts what the *store* holds (so the report cannot disagree with the database). If `build_graph` raises `AlreadyIndexed` (a `ValueError` subclass, same message as before), the saved report is returned; `force` passes `replace_existing=True`. The commit is only known after intake, so a repeat run still reads the source once but does not parse it. If the report file was deleted, the commit is rebuilt to recreate it.
+`index_repository(source, config, db_path, force=False)` opens the store, calls `build_graph`, and counts what the *store* holds (so the report cannot disagree with the database). If `build_graph` raises `AlreadyIndexed` (a `ValueError` subclass, same message as before), the saved report is returned; `force` passes `replace_existing=True`. The snapshot id is only known after parsing (`build_graph` checks the store after `parse_source`), so a repeat run still parses every file before it finds the saved report; splitting intake out so the check comes first is a later improvement. The report also lists the folders discovery never entered (`files.not_entered`), such as `node_modules/`, which have no nodes at all. If the report file was deleted, the commit is rebuilt to recreate it.
 
 It is saved as `<data_dir>/reports/<snapshot id with @ and / replaced by _>.json`. The acceptance suite (T10) reads it, so these names are stable:
 
