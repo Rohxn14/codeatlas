@@ -1,0 +1,285 @@
+# The acceptance suite: pinned public repositories. Edit a SHA only on purpose;
+# a moving target would make two scoreboards incomparable.
+repos:
+  - name: click
+    url: https://github.com/pallets/click
+    sha: 2247b35ea1c47c727d7a06e51fa280e12a863ff6
+    languages: [python]
+    size: small
+    why: "Pure Python library with a deep adapter; the owner's reference repository"
+  - name: requests
+    url: https://github.com/psf/requests
+    sha: 3c7baaa05ab4aa49cc819ce3a819d260de19c157
+    languages: [python]
+    size: small
+    why: "Popular Python HTTP client; flat package with a large test folder"
+  - name: itsdangerous
+    url: https://github.com/pallets/itsdangerous
+    sha: 672971d66a2ef9f85151e53283113f33d642dabd
+    languages: [python]
+    size: small
+    why: "Tiny Python package; sanity check for the smallest case"
+  - name: typer
+    url: https://github.com/tiangolo/typer
+    sha: a5882dedf0bc7a46cd861fdfca020f88519e0f21
+    languages: [python, markdown]
+    size: medium
+    why: "Python with heavy docs and many example scripts"
+  - name: is
+    url: https://github.com/sindresorhus/is
+    sha: e9c026c611c1160eaad50da00be4e676b626018f
+    languages: [typescript]
+    size: small
+    why: "Single-file TypeScript library with generated-looking type tables"
+  - name: zod
+    url: https://github.com/colinhacks/zod
+    sha: 2554b70c3d4a80273381e61d527d820720626440
+    languages: [typescript]
+    size: medium
+    why: "TypeScript monorepo with packages and heavy generics"
+  - name: express
+    url: https://github.com/expressjs/express
+    sha: bcc0551cb7a785b7772f77cb59ce55a2bc94975a
+    languages: [javascript]
+    size: small
+    why: "Plain CommonJS JavaScript, no TypeScript config"
+  - name: lodash
+    url: https://github.com/lodash/lodash
+    sha: 2b5e6f7399a7b48005140b5d5c6bc6c0e62919a8
+    languages: [javascript]
+    size: medium
+    why: "Large single JavaScript file and vendored build output"
+  - name: slugify
+    url: https://github.com/sindresorhus/slugify
+    sha: 3b17b2e84b97624a683aafaa38184bf2746fab22
+    languages: [javascript, typescript]
+    size: small
+    why: "ES modules with hand-written type declarations"
+  - name: cobra
+    url: https://github.com/spf13/cobra
+    sha: adbc8813901bba65827259daa8e22ff94ec1f30e
+    languages: [go]
+    size: small
+    why: "Go library with a go.mod and in-package _test files"
+  - name: mux
+    url: https://github.com/gorilla/mux
+    sha: db9d1d0073d27a0a2d9a8c1bc52aa0af4374d265
+    languages: [go]
+    size: small
+    why: "Go HTTP router; routes declared in code"
+  - name: logrus
+    url: https://github.com/sirupsen/logrus
+    sha: 6ef0748d1177dadaeee9aa79ffef604570f487d7
+    languages: [go]
+    size: small
+    why: "Go with many small files and build tags"
+  - name: gson
+    url: https://github.com/google/gson
+    sha: 57731049da3e415be3d5d34db1ca3b80f3c73810
+    languages: [java]
+    size: medium
+    why: "Maven multi-module Java"
+  - name: spring-petclinic
+    url: https://github.com/spring-projects/spring-petclinic
+    sha: 500158f732419217507c7656904b8e6aa1bcc0d6
+    languages: [java, kotlin]
+    size: small
+    why: "Spring Boot app: annotations, templates and a Kotlin variant"
+  - name: commons-lang
+    url: https://github.com/apache/commons-lang
+    sha: 9b2a3771a21c9879976830afef0fc78459df487f
+    languages: [java]
+    size: medium
+    why: "Java with very large source files and many tests"
+  - name: ripgrep
+    url: https://github.com/BurntSushi/ripgrep
+    sha: 91f5d22ef48bde459d90a8c7dbeab416e97d0f2b
+    languages: [rust]
+    size: medium
+    why: "Cargo workspace with several crates"
+  - name: anyhow
+    url: https://github.com/dtolnay/anyhow
+    sha: bb1b0f9af0f645d5fdf1ac63a1fcbf3975ee452c
+    languages: [rust]
+    size: small
+    why: "Small Rust crate with macros and cfg attributes"
+  - name: serde_json
+    url: https://github.com/serde-rs/json
+    sha: 8c535a260ce561eaab4111aafc29038eb9f77ff3
+    languages: [rust]
+    size: small
+    why: "Rust crate with generated-style test tables"
+  - name: Newtonsoft.Json
+    url: https://github.com/JamesNK/Newtonsoft.Json
+    sha: 52fa3aef1f2cadcd3a3f874251eddc98d3efbbaa
+    languages: [csharp]
+    size: large
+    why: "C# solution with many projects and large files"
+  - name: Humanizer
+    url: https://github.com/Humanizr/Humanizer
+    sha: 4574b93883bf48e3f0f3bca73297054537317ab2
+    languages: [csharp]
+    size: medium
+    why: "C# with resource files and many locale-specific classes"
+  - name: guzzle
+    url: https://github.com/guzzle/guzzle
+    sha: 7d9b1f430bb65ac664e120af227bf9a795ad6333
+    languages: [php]
+    size: small
+    why: "PHP with composer.json and namespaces"
+  - name: Carbon
+    url: https://github.com/briannesbitt/Carbon
+    sha: 16c07968d5d346424ae69c2ea7814c586f62d37d
+    languages: [php]
+    size: medium
+    why: "PHP with very many locale files"
+  - name: sinatra
+    url: https://github.com/sinatra/sinatra
+    sha: cb22afd7902b566b6eaba6c4ea89739494a65d12
+    languages: [ruby]
+    size: small
+    why: "Ruby web framework; routes declared by a DSL"
+  - name: thor
+    url: https://github.com/rails/thor
+    sha: cb11e8e87b3cfe6bc9f6d4b092897f0dfda2476d
+    languages: [ruby]
+    size: small
+    why: "Ruby CLI toolkit with a gemspec"
+  - name: jq
+    url: https://github.com/jqlang/jq
+    sha: 5c001b18d7237cce1fdba63608732163f978dd23
+    languages: [c]
+    size: medium
+    why: "C with a build system, generated parser files and vendored libraries"
+  - name: kilo
+    url: https://github.com/antirez/kilo
+    sha: 323d93b29bd89a2cb446de90c4ed4fea1764176e
+    languages: [c]
+    size: small
+    why: "One C file of about a thousand lines"
+  - name: nlohmann_json
+    url: https://github.com/nlohmann/json
+    sha: b2674a4a2fb6de549973208dc01c5c1864e2c1b9
+    languages: [cpp]
+    size: large
+    why: "C++ header-only library with a single-include amalgamation (huge file)"
+  - name: fmt
+    url: https://github.com/fmtlib/fmt
+    sha: 4ed3535092a96ac9f56fab80df83416d51bcc78e
+    languages: [cpp]
+    size: medium
+    why: "C++ with templates, headers and CMake"
+  - name: okhttp
+    url: https://github.com/square/okhttp
+    sha: 16fb6aef3aee1c4645fc8d24af01f8a4dc128ebf
+    languages: [kotlin, java]
+    size: large
+    why: "Kotlin multiplatform Gradle build with Java mixed in"
+  - name: koin
+    url: https://github.com/InsertKoinIO/koin
+    sha: d486a5e8748f90db43f939e227083f2bd2c47c12
+    languages: [kotlin]
+    size: medium
+    why: "Kotlin multi-module Gradle project"
+  - name: play-samples
+    url: https://github.com/playframework/play-samples
+    sha: 510fc1319b8bea39db80798479ba22ceb3080c3e
+    languages: [scala, java]
+    size: medium
+    why: "Many sample apps in one repository: a monorepo of independent projects"
+  - name: cats
+    url: https://github.com/typelevel/cats
+    sha: e28985fe2a0d7123a8fb84cbb70c72b5e3d935ca
+    languages: [scala]
+    size: large
+    why: "Scala with heavy implicits and generated boilerplate"
+  - name: Alamofire
+    url: https://github.com/Alamofire/Alamofire
+    sha: 6c2892ea5adb5a03fa81c510933dd782c5ddd9cb
+    languages: [swift]
+    size: medium
+    why: "Swift package with Xcode project files"
+  - name: SwiftyJSON
+    url: https://github.com/SwiftyJSON/SwiftyJSON
+    sha: 3d2544101a03f22b2217d464dc7d359eeb86e159
+    languages: [swift]
+    size: small
+    why: "Swift with a single large source file"
+  - name: lume
+    url: https://github.com/rxi/lume
+    sha: 98847e7812cf28d3d64b289b03fad71dc704547d
+    languages: [lua]
+    size: small
+    why: "One Lua file; a language with a grammar but small profile"
+  - name: kong
+    url: https://github.com/Kong/kong
+    sha: 21032122ab80c973f368f6bc539f53985e7164e8
+    languages: [lua, sql]
+    size: large
+    why: "Large Lua codebase with Perl and shell test helpers"
+  - name: plug
+    url: https://github.com/elixir-plug/plug
+    sha: 575a8454a216c47c940304d01287dcf62dfbe280
+    languages: [elixir]
+    size: small
+    why: "Elixir library; macros define functions"
+  - name: phoenix
+    url: https://github.com/phoenixframework/phoenix
+    sha: 11e038409d89c94b68732721d0c92e61f3901e6a
+    languages: [elixir, javascript]
+    size: medium
+    why: "Elixir with an embedded JavaScript client"
+  - name: nvm
+    url: https://github.com/nvm-sh/nvm
+    sha: 5e38bc0caed342356ffd26eb21e0e9b995ac228b
+    languages: [shell]
+    size: small
+    why: "Almost all Shell, one huge script"
+  - name: shellcheck
+    url: https://github.com/koalaman/shellcheck
+    sha: 919d37c4d77a7ce16cfc76ebdd781dd6e8081fa5
+    languages: [haskell, shell]
+    size: medium
+    why: "Haskell has no import profile, so it stays a structural or text language"
+  - name: bats-core
+    url: https://github.com/bats-core/bats-core
+    sha: 48d8d75a836fb322cf98bd305e2db5a84c1be419
+    languages: [shell]
+    size: small
+    why: "Shell test framework with fixtures that are not real tests"
+  - name: full-stack-fastapi-template
+    url: https://github.com/tiangolo/full-stack-fastapi-template
+    sha: f4bcfaba7c85be3c6332cc74a20819f586dcdbc6
+    languages: [python, typescript]
+    size: medium
+    why: "Mixed frontend/backend: FastAPI plus a TypeScript client, so HTTP calls must link"
+  - name: django
+    url: https://github.com/django/django
+    sha: 308b6d6ac0927d2095d380c84d9c7d101c851d4f
+    languages: [python, javascript]
+    size: large
+    why: "Large Python with templates, locale files and many tests"
+  - name: notebook
+    url: https://github.com/jupyter/notebook
+    sha: b5a05a862382c90bda0343af3535098a5548c023
+    languages: [typescript, python, jupyter]
+    size: large
+    why: "Notebooks (.ipynb) and a TypeScript frontend beside Python"
+  - name: ohmyzsh
+    url: https://github.com/ohmyzsh/ohmyzsh
+    sha: b509b1c6ed0c1ba37de12cbd37f30b2b2f61193a
+    languages: [shell]
+    size: large
+    why: "Thousands of tiny shell plugins; many files, little code"
+  - name: TypeScript
+    url: https://github.com/microsoft/TypeScript
+    sha: 6161772c1370bdd4a82f808e6823bd755eb1870d
+    languages: [typescript]
+    size: very large
+    why: "Huge TypeScript with giant generated files and a deep history"
+  - name: linux
+    url: https://github.com/torvalds/linux
+    sha: 6628e7d4c6b25c8d18f1345e3a20d21829aae7e4
+    languages: [c]
+    size: very large
+    why: "Limit test: tens of thousands of files and a huge history"

@@ -159,13 +159,18 @@ class CoChangeAnalyzer:
         return edges, dropped
 
 
-def read_history(repo_root: Path, max_commits: int) -> History:
-    """Changed paths of the last `max_commits` non-merge commits reachable from HEAD.
+def read_history(repo_root: Path, max_commits: int, rev: str = "HEAD") -> History:
+    """Changed paths of the last `max_commits` non-merge commits reachable from `rev`.
+
+    `rev` defaults to HEAD; the eval harness passes `<commit>^` so a prediction sees only
+    the history before a held-out commit.
 
     The folder must be the top of its own git repository: a plain folder that happens to
     sit inside another repository (a home folder under git, say) has no history of its
     own, and borrowing the outer one would invent co-changes.
     """
+    if rev.startswith("-"):
+        raise ValueError(f"rev must not start with '-': {rev!r}")
     top, why = _run_git(repo_root, "rev-parse", "--show-toplevel")
     if top is None:
         return History(status=why)
@@ -175,12 +180,12 @@ def read_history(repo_root: Path, max_commits: int) -> History:
         same = False
     if not same:
         return History(status=f"not the top of a git repository (inside {top.strip()})")
-    if _git(repo_root, "rev-parse", "--verify", "--quiet", "HEAD") is None:
+    if _git(repo_root, "rev-parse", "--verify", "--quiet", f"{rev}^{{commit}}") is None:
         return History(status="no commits")
     shallow = (_git(repo_root, "rev-parse", "--is-shallow-repository") or "").strip() == "true"
     log, why = _run_git(
         repo_root, "log", "--no-merges", "--no-renames", "--name-only", "--no-color",
-        f"--format={_COMMIT_MARK}%H", f"--max-count={max_commits}", "HEAD", "--",
+        f"--format={_COMMIT_MARK}%H", f"--max-count={max_commits}", rev, "--",
     )
     if log is None:
         return History(status=f"git log failed: {why}", shallow=shallow)
