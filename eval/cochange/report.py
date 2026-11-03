@@ -18,6 +18,9 @@ def table(results: list[dict[str, object]], date: str) -> str:
         "|" + " --- |" * (3 + len(COLUMNS)),
     ]
     for result in results:
+        if result.get("error"):
+            lines.append(f"| {result['name']} | (failed: {result['error']}) |"
+                         + " |" * (1 + len(COLUMNS)))
         for score in result["scores"]:  # type: ignore[attr-defined]
             groups = [("all", score["overall"])]
             groups += [(lang, s) for lang, s in score["by_language"].items()]

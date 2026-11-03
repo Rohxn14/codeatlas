@@ -53,6 +53,8 @@ def mutate_python(source: bytes, name: str, start_line: int, end_line: int) -> M
     if not found:
         return Mutation(None, "", f"no def {name!r} inside lines {start_line}-{end_line}")
     func = min(found, key=lambda n: (n.end_lineno or 0) - n.lineno)
+    if any(_decorator_name(d) == "overload" for d in func.decorator_list):
+        return Mutation(None, "", "an @overload stub: its body never runs")
     first = func.body[0]
     if first.lineno == func.lineno:
         return Mutation(None, "", "the body is on the same line as the def")
@@ -63,7 +65,23 @@ def mutate_python(source: bytes, name: str, start_line: int, end_line: int) -> M
     replacement = indent + PYTHON_MUTATION.encode() + newline
     last = func.end_lineno or first.lineno
     mutated = b"".join([*lines[: first.lineno - 1], replacement, *lines[last:]])
+    try:
+        ast.parse(mutated)
+    except (SyntaxError, ValueError):
+        # A multi-line header ending in `) -> None: ...` puts the body on the header's
+        # last line; replacing that line would break the file, and a syntax error makes
+        # every test fail, which would count as a "caught" mutant that tests nothing.
+        return Mutation(None, "", "the mutated file does not parse (body shares a line "
+                                  "with the header)")
     return Mutation(mutated, f"{name}: body replaced by {PYTHON_MUTATION}")
+
+
+def _decorator_name(node: ast.expr) -> str:
+    """`overload`, `typing.overload` and `t.overload` all give `overload`."""
+    target = node.func if isinstance(node, ast.Call) else node
+    if isinstance(target, ast.Attribute):
+        return target.attr
+    return target.id if isinstance(target, ast.Name) else ""
 
 
 def mutate_typescript(source: bytes, start_line: int, end_line: int, end_col: int) -> Mutation:

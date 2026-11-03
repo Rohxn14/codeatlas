@@ -12,6 +12,7 @@ import os
 import shlex
 import shutil
 import subprocess
+import sys
 import tempfile
 import time
 from dataclasses import dataclass
@@ -30,7 +31,7 @@ BENCHMARKS_FILE = Path(__file__).with_name("benchmarks.yaml")
 TRUTH_DIR = Path(__file__).with_name("truth")
 WINDOWS_MESSAGE = (
     "Mutation truth runs a repository's own tests, so it is for the cloud VM or a "
-    "container only (CLAUDE.md, Safety). Run it in a cloud session, in CI or in WSL."
+    "container only (CLAUDE.md, Safety). Run it in a cloud session or in CI."
 )
 _SKIP_COPY = shutil.ignore_patterns(".git", "__pycache__", ".pytest_cache", "node_modules", ".venv")
 
@@ -153,6 +154,8 @@ def run_benchmark(
     node_modules: Path | None = None,
 ) -> dict[str, object]:
     """Mutate up to `count` functions of `source_root` one at a time and record the failures."""
+    if sys.platform == "win32":  # the command line checks too; this guards direct calls
+        raise RuntimeError(WINDOWS_MESSAGE)
     env = {**os.environ, **(env or {})}
     with tempfile.TemporaryDirectory(prefix="codeatlas-mutants-") as tmp:
         db = Path(tmp) / "graph.db"

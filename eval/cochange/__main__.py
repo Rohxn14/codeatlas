@@ -40,6 +40,8 @@ def main(argv: list[str] | None = None) -> int:
                 root = clone_pinned(find_repo(name))
             except (IntakeError, ValueError) as exc:
                 print(f"{name}: {exc}")
+                # A row, not a silent gap.
+                results.append({"name": name, "error": str(exc), "scores": []})
                 continue
             results.append(run_on(name, root, args.commits))
     date = utc_date()

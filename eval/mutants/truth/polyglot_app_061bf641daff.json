@@ -2,8 +2,8 @@
   "repo": "polyglot_app",
   "source": "eval/fixtures/polyglot_app",
   "seed": 0,
-  "candidates": 25,
-  "caller_basis": "raw-call-names",
+  "candidates": 24,
+  "caller_basis": "calls-edges",
   "test_commands": {
     "python": "pytest backend",
     "typescript": "npx vitest run"
@@ -13,18 +13,18 @@
       "exit_status": 0,
       "timed_out": false,
       "failing_tests": [],
-      "seconds": 0.99
+      "seconds": 1.84
     },
     "typescript": {
       "exit_status": 0,
       "timed_out": false,
       "failing_tests": [],
-      "seconds": 1.16
+      "seconds": 1.53
     }
   },
-  "mutants_made": 25,
-  "mutants_caught": 24,
-  "mutants_skipped": 0,
+  "mutants_made": 23,
+  "mutants_caught": 22,
+  "mutants_skipped": 1,
   "mutants": [
     {
       "function": "backend/app.py::create_app",
@@ -34,22 +34,15 @@
       "failing_tests": [
         "backend/tests/test_routes.py"
       ],
-      "seconds": 0.8,
+      "seconds": 0.88,
       "exit_status": 2,
       "timed_out": false
     },
     {
       "function": "backend/decorators.py::logged",
       "language": "python",
-      "status": "mutated",
-      "mutation": "logged: body replaced by raise RuntimeError(\"mutant\")",
-      "failing_tests": [
-        "backend/tests/test_routes.py",
-        "backend/tests/test_services.py"
-      ],
-      "seconds": 1.03,
-      "exit_status": 2,
-      "timed_out": false
+      "status": "skipped",
+      "reason": "the mutated file does not parse (body shares a line with the header)"
     },
     {
       "function": "backend/handlers.py::call_service",
@@ -59,7 +52,7 @@
       "failing_tests": [
         "backend/tests/test_services.py::test_dispatch_and_getattr"
       ],
-      "seconds": 0.88,
+      "seconds": 0.83,
       "exit_status": 1,
       "timed_out": false
     },
@@ -72,7 +65,7 @@
         "backend/tests/test_routes.py::test_routes_create_list_and_get",
         "backend/tests/test_services.py::test_dispatch_and_getattr"
       ],
-      "seconds": 0.89,
+      "seconds": 0.7,
       "exit_status": 1,
       "timed_out": false
     },
@@ -85,8 +78,20 @@
         "backend/tests/test_routes.py::test_routes_create_list_and_get",
         "backend/tests/test_services.py::test_dispatch_and_getattr"
       ],
-      "seconds": 0.81,
+      "seconds": 0.65,
       "exit_status": 1,
+      "timed_out": false
+    },
+    {
+      "function": "backend/repo.py::Repo.__init__",
+      "language": "python",
+      "status": "mutated",
+      "mutation": "__init__: body replaced by raise RuntimeError(\"mutant\")",
+      "failing_tests": [
+        "backend/tests/test_routes.py"
+      ],
+      "seconds": 0.72,
+      "exit_status": 2,
       "timed_out": false
     },
     {
@@ -114,7 +119,7 @@
         "backend/tests/test_routes.py::test_routes_create_list_and_get",
         "backend/tests/test_services.py::TestUserService::test_get_user_returns_none_when_missing"
       ],
-      "seconds": 0.97,
+      "seconds": 0.6,
       "exit_status": 1,
       "timed_out": false
     },
@@ -129,44 +134,20 @@
         "backend/tests/test_services.py::test_dispatch_and_getattr",
         "backend/tests/test_services.py::test_find_by_name"
       ],
-      "seconds": 0.82,
+      "seconds": 0.64,
       "exit_status": 1,
       "timed_out": false
     },
     {
-      "function": "backend/routes.py::create_user",
+      "function": "backend/services.py::UserService.__init__",
       "language": "python",
       "status": "mutated",
-      "mutation": "create_user: body replaced by raise RuntimeError(\"mutant\")",
+      "mutation": "__init__: body replaced by raise RuntimeError(\"mutant\")",
       "failing_tests": [
-        "backend/tests/test_routes.py::test_routes_create_list_and_get"
+        "backend/tests/test_routes.py"
       ],
-      "seconds": 0.98,
-      "exit_status": 1,
-      "timed_out": false
-    },
-    {
-      "function": "backend/routes.py::get_user",
-      "language": "python",
-      "status": "mutated",
-      "mutation": "get_user: body replaced by raise RuntimeError(\"mutant\")",
-      "failing_tests": [
-        "backend/tests/test_routes.py::test_routes_create_list_and_get"
-      ],
-      "seconds": 0.84,
-      "exit_status": 1,
-      "timed_out": false
-    },
-    {
-      "function": "backend/routes.py::list_users",
-      "language": "python",
-      "status": "mutated",
-      "mutation": "list_users: body replaced by raise RuntimeError(\"mutant\")",
-      "failing_tests": [
-        "backend/tests/test_routes.py::test_routes_create_list_and_get"
-      ],
-      "seconds": 0.91,
-      "exit_status": 1,
+      "seconds": 0.64,
+      "exit_status": 2,
       "timed_out": false
     },
     {
@@ -181,7 +162,7 @@
         "backend/tests/test_services.py::test_find_by_name",
         "backend/tests/test_services.py::test_user_repo_rejects_empty_name"
       ],
-      "seconds": 0.95,
+      "seconds": 0.79,
       "exit_status": 1,
       "timed_out": false
     },
@@ -197,7 +178,7 @@
         "backend/tests/test_services.py::test_find_by_name",
         "backend/tests/test_services.py::test_user_repo_rejects_empty_name"
       ],
-      "seconds": 0.83,
+      "seconds": 0.86,
       "exit_status": 1,
       "timed_out": false
     },
@@ -210,7 +191,7 @@
         "backend/tests/test_routes.py::test_routes_create_list_and_get",
         "backend/tests/test_services.py::TestUserService::test_get_user_returns_none_when_missing"
       ],
-      "seconds": 0.92,
+      "seconds": 0.81,
       "exit_status": 1,
       "timed_out": false
     },
@@ -223,7 +204,7 @@
         "backend/tests/test_routes.py::test_routes_create_list_and_get",
         "backend/tests/test_services.py::test_dispatch_and_getattr"
       ],
-      "seconds": 0.98,
+      "seconds": 0.76,
       "exit_status": 1,
       "timed_out": false
     },
@@ -235,7 +216,7 @@
       "failing_tests": [
         "backend/tests/test_services.py::test_find_by_name"
       ],
-      "seconds": 0.96,
+      "seconds": 0.8,
       "exit_status": 1,
       "timed_out": false
     },
@@ -251,7 +232,7 @@
         "backend/tests/test_services.py::test_find_by_name",
         "backend/tests/test_services.py::test_user_repo_rejects_empty_name"
       ],
-      "seconds": 0.83,
+      "seconds": 0.67,
       "exit_status": 1,
       "timed_out": false
     },
@@ -263,7 +244,7 @@
       "failing_tests": [
         "client.test.ts::UserApi getUser fetches a user once and caches it"
       ],
-      "seconds": 1.14,
+      "seconds": 1.37,
       "exit_status": 1,
       "timed_out": false
     },
@@ -275,7 +256,7 @@
       "failing_tests": [
         "client.test.ts::UserApi lists users"
       ],
-      "seconds": 1.19,
+      "seconds": 1.32,
       "exit_status": 1,
       "timed_out": false
     },
@@ -287,7 +268,7 @@
       "failing_tests": [
         "client.test.ts::UserApi getUser fetches a user once and caches it"
       ],
-      "seconds": 1.19,
+      "seconds": 1.32,
       "exit_status": 1,
       "timed_out": false
     },
@@ -299,7 +280,7 @@
       "failing_tests": [
         "client.test.ts::UserApi getUser fetches a user once and caches it"
       ],
-      "seconds": 1.29,
+      "seconds": 1.5,
       "exit_status": 1,
       "timed_out": false
     },
@@ -312,7 +293,7 @@
         "client.test.ts::UserApi lists users",
         "client.test.ts::fetchUsers calls the list endpoint"
       ],
-      "seconds": 1.2,
+      "seconds": 1.46,
       "exit_status": 1,
       "timed_out": false
     },
@@ -322,7 +303,7 @@
       "status": "mutated",
       "mutation": "first statement replaced by throw new Error(\"mutant\");",
       "failing_tests": [],
-      "seconds": 1.23,
+      "seconds": 1.38,
       "exit_status": 0,
       "timed_out": false
     },
@@ -334,7 +315,7 @@
       "failing_tests": [
         "UserList.test.tsx::UserList renders one UserCard per user"
       ],
-      "seconds": 1.25,
+      "seconds": 1.27,
       "exit_status": 1,
       "timed_out": false
     },
@@ -346,7 +327,7 @@
       "failing_tests": [
         "client.test.ts::formatName shows the name and id"
       ],
-      "seconds": 1.29,
+      "seconds": 1.26,
       "exit_status": 1,
       "timed_out": false
     }

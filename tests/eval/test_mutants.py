@@ -105,7 +105,8 @@ def graph_of(make_repo):
 def test_selection_is_deterministic_and_skips_tests(make_repo):
     store, snapshot = graph_of(make_repo)
     pool = candidate_functions(store, snapshot)
-    assert pool.basis == "raw-call-names"
+    # "calls-edges" once a Python resolver is registered (Wave 2), else raw call names.
+    assert pool.basis in {"calls-edges", "raw-call-names"}
     keys = [n.key for n in pool.functions]
     assert keys == sorted(keys)
     assert not any("test_" in k for k in keys)
@@ -152,3 +153,15 @@ def test_fixture_python_mutants_are_caught():
     root = Path(__file__).resolve().parents[2] / "eval" / "fixtures" / "polyglot_app"
     truth = run_benchmark(bench, root, count=3)
     assert truth["mutants_caught"] >= 1
+
+
+def test_overload_stubs_and_unparsable_mutants_are_skipped():
+    from eval.mutants.mutate import mutate_python
+
+    stub = (b"from typing import overload\n\nclass S:\n"
+            b"    @overload\n    def load(self, x: int) -> int: ...\n"
+            b"    def dump(\n        self,\n    ) -> None: ...\n")
+    overload = mutate_python(stub, "load", 4, 5)
+    assert overload.text is None and "overload" in overload.reason
+    same_line = mutate_python(stub, "dump", 6, 8)
+    assert same_line.text is None

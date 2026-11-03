@@ -29,7 +29,8 @@ def source_for(bench: Benchmark) -> Path:
     """The benchmark's folder: inside this repository, or a pinned clone."""
     if bench.path:
         return (REPO_ROOT / bench.path).resolve()
-    assert bench.url and bench.sha, f"{bench.name}: needs path, or url and sha"
+    if not (bench.url and bench.sha):  # an assert would vanish under `python -O`
+        raise ValueError(f"{bench.name}: needs path, or url and sha")
     return clone_pinned(RepoSpec(bench.name, bench.url, bench.sha, (), "small", ""))
 
 
