@@ -58,3 +58,9 @@ In the pull request: the mutation-truth table for both benchmarks against the th
 ## Done when
 
 Tests pass on Linux and Windows CI; the plan is committed; the tables are in the pull request; the agent's `impact` and `select_tests` use the engine; the explainer covers each signal, the combination rule, the evaluation and why precision is the hard part.
+
+## Review (Nov 3)
+
+**Verdict**: merged (#30); mostly meets "Done when". Signals, evidence, warnings and agent wiring are there; one metric checked by hand (polyglot run-all F1 0.521) matches. Must fix: it ignores T11's HANDLES/CALLS_HTTP edges; `parse_diff` silently drops renames and binary changes, and misreads hunk lines starting `---`/`+++`. Should fix: the co-change comparison leaks structure from held-out commits, and the test cut-off was tuned on the data it is scored on. Fixes: `docs/tasks/T12f-impact-fixes.md`.
+
+**Read these yourself**: `impact/engine.py` (the walk and the combination rule), `impact/evaluate.py` (how precision and recall are counted), `docs/plans/T12.md` (its answer to Q3).

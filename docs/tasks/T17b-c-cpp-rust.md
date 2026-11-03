@@ -29,3 +29,7 @@ Cut-off: 5 candidates, as everywhere.
 ## Tests, measure, done when
 
 As in T17a: per language a sample with `expected_graph.json` scored with `eval.oracle.score`, imports-query and profile unit tests, one real repository each with the unresolved share before and after, the list of skill changes; tests pass on Linux and Windows CI; the plan is committed.
+
+## Review (Nov 3)
+
+**Verdict**: merged (#31) after I resolved its conflicts with T17a (both kept; hooks `reaches`/`qualify`/`narrow` beside T17a's `type_receivers`/`self_receivers`). Meets "Done when"; fixture unchanged. Must fix: Rust `HashMap::new()` lands on any local `new` at 1.0; `crate::`/`super::`/inline-module paths become 1.0 external edges. Should fix: CMake `${CMAKE_SOURCE_DIR}` read relative to the wrong folder; `Context.read` has no guard of its own. Owner's note: C/C++ calls are credited to the module, not the function (an adapter limitation; a later task). Fixes: `docs/tasks/T17f-structural-fixes.md`.

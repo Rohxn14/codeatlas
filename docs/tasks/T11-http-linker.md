@@ -58,3 +58,9 @@ In the pull request: `python scripts/score_fixture.py` before and after (HANDLES
 ## Done when
 
 Tests pass on Linux and Windows CI; the plan is committed; the fixture's HANDLES and CALLS_HTTP are found; the explainer covers normalisation step by step with a fixture example, the two confidence levels, and what static linking cannot see.
+
+## Review (Nov 3)
+
+**Verdict**: merged (#28); "Done when" not fully met. HANDLES 3/3 at precision 1.0, other kinds unchanged, scope clean, contract followed. CALLS_HTTP recall 0.33 (2 of 6): the four misses are adapter gaps (FastAPI `TestClient` instances; an axios instance created in another file), not linker bugs. Linker problems never reach the build report. Fixes: `docs/tasks/T11f-linker-fixes.md`.
+
+**Read these yourself**: `linker/urls.py` (normalisation, step by step), `linker/http.py` (matching and the two confidence levels).

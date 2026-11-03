@@ -38,3 +38,7 @@ In the pull request: per language, sample precision and recall; one real reposit
 ## Done when
 
 Tests pass on Linux and Windows CI; the plan is committed; the three languages show import-scoped edges on their samples and real repositories; the skill reads correctly for the next language.
+
+## Review (Nov 3)
+
+**Verdict**: merged (#29); meets "Done when". Samples are hand-labelled, Java/Go and the fixture are unchanged. Should fix: the 5-candidate cut-off is skipped in the own-file and package tiers; a class-named receiver not in scope falls back to a same-named method at 1.0; Ruby's guessed constant for `require` can override internal code; dynamic PHP includes are read as literal paths. Fixes: `docs/tasks/T17f-structural-fixes.md` (shared with T17b).
