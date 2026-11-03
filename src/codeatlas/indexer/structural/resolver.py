@@ -54,11 +54,12 @@ class StructuralResolver:
 
     def resolve(self, results: Sequence[ParseResult], index: SymbolIndex) -> list[Edge]:
         ctx = Context.build(list(results), index)
+        calls_of = {r.path: r.calls for r in results}
         edges: list[Edge] = []
         for info in ctx.files.values():
             profile = _PROFILE_BY_LANGUAGE.get(info.language)
             state = _file_state(ctx, info, profile)
-            calls = next((r.calls for r in results if r.path == info.path), ())
+            calls = calls_of.get(info.path, ())
             for call in calls:
                 edges += _resolve_call(ctx, info, profile, state, call)
             edges += _import_edges(ctx, info, state)
@@ -143,12 +144,19 @@ def _from_imports(ctx: Context, state: _FileState, call: RawCall) -> _Targets | 
     nodes: list[Node] = []
     for reach in state.reaches:
         if reach.external is not None:
+            if call.receiver is None and reach.names and call.name in reach.names:
+                return _Targets(external=f"{reach.external}.{call.name}")
             continue
         if call.receiver is None and (reach.names is not None and call.name not in reach.names):
             continue
         found = _members(ctx, reach, call.name, any_owner=call.receiver is not None)
         _mark_used(state, reach, found)
         nodes += found
+    if call.receiver is not None and len(nodes) > MAX_GUESSES:
+        # An untyped receiver matched many same-named methods (jsoup had calls with 78
+        # candidates at 0.013 each). That is a guess, not a scoped answer: give up, as a
+        # name guess with this many candidates would.
+        return _Targets()
     return _Targets(tuple(nodes)) if nodes else None
 
 

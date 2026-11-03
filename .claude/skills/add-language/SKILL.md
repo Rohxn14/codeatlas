@@ -60,7 +60,7 @@ If the language needs something the shared code cannot express, say so in the PR
    edges from the resolver's output would test nothing.
 
 5. **Test.** Unit tests for `reach` (one test per import shape, plus external), the
-   package scope, and the sample scored with `eval.oracle.score` (see `test_resolver.py`).
+   package scope, and the sample scored with `eval.oracle.score` (see `tests/indexer/structural/test_structural_resolver.py`). Give every test file a name unique across `tests/`, such as `test_php_profile.py`: pytest imports test files by base name, so two `test_resolver.py` files break the whole suite.
    Write down any expected imprecision as an assertion, with the reason.
 
 6. **Score.**

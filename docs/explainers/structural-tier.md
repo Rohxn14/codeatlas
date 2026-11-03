@@ -100,6 +100,11 @@ still gets `NAME_GUESS` edges, so every structural language has some CALLS edges
   `GRAMMARS` except the deep ones.
 - Adding a language: `.claude/skills/add-language/SKILL.md`. Capture names for imports
   queries: `queries/README.md`.
-- `_signature` (generic adapter) now ends at the header and drops comments, so the `#hash`
-  that distinguishes repeated names is identical in the deep and structural tiers and does
-  not change when a comment is edited.
+- `_signature` (generic adapter) now ends at the header and drops comments, and the deep
+  Python adapter drops comments inside the header the same way (fixed after review), so
+  the `#hash` that distinguishes repeated names is identical in the deep and structural
+  tiers and does not change when a comment is edited.
+- An untyped receiver (`x.run()`) that matches more than 5 same-named methods in the
+  reached files stays raw, like a name guess with that many candidates; a Java static
+  import of an outside member (`import static org.junit.Assert.assertEquals`) makes the
+  bare call `assertEquals(...)` an external edge.
