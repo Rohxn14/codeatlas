@@ -26,6 +26,7 @@ An **indexer** walks one git commit (a snapshot). The **repository layer** works
 - Use `pathlib` and forward-slash repo-relative paths for every stored path; library code must run on Windows and Linux.
 - Small functions; a docstring says why something exists, not what each line does.
 - Never silence or skip a failing test to finish. If something cannot work, say so in the pull request.
+- Test file names must be unique across all of `tests/` (pytest imports them by base name): name yours after your module, such as `test_ts_resolver.py`, never a generic `test_resolver.py`. Two parallel pull requests can each pass CI and still break main together.
 - Unit tests never call real LLM APIs or the network. Use mocks or recorded fixtures. A test that needs the network is marked `@pytest.mark.live` and skipped by default.
 
 ## Cost discipline
