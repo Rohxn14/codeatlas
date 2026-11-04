@@ -212,6 +212,8 @@ class _Walker:
         fields = _class_fields(body, self.source) if body is not None else {}
         if fields:
             attrs["fields"] = fields
+        if name != "default" and _is_default_export(node):
+            attrs["default_export"] = True  # `export default class Store`: import Store from
         return self._add(
             Definition(
                 node,
@@ -260,7 +262,10 @@ class _Walker:
             return context
         statement = _statement(node)
         exported = context.parent is None and self._is_exported(statement, name)
-        return self._function(node, node, name, name, context, statement, exported)
+        attrs: dict[str, object] = {}
+        if name != "default" and _is_default_export(node):
+            attrs["default_export"] = True
+        return self._function(node, node, name, name, context, statement, exported, attrs)
 
     def _default_export(self, node: TSNode, context: _Context) -> _Context:
         """`export default () => ...` or `export default function () {}`: named `default`."""
@@ -337,6 +342,12 @@ class _Walker:
         attrs = dict(attrs or {})
         attrs["is_async"] = syntax.has_token(function, "async")
         attrs["exported"] = exported
+        if body is not None:
+            rebound, unbound_this = _body_bindings(body, self.source)
+            if rebound:
+                attrs["rebound"] = rebound
+            if unbound_this:
+                attrs["unbound_this"] = unbound_this
         return self._add(
             Definition(
                 node,
@@ -447,6 +458,10 @@ def _class_bases(node: TSNode, source: bytes) -> list[str]:
 
 
 _FIELD_TYPES = frozenset({"public_field_definition", "field_definition"})
+_OWN_THIS = frozenset({
+    "function_expression", "function", "generator_function", *FUNCTION_DECLARATIONS
+})
+_BINDING_IDENTIFIERS = frozenset({"identifier", "shorthand_property_identifier_pattern"})
 _JSDOC_TYPE = re.compile(r"@type\s*\{([^}]*)\}")
 
 
@@ -474,7 +489,7 @@ def _class_fields(body: TSNode, source: bytes) -> dict[str, str]:
 
 def _constructor_fields(ctor: TSNode, source: bytes, fields: dict[str, str]) -> None:
     body = ctor.child_by_field_name("body")
-    for node in syntax.walk(body) if body is not None else ():
+    for node in _walk_same_this(body) if body is not None else ():
         if node.type != "assignment_expression" or node.parent is None:
             continue
         left, right = node.child_by_field_name("left"), node.child_by_field_name("right")
@@ -485,6 +500,64 @@ def _constructor_fields(ctor: TSNode, source: bytes, fields: dict[str, str]) -> 
         name, found = syntax.text(prop, source), _field_type(None, node.parent, right, source)
         if found:  # an untyped `this.x = x` adds nothing
             fields.setdefault(name, found)
+
+
+def _walk_same_this(root: TSNode) -> list[TSNode]:
+    """Nodes under `root` where `this` is still the instance: not inside a `function`."""
+    found: list[TSNode] = []
+    stack = [root]
+    while stack:
+        node = stack.pop()
+        found.append(node)
+        if node.type not in _OWN_THIS:
+            stack.extend(reversed(node.named_children))
+    return found
+
+
+def _body_bindings(body: TSNode, source: bytes) -> tuple[list[str], list[list[int]]]:
+    """Names a function's body binds again, and the lines where `this` is another object.
+
+    Callbacks are not definitions, so a call inside `rows.forEach((repo) => repo.save())`
+    belongs to the function around it. Without this list the resolver would give that
+    `repo` the outer parameter's type (T20 review). Bindings are collected without
+    regard to blocks or order, so a rebound name is simply treated as untyped. Nested
+    function declarations are their own definitions: only their name is collected.
+    The line ranges are those of `function` expressions, whose `this` is not the class.
+    """
+    names: set[str] = set()
+    unbound_this: list[list[int]] = []
+    stack = [body]
+    while stack:
+        node = stack.pop()
+        kind = node.type
+        if kind in FUNCTION_DECLARATIONS:
+            names.update(_bound_names(node.child_by_field_name("name"), source))
+            continue
+        if kind in FUNCTION_VALUES:
+            for part in ("parameters", "parameter"):
+                names.update(_bound_names(node.child_by_field_name(part), source))
+            if kind != "arrow_function":
+                unbound_this.append([syntax.line(node), node.end_point[0] + 1])
+        elif kind == "variable_declarator":
+            names.update(_bound_names(node.child_by_field_name("name"), source))
+        elif kind == "for_in_statement":
+            names.update(_bound_names(node.child_by_field_name("left"), source))
+        elif kind == "catch_clause":
+            names.update(_bound_names(node.child_by_field_name("parameter"), source))
+        stack.extend(node.named_children)
+    return sorted(names), unbound_this
+
+
+def _bound_names(pattern: TSNode | None, source: bytes) -> set[str]:
+    """Identifiers in a parameter list or a destructuring pattern.
+
+    Defaults (`{a = b}`) add `b` too; one name too many only makes a receiver untyped.
+    """
+    if pattern is None:
+        return set()
+    return {
+        syntax.text(n, source) for n in syntax.walk(pattern) if n.type in _BINDING_IDENTIFIERS
+    }
 
 
 def _field_type(

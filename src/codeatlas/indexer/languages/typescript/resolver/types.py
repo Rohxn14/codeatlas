@@ -224,9 +224,13 @@ class Typer:
         return current if head != "this" or len(segments) > 1 else None
 
     def param_class(self, caller: Node, name: str, cls: Node | None) -> Node | None:
-        """Nearest declaration wins: an untyped inner parameter hides a typed outer one."""
+        """Nearest declaration wins: an untyped inner parameter hides a typed outer one,
+        and so does any name the function's body binds again (`attrs["rebound"]`)."""
         type_params = self._type_params(caller, cls)
         for function in self._scopes(caller):
+            rebound = function.attrs.get("rebound")
+            if isinstance(rebound, list) and name in rebound:
+                return None  # a callback parameter or a local hides the declaration
             declared = self._declared(function)
             if name in declared:
                 return self._class_named(function.path, declared[name], type_params)

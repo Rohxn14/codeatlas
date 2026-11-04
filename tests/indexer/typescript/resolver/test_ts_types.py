@@ -5,7 +5,10 @@ import shutil
 import pytest
 from ts_resolver_edges import SAMPLES, Edges
 
-from codeatlas.indexer.languages.typescript.adapter import TypeScriptAdapter
+from codeatlas.indexer.languages.typescript.adapter import (
+    JavaScriptAdapter,
+    TypeScriptAdapter,
+)
 from codeatlas.indexer.languages.typescript.resolver.types import (
     jsdoc_params,
     jsdoc_templates,
@@ -193,3 +196,57 @@ def test_fields_are_recorded_on_the_class() -> None:
     assert service.attrs["fields"] == {
         "extra": "Repo", "built": "Other", "maybe": "Repo | null", "model": "M", "wrap": "Wrapper"
     }
+
+
+# --- review fixes: rebound names, default exports, interface bases, `this` ----------
+
+R = "src/rebind.ts::"
+HALF = ("import_scoped", 0.5)
+BOTH_SAVE = {"src/m.ts::Repo.save": HALF, "src/m.ts::Item.save": HALF}
+BOTH_LOAD = {"src/m.ts::Repo.load": HALF, "src/m.ts::Item.load": HALF}
+
+
+def test_callback_parameter_hides_the_typed_parameter(typed: Edges) -> None:
+    # rows.forEach((repo) => repo.save()): the inner `repo` is any row, not the Repo.
+    assert calls(typed, R + "sync") == BOTH_SAVE
+
+
+def test_annotated_any_callback_parameter_hides_it_too(typed: Edges) -> None:
+    assert calls(typed, R + "loose") == BOTH_LOAD
+
+
+def test_block_local_hides_the_typed_parameter(typed: Edges) -> None:
+    assert calls(typed, R + "block") == BOTH_SAVE
+
+
+def test_callback_using_the_outer_parameter_stays_typed(typed: Edges) -> None:
+    assert calls(typed, R + "kept") == {"src/m.ts::Repo.load": TYPED}
+
+
+def test_rebound_names_are_recorded_on_the_function() -> None:
+    source = (SAMPLES / "typed" / "src" / "rebind.ts").read_bytes()
+    nodes = {n.name: n for n in TypeScriptAdapter().parse("src/rebind.ts", source, "s").nodes}
+    assert nodes["sync"].attrs["rebound"] == ["repo"]
+    assert nodes["kept"].attrs["rebound"] == ["row"]
+
+
+def test_default_import_of_a_named_default_class(typed: Edges) -> None:
+    assert typed.out("imports", "src/use.ts::") == {"src/def.ts::Store": ("structural", 1.0, 1)}
+    assert calls(typed, "src/use.ts::f") == {"src/def.ts::Store.put": TYPED}
+
+
+def test_repository_interface_is_not_an_outside_base(typed: Edges) -> None:
+    # `save` is an arrow field, not a method node: fall through instead of "no edge".
+    assert calls(typed, "src/arrowy.ts::useArrowy") == BOTH_SAVE
+
+
+def test_this_inside_a_function_expression_is_untyped(typed: Edges) -> None:
+    assert calls(typed, L + "Legacy.inFunction") == {L + "Cache.put": ("import_scoped", 1.0)}
+    assert calls(typed, L + "Legacy.inArrow") == {L + "Cache.put": TYPED}
+
+
+def test_constructor_fields_stop_at_function_expressions() -> None:
+    source = (SAMPLES / "typed" / "src" / "legacy.js").read_bytes()
+    nodes = JavaScriptAdapter().parse("src/legacy.js", source, "s").nodes
+    legacy = next(n for n in nodes if n.qualname == "Legacy")
+    assert legacy.attrs["fields"] == {"other": "Cache", "made": "Cache"}  # no `late`

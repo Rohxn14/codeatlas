@@ -29,6 +29,7 @@ class FileInfo:
     path: str
     module_key: str
     top: dict[str, Node] = field(default_factory=dict)
+    default: Node | None = None  # `export default class Store`: stored as `Store`
     imports: list[RawImport] = field(default_factory=list)
     calls: list[RawCall] = field(default_factory=list)
 
@@ -56,6 +57,8 @@ class Tables:
             self.functions_by_name[node.name].append(node)
         if node.kind in _SYMBOL_KINDS and "." not in node.qualname and " > " not in node.qualname:
             info.top.setdefault(node.qualname.partition("#")[0], node)
+            if node.attrs.get("default_export") and info.default is None:
+                info.default = node
 
     def method(self, class_key: str, name: str) -> Node | None:
         for member in self.members.get(class_key, ()):
@@ -79,7 +82,7 @@ class Exports:
         if info is None or hops > MAX_HOPS or (path, name) in seen:
             return None
         seen.add((path, name))
-        own = info.top.get(name)
+        own = info.top.get(name) or (info.default if name == "default" else None)
         if own is not None:
             return Found(own.key)
         for reexport in (i for i in info.imports if i.is_reexport):

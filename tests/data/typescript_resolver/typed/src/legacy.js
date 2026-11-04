@@ -12,11 +12,14 @@ class Legacy {
     /** @type {Cache} */
     this.other = makeCache();
     this.made = new Cache();
+    setTimeout(function () { this.late = new Cache(); });
   }
 
   byConvention() { this.cache.get("a"); }
   byJsdocType() { this.other.put("b"); }
   byNew() { this.made.get("c"); }
+  inFunction() { [1].forEach(function () { this.cache.put("y"); }); }
+  inArrow() { [1].forEach(() => this.cache.put("z")); }
 }
 
 /**
