@@ -26,7 +26,7 @@ Python 3.11 or newer, on Windows (PowerShell) or Linux. `ask` needs `GROQ_API_KE
 On the fixture in this repository, a small Flask-style backend with a TypeScript frontend
 (output from a real run, trimmed where marked).
 
-**1. Index** a folder or `https://github.com/owner/repo[@ref]` (shallow clone):
+**1. Index** a folder or `https://github.com/owner/repo[@ref]` (a blobless clone with full history):
 
 ```
 $ codeatlas index eval/fixtures/polyglot_app
@@ -167,8 +167,10 @@ Claude Code then has `search_symbols`, `find_callers`, `find_callees`, `impact`,
   guesses unless the language profile can scope them by import.
 - The impact engine reads the graph and history; it cannot see behaviour changes that
   flow through data, configuration or files it could not parse.
-- `--git REV` needs the indexed checkout on disk and compares `REV` with the working tree,
-  so index the commit that is checked out.
+- `--git REV` needs the indexed checkout on disk and compares `REV` with the working tree.
+  If the checkout has moved past the indexed commit it exits 2 and asks for
+  `codeatlas index --force`. A URL is cloned blobless with full history, so `--git` may
+  fetch old file contents over the network.
 - `ask` depends on a free-tier LLM and can fail on rate limits; the trajectory is kept.
 
 ## More

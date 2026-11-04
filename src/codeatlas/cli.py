@@ -311,9 +311,8 @@ def _view_impact(store: GraphStore, snapshot_id: str, diff_file: Path) -> dict[s
     from codeatlas.impact import impact
     from codeatlas.view.data import impact_block
 
-    text = sys.stdin.read() if str(diff_file) == "-" else diff_file.read_text(
-        encoding="utf-8", errors="replace")
-    return impact_block(impact(store, snapshot_id, parse_diff(text)))
+    changes = _parse_checked(read_diff_text(diff_file))
+    return impact_block(impact(store, snapshot_id, changes))
 
 
 def _run_export(args: argparse.Namespace, config: Config) -> int:
@@ -335,13 +334,14 @@ def _print_json(data: object) -> None:
 
 
 def _run_search(args: argparse.Namespace, config: Config) -> int:
+    from codeatlas.llm.config import load_llm_config
     from codeatlas.llm.embeddings import EmbeddingClient
     from codeatlas.search.embed import build_embeddings
     from codeatlas.search.hybrid import HybridSearch
 
     store, snapshot_id = _open_store(args, config)
     with store:
-        embedder = EmbeddingClient.from_config()
+        embedder = EmbeddingClient.from_config(load_llm_config(args.config))
         notes: list[str] = []
         if args.embed:
             try:
@@ -379,11 +379,13 @@ def _run_ask(args: argparse.Namespace, config: Config) -> int:
         return 2
     from codeatlas.agent.loop import ask
     from codeatlas.llm import LLMClient, LLMError
+    from codeatlas.llm.config import load_llm_config
 
     store, snapshot_id = _open_store(args, config)
     try:
         with store:
-            answer = ask(args.question, store, snapshot_id, LLMClient.from_config(),
+            client = LLMClient.from_config(load_llm_config(args.config))
+            answer = ask(args.question, store, snapshot_id, client,
                          max_steps=args.max_steps, config=config)
     except LLMError as exc:  # the trajectory so far is already on disk
         print(f"codeatlas: the language model could not be reached: {exc}", file=sys.stderr)
@@ -418,10 +420,27 @@ def read_changes(args: argparse.Namespace, store: GraphStore, snapshot_id: str,
     if args.files:
         return [Change(_repo_path(f)) for f in args.files]
     if args.git:
-        return parse_diff(_git_diff(args.git, store, snapshot_id, config))
-    if args.diff == "-":
-        return parse_diff(sys.stdin.read())
-    return parse_diff(Path(args.diff).read_text(encoding="utf-8", errors="replace"))
+        return _parse_checked(_git_diff(args.git, store, snapshot_id, config))
+    return _parse_checked(read_diff_text(args.diff))
+
+
+def read_diff_text(source: str | Path) -> str:
+    """A diff from a file, or from stdin for `-`, always decoded as UTF-8.
+
+    stdin is read as bytes: `sys.stdin.read()` uses the console's code page on Windows
+    (often cp1252), which cannot decode a UTF-8 diff.
+    """
+    if str(source) == "-":
+        return sys.stdin.buffer.read().decode("utf-8", errors="replace")
+    return Path(source).read_text(encoding="utf-8", errors="replace")
+
+
+def _parse_checked(text: str) -> list[Change]:
+    """`parse_diff`, but text that is not blank and holds no file header is an error."""
+    changes = parse_diff(text)
+    if text.strip() and not changes:
+        raise ValueError("no file headers found in the diff")
+    return changes
 
 
 def _repo_path(path: str) -> str:
@@ -439,16 +458,34 @@ def _git_diff(rev: str, store: GraphStore, snapshot_id: str, config: Config) -> 
     root = ToolContext(store, snapshot_id, config).repo_root()
     if root is None:
         raise ValueError(f"cannot find the checkout of {snapshot_id}: use --diff or --files")
-    try:
-        done = subprocess.run(
-            ["git", "-C", str(root), "diff", "--relative", "--no-color", "--no-ext-diff", rev,
-             "--"],
-            capture_output=True, text=True, encoding="utf-8", errors="replace", check=False)
-    except FileNotFoundError as exc:
-        raise ValueError("git is not installed or not on PATH") from exc
+    _require_checkout_at_snapshot(root, store.get_snapshot(snapshot_id))
+    # No external diff driver, no textconv filter and no fsmonitor hook: git only reads files.
+    done = _git(root, "-c", "core.fsmonitor=false", "diff", "--relative", "--no-color",
+                "--no-ext-diff", "--no-textconv", rev, "--")
     if done.returncode != 0:
         raise ValueError(f"git diff {rev} failed in {root.as_posix()}: {done.stderr.strip()}")
     return done.stdout
+
+
+def _git(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    try:
+        return subprocess.run(["git", "-C", str(root), *args], capture_output=True, text=True,
+                              encoding="utf-8", errors="replace", check=False)
+    except FileNotFoundError as exc:
+        raise ValueError("git is not installed or not on PATH") from exc
+
+
+def _require_checkout_at_snapshot(root: Path, snapshot: Snapshot | None) -> None:
+    """`git diff REV` compares with the working tree, so it only describes the snapshot
+    while HEAD is still the indexed commit; otherwise the result would be about newer code."""
+    if snapshot is None:
+        return
+    head = _git(root, "rev-parse", "HEAD")
+    if head.returncode == 0 and head.stdout.strip() != snapshot.commit_sha:
+        raise ValueError(
+            f"the checkout at {root.as_posix()} is at {head.stdout.strip()[:12]}, but the "
+            f"snapshot is {snapshot.commit_sha[:12]}: run `codeatlas index --force` on it, "
+            "or use --diff or --files")
 
 
 def _impact_result(args: argparse.Namespace, config: Config) -> tuple[str, Any, Any, int]:
@@ -495,6 +532,8 @@ def _scored_lines(rows: list[dict[str, Any]], total: int, noun: str) -> list[str
 
 def _head_lines(snapshot_id: str, files: int, result: Any) -> list[str]:
     changed = ", ".join(result.changed[:10]) or "none"
+    if files == 0:
+        return [f"snapshot {snapshot_id}: no changes", ""]
     more = f" and {len(result.changed) - 10} more" if len(result.changed) > 10 else ""
     return [f"snapshot {snapshot_id}: {files} changed files, "
             f"{len(result.changed)} changed symbols", f"changed: {changed}{more}", ""]

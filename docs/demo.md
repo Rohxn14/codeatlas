@@ -5,8 +5,10 @@ in a Linux cloud session. Output is pasted as printed and trimmed where marked `
 
 ## Fetch
 
-A shallow clone with two commits, so that `HEAD~1` exists for the impact step (the
-`index` command's own URL intake clones one commit only):
+A shallow clone with two commits, so that `HEAD~1` exists for the impact step. (Indexing a
+URL makes a blobless clone with full history, so `HEAD~1` would exist there too; `--git`
+on such a snapshot may fetch old file contents over the network. Cloning by hand keeps the
+demo small and offline after the clone.)
 
 ```
 $ git clone --depth 2 https://github.com/pallets/click
