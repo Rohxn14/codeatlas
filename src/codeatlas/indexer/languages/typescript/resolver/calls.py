@@ -171,6 +171,8 @@ class CallResolver:
             return None
         segments = receiver.replace("?.", ".").split(".")
         cls = self._enclosing_class(caller)
+        if segments[0] == "this" and not _this_is_instance(caller, call.line):
+            return None
         typed = self._typer.receiver_class(segments, caller, cls)
         if typed is None:
             return None
@@ -201,7 +203,7 @@ class CallResolver:
         written = cls.attrs.get("bases")
         count = len(written) if isinstance(written, list) else 0
         inside = [b for b in self.bases(cls)
-                  if b.node is not None and b.node.kind is NodeKind.CLASS]
+                  if b.node is not None and b.node.kind in (NodeKind.CLASS, NodeKind.INTERFACE)]
         return len(inside) < count
 
     def _enclosing_class(self, caller: Node) -> Node | None:
@@ -258,6 +260,21 @@ class CallResolver:
         return [
             Hit(n.key, Resolution.NAME_GUESS, confidence, {"candidates": len(found)}) for n in found
         ]
+
+
+def _this_is_instance(caller: Node, line: int) -> bool:
+    """`this` is the class instance only in a method, outside nested `function`s.
+
+    A function declared inside a method, or a `function () {}` callback in one, has its
+    own `this`; arrows keep the method's.
+    """
+    if caller.owner_key is None:
+        return False
+    ranges = caller.attrs.get("unbound_this")
+    return not any(
+        isinstance(r, list) and len(r) == 2 and r[0] <= line <= r[1]
+        for r in (ranges if isinstance(ranges, list) else [])
+    )
 
 
 def _global(call: RawCall) -> list[Hit]:
