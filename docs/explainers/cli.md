@@ -21,8 +21,10 @@ existing module (`search/hybrid.py`, `agent/loop.py`, `impact/engine.py`,
 - **Four ways to give a change, exactly one at a time.** `--diff FILE`, `--diff -`,
   `--git REV`, `--files`. argparse's mutually exclusive group rejects none or two
   (exit 2), so a forgotten flag never means "an empty change".
-- **`--git` runs only git.** `git -C <root> diff --relative --no-color --no-ext-diff REV --`.
-  `--no-ext-diff` stops a repository's configured diff driver from running, and
+- **`--git` runs only git.** `git -C <root> -c core.fsmonitor=false diff --relative --no-color --no-ext-diff --no-textconv REV --`.
+  Before that it compares `git rev-parse HEAD` with the snapshot's commit and exits 2 if
+  the checkout has moved, because `git diff REV` compares with the working tree.
+  `--no-ext-diff`, `--no-textconv` and `core.fsmonitor=false` stop configured programs from running, and
   `--relative` keeps paths relative to the indexed folder when that folder sits inside a
   bigger repository (as `eval/fixtures/polyglot_app` does). The root is found the way the
   agent's tools find it (`ToolContext.repo_root`): the local source folder, or the clone of

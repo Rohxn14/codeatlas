@@ -98,7 +98,8 @@ def test_impact_from_files(indexed, capsys) -> None:
 def test_impact_from_stdin_diff_json(indexed, capsys, monkeypatch) -> None:
     _, _, toml = indexed
     capsys.readouterr()
-    monkeypatch.setattr("sys.stdin", io.StringIO(SAVE_DIFF))
+    monkeypatch.setattr(
+        "sys.stdin", io.TextIOWrapper(io.BytesIO(SAVE_DIFF.encode("utf-8")), encoding="utf-8"))
     data = run_json(capsys, toml, "impact", "--diff", "-", "--depth", "2", "--decay", "0.5")
     assert data["changed"] == ["shop/repo.py::Repo.save"]
     keys = [t["key"] for t in data["targets"]]
@@ -185,7 +186,7 @@ def test_ask_prints_answer_citations_and_trajectory(indexed, capsys, monkeypatch
     capsys.readouterr()
     monkeypatch.setenv("GROQ_API_KEY", "test-key")
     snapshot_id = cli.latest_snapshot_id(db)
-    fake = classmethod(lambda cls: _fake_client(snapshot_id))
+    fake = classmethod(lambda cls, *_a: _fake_client(snapshot_id))
     monkeypatch.setattr(LLMClient, "from_config", fake)
     code, out, _ = run(capsys, toml, "ask", "what does create call?")
     assert code == 0
@@ -239,3 +240,55 @@ def test_evidence_line_formats_hops_and_detail() -> None:
         "graph 0.720: a.py::f <-calls 0.9- b.py::g")
     assert evidence_line(Evidence("cochange", 0.4, (), "changed together 4 times")) == (
         "cochange 0.400: changed together 4 times")
+
+
+def test_git_refuses_a_checkout_that_moved_past_the_snapshot(indexed, capsys) -> None:
+    repo, _, toml = indexed
+    (repo / "shop/service.py").write_text("def create(item):\n    return item\n", encoding="utf-8")
+    git(repo, "commit", "-q", "-am", "third commit")
+    capsys.readouterr()
+    code, out, err = run(capsys, toml, "impact", "--git", "HEAD~1")
+    assert code == 2 and out == ""
+    assert "codeatlas index --force" in err and "snapshot is" in err
+
+
+def test_text_that_is_not_a_diff_is_an_error(indexed, capsys, monkeypatch) -> None:
+    _, _, toml = indexed
+    capsys.readouterr()
+    monkeypatch.setattr("sys.stdin", io.TextIOWrapper(io.BytesIO(b"garbage\n")))
+    code, out, err = run(capsys, toml, "impact", "--diff", "-")
+    assert code == 2 and out == ""
+    assert "codeatlas: no file headers found in the diff" in err
+
+
+def test_empty_git_diff_says_no_changes(indexed, capsys) -> None:
+    _, _, toml = indexed
+    capsys.readouterr()
+    code, out, _ = run(capsys, toml, "impact", "--git", "HEAD")
+    assert code == 0 and "no changes" in out
+
+
+def test_stdin_diff_is_read_as_utf8_whatever_the_console_encoding(indexed, capsys,
+                                                                  monkeypatch) -> None:
+    _, _, toml = indexed
+    capsys.readouterr()
+    diff = SAVE_DIFF.replace("dict(item)", "dict(item)  # é\u0081") + "\n"
+    raw = diff.encode("utf-8")
+    monkeypatch.setattr("sys.stdin", io.TextIOWrapper(io.BytesIO(raw), encoding="cp1252"))
+    data = run_json(capsys, toml, "impact", "--diff", "-")
+    assert data["changed"] == ["shop/repo.py::Repo.save"]
+
+
+def test_llm_clients_use_the_config_option(indexed, capsys, monkeypatch) -> None:
+    _, _, toml = indexed
+    seen = []
+    from codeatlas.llm import embeddings
+
+    def fake(cls, config=None):
+        seen.append(config)
+        return embeddings.EmbeddingClient(embedder=lambda batch: [[1.0]] * len(batch))
+
+    monkeypatch.setattr(embeddings.EmbeddingClient, "from_config", classmethod(fake))
+    capsys.readouterr()
+    assert run(capsys, toml, "search", "save")[0] == 0
+    assert seen and seen[0] is not None
