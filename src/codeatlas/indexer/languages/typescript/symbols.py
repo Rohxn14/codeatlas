@@ -7,6 +7,7 @@ suffix before its children's qualnames are built from it.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from pathlib import PurePosixPath
 
@@ -208,6 +209,9 @@ class _Walker:
             "decorators": _decorators(_decorator_nodes(node, statement), self.source),
             "exported": self._is_exported(statement, name),
         }
+        fields = _class_fields(body, self.source) if body is not None else {}
+        if fields:
+            attrs["fields"] = fields
         return self._add(
             Definition(
                 node,
@@ -440,6 +444,68 @@ def _class_bases(node: TSNode, source: bytes) -> list[str]:
             elif clause.type != "comment":  # JavaScript: `extends Base`
                 bases.append(" ".join(syntax.text(clause, source).split()))
     return bases
+
+
+_FIELD_TYPES = frozenset({"public_field_definition", "field_definition"})
+_JSDOC_TYPE = re.compile(r"@type\s*\{([^}]*)\}")
+
+
+def _class_fields(body: TSNode, source: bytes) -> dict[str, str]:
+    """Field name -> declared type text, for the resolver's `this.repo.save()` (T20).
+
+    The type is the annotation, else a JSDoc `@type`, else the class of a `new X()`
+    initialiser; a field with none of these is left out. Assignments in the constructor
+    (`this.repo = new UserRepo()`) count too, after the declarations.
+    """
+    fields: dict[str, str] = {}
+    for member in body.named_children:
+        if member.type in _FIELD_TYPES:
+            name = member.child_by_field_name("name") or member.child_by_field_name("property")
+            if name is not None:
+                annotation = member.child_by_field_name("type")
+                written = syntax.text(annotation, source).lstrip(":") if annotation else None
+                found = _field_type(written, member, member.child_by_field_name("value"), source)
+                if found:
+                    fields.setdefault(syntax.text(name, source), found)
+        elif member.type == "method_definition" and _is_constructor(member, source):
+            _constructor_fields(member, source, fields)
+    return fields
+
+
+def _constructor_fields(ctor: TSNode, source: bytes, fields: dict[str, str]) -> None:
+    body = ctor.child_by_field_name("body")
+    for node in syntax.walk(body) if body is not None else ():
+        if node.type != "assignment_expression" or node.parent is None:
+            continue
+        left, right = node.child_by_field_name("left"), node.child_by_field_name("right")
+        target = left.child_by_field_name("object") if left is not None else None
+        prop = left.child_by_field_name("property") if left is not None else None
+        if target is None or prop is None or target.type != "this":
+            continue
+        name, found = syntax.text(prop, source), _field_type(None, node.parent, right, source)
+        if found:  # an untyped `this.x = x` adds nothing
+            fields.setdefault(name, found)
+
+
+def _field_type(
+    annotation: str | None, anchor: TSNode, value: TSNode | None, source: bytes
+) -> str:
+    if annotation:
+        return " ".join(annotation.split())
+    doc = syntax.jsdoc(anchor, source)
+    match = _JSDOC_TYPE.search(doc) if doc else None
+    if match:
+        return match.group(1).strip()
+    if value is not None and value.type == "new_expression":
+        constructor = value.child_by_field_name("constructor")
+        if constructor is not None and constructor.type in ("identifier", "member_expression"):
+            return syntax.compact(constructor, source)
+    return ""
+
+
+def _is_constructor(method: TSNode, source: bytes) -> bool:
+    name = method.child_by_field_name("name")
+    return name is not None and syntax.text(name, source) == "constructor"
 
 
 def _decorator_nodes(node: TSNode, statement: TSNode) -> list[TSNode]:
