@@ -266,25 +266,25 @@
    "confidence": 1.0
   },
   {
-   "src_key": "src/main.cpp::",
+   "src_key": "src/main.cpp::main",
    "dst_key": "src/shape.cpp::shapes.unit",
    "kind": "calls",
    "confidence": 1.0
   },
   {
-   "src_key": "src/main.cpp::",
+   "src_key": "src/main.cpp::main",
    "dst_key": "src/shape.cpp::shapes.area",
    "kind": "calls",
    "confidence": 1.0
   },
   {
-   "src_key": "src/main.cpp::",
+   "src_key": "src/main.cpp::main",
    "dst_key": "include/util/math.hpp::legacy.half",
    "kind": "calls",
    "confidence": 1.0
   },
   {
-   "src_key": "src/main.cpp::",
+   "src_key": "src/main.cpp::main",
    "dst_key": "src/shape.cpp::shapes.total",
    "kind": "calls",
    "confidence": 1.0
@@ -302,19 +302,25 @@
    "confidence": 1.0
   },
   {
-   "src_key": "src/shape.cpp::",
+   "src_key": "src/shape.cpp::shapes.scaled",
    "dst_key": "src/shape.cpp::shapes.area",
    "kind": "calls",
    "confidence": 1.0
   },
   {
-   "src_key": "src/shape.cpp::",
+   "src_key": "src/shape.cpp::shapes.total",
+   "dst_key": "src/shape.cpp::shapes.area",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/shape.cpp::shapes.unit",
    "dst_key": "src/shape.cpp::shapes.Circle",
    "kind": "calls",
    "confidence": 1.0
   },
   {
-   "src_key": "src/shape.cpp::",
+   "src_key": "src/shape.cpp::shapes.total",
    "dst_key": "include/util/math.hpp::util.half",
    "kind": "calls",
    "confidence": 1.0
@@ -332,13 +338,13 @@
    "confidence": 1.0
   },
   {
-   "src_key": "tests/test_shape.cpp::",
+   "src_key": "tests/test_shape.cpp::main",
    "dst_key": "src/shape.cpp::shapes.scaled",
    "kind": "calls",
    "confidence": 1.0
   },
   {
-   "src_key": "tests/test_shape.cpp::",
+   "src_key": "tests/test_shape.cpp::main",
    "dst_key": "src/shape.cpp::shapes.area",
    "kind": "calls",
    "confidence": 1.0

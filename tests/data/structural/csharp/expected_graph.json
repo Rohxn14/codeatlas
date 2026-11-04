@@ -16,7 +16,7 @@
    "path": "src/Program.cs",
    "span": {
     "start_line": 1,
-    "end_line": 15
+    "end_line": 18
    }
   },
   {
@@ -25,8 +25,8 @@
    "language": "c_sharp",
    "path": "src/Program.cs",
    "span": {
-    "start_line": 6,
-    "end_line": 15
+    "start_line": 8,
+    "end_line": 18
    }
   },
   {
@@ -35,8 +35,8 @@
    "language": "c_sharp",
    "path": "src/Program.cs",
    "span": {
-    "start_line": 8,
-    "end_line": 14
+    "start_line": 10,
+    "end_line": 17
    }
   },
   {
@@ -278,6 +278,56 @@
     "start_line": 1,
     "end_line": 1
    }
+  },
+  {
+   "key": "src/Text/Labels.cs::",
+   "kind": "module",
+   "language": "c_sharp",
+   "path": "src/Text/Labels.cs",
+   "span": {
+    "start_line": 1,
+    "end_line": 26
+   }
+  },
+  {
+   "key": "src/Text/Labels.cs::Shop.Text.Pad",
+   "kind": "class",
+   "language": "c_sharp",
+   "path": "src/Text/Labels.cs",
+   "span": {
+    "start_line": 7,
+    "end_line": 13
+   }
+  },
+  {
+   "key": "src/Text/Labels.cs::Shop.Text.Pad.Left",
+   "kind": "function",
+   "language": "c_sharp",
+   "path": "src/Text/Labels.cs",
+   "span": {
+    "start_line": 9,
+    "end_line": 12
+   }
+  },
+  {
+   "key": "src/Text/Labels.cs::Shop.Labels.Label",
+   "kind": "class",
+   "language": "c_sharp",
+   "path": "src/Text/Labels.cs",
+   "span": {
+    "start_line": 18,
+    "end_line": 24
+   }
+  },
+  {
+   "key": "src/Text/Labels.cs::Shop.Labels.Label.Make",
+   "kind": "function",
+   "language": "c_sharp",
+   "path": "src/Text/Labels.cs",
+   "span": {
+    "start_line": 20,
+    "end_line": 23
+   }
   }
  ],
  "edges": [
@@ -381,6 +431,24 @@
    "src_key": "tests/UserServiceTests.cs::",
    "dst_key": "src/Services/UserService.cs::",
    "kind": "imports",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/Program.cs::",
+   "dst_key": "src/Text/Labels.cs::",
+   "kind": "imports",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/Program.cs::Program.Main",
+   "dst_key": "src/Text/Labels.cs::Shop.Labels.Label.Make",
+   "kind": "calls",
+   "confidence": 1.0
+  },
+  {
+   "src_key": "src/Program.cs::Program.Main",
+   "dst_key": "src/Text/Labels.cs::Shop.Text.Pad.Left",
+   "kind": "calls",
    "confidence": 1.0
   }
  ]
