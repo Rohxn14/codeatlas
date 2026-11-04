@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from codeatlas.indexer.languages.typescript.resolver.bindings import FileContext
 from codeatlas.indexer.languages.typescript.resolver.names import Named, NameResolver, external_key
 from codeatlas.indexer.languages.typescript.resolver.tables import Exports, Tables
+from codeatlas.indexer.languages.typescript.resolver.types import Typer
 from codeatlas.models import Node, NodeKind, RawCall, Resolution
 
 MAX_CANDIDATES = 5  # above this a same-name match says nothing (plan, decision 2)
@@ -65,12 +66,13 @@ class CallResolver:
         self._exports = exports
         self._names = names
         self._contexts = contexts
+        self._typer = Typer(tables, names, self.bases)
 
     def resolve(self, call: RawCall, caller: Node) -> list[Hit]:
         ctx = self._contexts.get(caller.path)
         if ctx is None:
             return []
-        for attempt in (self._direct, self._self_method):
+        for attempt in (self._typed, self._direct, self._self_method):
             hits = attempt(call, caller, ctx)
             if hits is not None:
                 return hits
@@ -157,6 +159,25 @@ class CallResolver:
         return (self._static(node, rest[1:], name) or []) if node else []
 
     # --- SELF_METHOD ------------------------------------------------------------------
+
+    def _typed(self, call: RawCall, caller: Node, ctx: FileContext) -> list[Hit] | None:
+        """`repo.save()` with `repo: UserRepo` declared, or `this.repo.save()` (D-22, T20).
+
+        Tried first, so a typed parameter hides an import of the same name; None when
+        the receiver's type is not declared, which leaves the call exactly as before.
+        """
+        receiver = call.receiver
+        if receiver is None or receiver in ("this", "super") or not _CHAIN.match(receiver):
+            return None
+        segments = receiver.replace("?.", ".").split(".")
+        cls = self._enclosing_class(caller)
+        typed = self._typer.receiver_class(segments, caller, cls)
+        if typed is None:
+            return None
+        method = self._find_method(typed, call.name, set(), 0)
+        if method is None:
+            return [] if self._has_outside_base(typed) else None
+        return [Hit(method.key, Resolution.SELF_METHOD, SELF_METHOD_CONFIDENCE)]
 
     def _self_method(self, call: RawCall, caller: Node, ctx: FileContext) -> list[Hit] | None:
         if call.receiver not in ("this", "super"):
