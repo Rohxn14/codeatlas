@@ -87,6 +87,27 @@ def build_view_data(
     }
 
 
+MAX_IMPACT_TARGETS = 30
+
+
+def impact_block(result: Any, top: int = MAX_IMPACT_TARGETS) -> dict[str, Any]:
+    """The page's impact section: changed keys, then the top targets with their best evidence.
+
+    Keys, not node indexes, because a target may sit outside the nodes the page kept;
+    the page shows those as plain text instead of a link.
+    """
+    return {
+        "changed": list(result.changed),
+        "targets": [
+            {"key": t.key, "kind": str(t.kind), "score": round(t.score, 3),
+             "signal": t.evidence[0].signal if t.evidence else ""}
+            for t in result.targets[:top]
+        ],
+        "total": len(result.targets),
+        "warnings": list(result.warnings),
+    }
+
+
 def _plain(snapshot: Any) -> dict[str, Any]:
     return {
         "id": snapshot.id,
