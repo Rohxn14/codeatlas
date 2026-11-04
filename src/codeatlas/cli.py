@@ -1,4 +1,4 @@
-"""Command line: `scan`, `index`, `view` and `export`.
+"""Command line: `scan`, `index`, `view`, `export`, `search`, `ask`, `impact`, `tests`, `mcp`.
 
 `scan` runs intake, discovery and every adapter, then prints a census of what it saw.
 Each discovered file lands in exactly one (language, tier) row, files that could not be
@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import subprocess
 import sys
 from collections import Counter
 from collections.abc import Sequence
@@ -19,6 +21,8 @@ from typing import Any
 
 from codeatlas import __version__
 from codeatlas.config import Config, load_config
+from codeatlas.impact.diff import parse_diff
+from codeatlas.impact.models import Change
 from codeatlas.indexer.discover import Discovery, SkippedPath
 from codeatlas.indexer.intake import IntakeError
 from codeatlas.indexer.pipeline.build import default_db_path
@@ -291,6 +295,8 @@ def _run_view(args: argparse.Namespace, config: Config) -> int:
             return 2
         saved = load_report(config, snapshot_id)
         data = build_view_data(store, snapshot_id, saved.to_dict() if saved else None, args.focus)
+        if args.impact:
+            data["impact"] = _view_impact(store, snapshot_id, args.impact)
     out = Path(args.out) if args.out else Path(config.data_dir) / "view.html"
     write_view(data, out, open_browser=not args.no_open)
     omitted = data["omitted"]
@@ -298,6 +304,16 @@ def _run_view(args: argparse.Namespace, config: Config) -> int:
     if omitted["nodes"]:
         print(f"left out: {omitted['nodes']} nodes, {omitted['files']} files; use --focus <folder>")
     return 0
+
+
+def _view_impact(store: GraphStore, snapshot_id: str, diff_file: Path) -> dict[str, Any]:
+    """The `--impact` block of the page: what the diff changes and what it could break."""
+    from codeatlas.impact import impact
+    from codeatlas.view.data import impact_block
+
+    text = sys.stdin.read() if str(diff_file) == "-" else diff_file.read_text(
+        encoding="utf-8", errors="replace")
+    return impact_block(impact(store, snapshot_id, parse_diff(text)))
 
 
 def _run_export(args: argparse.Namespace, config: Config) -> int:
@@ -308,6 +324,239 @@ def _run_export(args: argparse.Namespace, config: Config) -> int:
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(data, indent=1) + "\n", encoding="utf-8")
     print(f"wrote {out}")
+    return 0
+
+
+# search, ask, impact, tests, mcp: thin front ends over the query-time modules
+
+
+def _print_json(data: object) -> None:
+    print(json.dumps(data, indent=2, default=str))
+
+
+def _run_search(args: argparse.Namespace, config: Config) -> int:
+    from codeatlas.llm.embeddings import EmbeddingClient
+    from codeatlas.search.embed import build_embeddings
+    from codeatlas.search.hybrid import HybridSearch
+
+    store, snapshot_id = _open_store(args, config)
+    with store:
+        embedder = EmbeddingClient.from_config()
+        notes: list[str] = []
+        if args.embed:
+            try:
+                notes.append(f"embedded {build_embeddings(store, snapshot_id, embedder)} new nodes")
+            except Exception as exc:  # no model here: search still works with BM25
+                notes.append(f"could not embed ({exc}); searching with BM25 only")
+        search = HybridSearch(store, snapshot_id, embedder)
+        hits = search.search(args.query, k=args.k, expand=not args.no_expand)
+        notes += search.notes
+    rows = [_hit_row(rank, hit) for rank, hit in enumerate(hits, start=1)]
+    if args.json:
+        _print_json({"snapshot": snapshot_id, "query": args.query, "hits": rows, "notes": notes})
+        return 0
+    lines = [f"{r['rank']:>3}  {r['score']:.4f}  {r['kind']:<9} {r['key']}  "
+             f"{r['path']}:{r['line']}  [{'+'.join(r['sources'])}]" for r in rows]
+    print("\n".join(lines) if lines else "no hits")
+    for note in notes:
+        print(f"note: {note}")
+    return 0
+
+
+def _hit_row(rank: int, hit: Any) -> dict[str, Any]:
+    node = hit.node
+    return {"rank": rank, "score": round(hit.score, 6), "kind": str(node.kind), "key": node.key,
+            "path": node.path, "line": node.span.start_line, "sources": list(hit.sources)}
+
+
+LLM_KEYS = ("GROQ_API_KEY", "GEMINI_API_KEY")
+
+
+def _run_ask(args: argparse.Namespace, config: Config) -> int:
+    if not any(os.environ.get(name) for name in LLM_KEYS):
+        print("codeatlas: ask needs a language model: set GROQ_API_KEY or GEMINI_API_KEY",
+              file=sys.stderr)
+        return 2
+    from codeatlas.agent.loop import ask
+    from codeatlas.llm import LLMClient, LLMError
+
+    store, snapshot_id = _open_store(args, config)
+    try:
+        with store:
+            answer = ask(args.question, store, snapshot_id, LLMClient.from_config(),
+                         max_steps=args.max_steps, config=config)
+    except LLMError as exc:  # the trajectory so far is already on disk
+        print(f"codeatlas: the language model could not be reached: {exc}", file=sys.stderr)
+        return 1
+    if args.json:
+        _print_json({
+            "snapshot": snapshot_id, "answer": answer.text, "steps": answer.steps,
+            "input_tokens": answer.input_tokens, "output_tokens": answer.output_tokens,
+            "limit_hit": answer.limit_hit, "trajectory": _posix(answer.trajectory_path),
+            "citations": [asdict(c) for c in answer.citations],
+        })
+        return 0
+    print(answer.text)
+    print("\nCitations:")
+    for c in answer.citations:
+        print(f"  {'ok     ' if c.valid else 'INVALID'} {c.text}"
+              + ("" if c.valid else f"  ({c.reason})"))
+    if not answer.citations:
+        print("  none")
+    print(f"\nSteps: {answer.steps}  tokens in/out: {answer.input_tokens}/{answer.output_tokens}")
+    print(f"Trajectory: {_posix(answer.trajectory_path)}")
+    return 0
+
+
+def _posix(path: Path | None) -> str | None:
+    return path.as_posix() if path is not None else None
+
+
+def read_changes(args: argparse.Namespace, store: GraphStore, snapshot_id: str,
+                 config: Config) -> list[Change]:
+    """The change from `--diff FILE`, `--diff -`, `--git REV` or `--files`."""
+    if args.files:
+        return [Change(_repo_path(f)) for f in args.files]
+    if args.git:
+        return parse_diff(_git_diff(args.git, store, snapshot_id, config))
+    if args.diff == "-":
+        return parse_diff(sys.stdin.read())
+    return parse_diff(Path(args.diff).read_text(encoding="utf-8", errors="replace"))
+
+
+def _repo_path(path: str) -> str:
+    """`.\\backend\\app.py` from PowerShell -> `backend/app.py`, as the store keeps it."""
+    clean = path.replace("\\", "/")
+    while clean.startswith("./"):
+        clean = clean[2:]
+    return clean
+
+
+def _git_diff(rev: str, store: GraphStore, snapshot_id: str, config: Config) -> str:
+    """`git diff REV` in the snapshot's checkout. This runs git only, never repository code."""
+    from codeatlas.agent.tools import ToolContext
+
+    root = ToolContext(store, snapshot_id, config).repo_root()
+    if root is None:
+        raise ValueError(f"cannot find the checkout of {snapshot_id}: use --diff or --files")
+    try:
+        done = subprocess.run(
+            ["git", "-C", str(root), "diff", "--relative", "--no-color", "--no-ext-diff", rev,
+             "--"],
+            capture_output=True, text=True, encoding="utf-8", errors="replace", check=False)
+    except FileNotFoundError as exc:
+        raise ValueError("git is not installed or not on PATH") from exc
+    if done.returncode != 0:
+        raise ValueError(f"git diff {rev} failed in {root.as_posix()}: {done.stderr.strip()}")
+    return done.stdout
+
+
+def _impact_result(args: argparse.Namespace, config: Config) -> tuple[str, Any, Any, int]:
+    """Run the engine on the requested change: snapshot, result, engine, changed file count."""
+    from codeatlas.impact import ImpactConfig, ImpactEngine
+
+    store, snapshot_id = _open_store(args, config)
+    with store:
+        changes = read_changes(args, store, snapshot_id, config)
+        defaults = ImpactConfig()
+        tuning = ImpactConfig(depth=args.depth if args.depth is not None else defaults.depth,
+                              decay=args.decay if args.decay is not None else defaults.decay)
+        engine = ImpactEngine(store, snapshot_id, tuning)
+        result = engine.impact(changes)
+    return snapshot_id, result, engine, len({c.path for c in changes})
+
+
+def evidence_line(evidence: Any) -> str:
+    """One line per evidence: signal, score, then the hop path or the detail."""
+    steps = [evidence.path[0].key] if evidence.path else []
+    for hop in evidence.path[1:]:
+        conf = f" {hop.confidence:g}" if hop.confidence is not None else ""
+        steps.append(f"<-{hop.kind}{conf}- {hop.key}")
+    text = " ".join(steps) or evidence.detail
+    if steps and evidence.detail:
+        text += f" ({evidence.detail})"
+    return f"{evidence.signal} {evidence.score:.3f}: {text}"
+
+
+def _scored_rows(items: Sequence[Any], top: int) -> list[dict[str, Any]]:
+    return [{"rank": rank, "key": t.key, "kind": str(t.kind), "path": t.path,
+             "score": round(t.score, 4), "evidence": [evidence_line(e) for e in t.evidence]}
+            for rank, t in enumerate(items[:top], start=1)]
+
+
+def _scored_lines(rows: list[dict[str, Any]], total: int, noun: str) -> list[str]:
+    lines = [f"{total} {noun}" + (f", top {len(rows)} shown" if len(rows) < total else "")]
+    for r in rows:
+        lines.append(f"{r['rank']:>3}  {r['score']:.3f}  {r['kind']:<9} {r['key']}")
+        if r["evidence"]:
+            lines.append(f"       {r['evidence'][0]}")
+    return lines
+
+
+def _head_lines(snapshot_id: str, files: int, result: Any) -> list[str]:
+    changed = ", ".join(result.changed[:10]) or "none"
+    more = f" and {len(result.changed) - 10} more" if len(result.changed) > 10 else ""
+    return [f"snapshot {snapshot_id}: {files} changed files, "
+            f"{len(result.changed)} changed symbols", f"changed: {changed}{more}", ""]
+
+
+def _warning_lines(result: Any) -> list[str]:
+    if not result.warnings:
+        return []
+    return ["", f"warnings ({len(result.warnings)}):", *(f"  {w}" for w in result.warnings)]
+
+
+def _run_impact(args: argparse.Namespace, config: Config) -> int:
+    snapshot_id, result, _engine, files = _impact_result(args, config)
+    rows = _scored_rows(result.targets, args.top)
+    if args.json:
+        _print_json({"snapshot": snapshot_id, "changed": list(result.changed),
+                     "total": len(result.targets), "targets": rows,
+                     "warnings": list(result.warnings)})
+        return 0
+    lines = _head_lines(snapshot_id, files, result)
+    lines += _scored_lines(rows, len(result.targets), "targets")
+    print("\n".join(lines + _warning_lines(result)))
+    return 0
+
+
+def _run_tests(args: argparse.Namespace, config: Config) -> int:
+    from codeatlas.impact.evaluate import all_test_files
+
+    snapshot_id, result, engine, files = _impact_result(args, config)
+    rows = _scored_rows(result.tests, args.top)
+    threshold = engine.config.test_threshold
+    picked = [p.path for p in result.test_files(threshold)]
+    universe = all_test_files(engine)
+    skipped = 1 - len(set(picked) & universe) / len(universe) if universe else 0.0
+    summary = {"threshold": threshold, "selected_files": picked,
+               "test_files": len(universe), "skipped_share": round(skipped, 4)}
+    if args.json:
+        _print_json({"snapshot": snapshot_id, "changed": list(result.changed),
+                     "total": len(result.tests), "tests": rows, **summary,
+                     "warnings": list(result.warnings)})
+        return 0
+    lines = _head_lines(snapshot_id, files, result)
+    lines += _scored_lines(rows, len(result.tests), "tests")
+    lines += ["", f"test files to run (score >= {threshold:g}): {len(picked)} of "
+              f"{len(universe)}; skipped share {skipped:.0%}"]
+    lines += [f"  {path}" for path in picked[:args.top]]
+    if len(picked) > args.top:
+        lines.append(f"  ... and {len(picked) - args.top} more (see --json)")
+    print("\n".join(lines + _warning_lines(result)))
+    return 0
+
+
+def _run_mcp(args: argparse.Namespace, config: Config) -> int:
+    import asyncio
+
+    from codeatlas.agent.mcp_server import serve_stdio
+    from codeatlas.agent.tools import ToolSet
+
+    store, snapshot_id = _open_store(args, config)
+    print(f"codeatlas MCP server on stdio, snapshot {snapshot_id}", file=sys.stderr)
+    with store:
+        asyncio.run(serve_stdio(ToolSet(store, snapshot_id, config)))
     return 0
 
 
@@ -339,24 +588,66 @@ def build_parser() -> argparse.ArgumentParser:
     view_cmd.add_argument("--focus", default="", help="show only files under this path prefix")
     view_cmd.add_argument("--out", type=Path, help="where to write the page")
     view_cmd.add_argument("--no-open", action="store_true", help="write the page, do not open it")
+    view_cmd.add_argument("--impact", type=Path, metavar="DIFF",
+                          help="highlight what this diff changes and could break")
 
     export_cmd = add("export", "write the graph as JSON (contract section 8)")
     export_cmd.add_argument("--db", type=Path, help="database file")
     export_cmd.add_argument("--snapshot", help="snapshot id (default: the latest)")
     export_cmd.add_argument("--out", type=Path, required=True, help="JSON file to write")
+
+    search_cmd = _query_command(add, "search", "hybrid search: BM25, vectors, one graph hop")
+    search_cmd.add_argument("query")
+    search_cmd.add_argument("-k", "--k", type=int, default=10, help="hits to return")
+    search_cmd.add_argument("--no-expand", action="store_true", help="skip the graph hop")
+    search_cmd.add_argument("--embed", action="store_true", help="build missing embeddings first")
+
+    ask_cmd = _query_command(add, "ask", "answer a question with the agent (needs an LLM key)")
+    ask_cmd.add_argument("question")
+    ask_cmd.add_argument("--max-steps", type=int, default=20)
+
+    for name, help_text in (("impact", "rank what a change could break"),
+                            ("tests", "rank the tests a change should run")):
+        _change_inputs(_query_command(add, name, help_text))
+
+    mcp_cmd = add("mcp", "serve the agent's tools over MCP on stdio")
+    mcp_cmd.add_argument("--db", type=Path, help="database file")
+    mcp_cmd.add_argument("--snapshot", help="snapshot id (default: the latest)")
     return parser
+
+
+def _query_command(add: Any, name: str, help_text: str) -> argparse.ArgumentParser:
+    sub: argparse.ArgumentParser = add(name, help_text)
+    sub.add_argument("--db", type=Path, help="database file")
+    sub.add_argument("--snapshot", help="snapshot id (default: the latest)")
+    sub.add_argument("--json", action="store_true", help="print JSON")
+    return sub
+
+
+def _change_inputs(sub: argparse.ArgumentParser) -> None:
+    """The change, given one way, and the engine's tunable numbers."""
+    source = sub.add_mutually_exclusive_group(required=True)
+    source.add_argument("--diff", metavar="FILE", help="a unified diff file, or - for stdin")
+    source.add_argument("--git", metavar="REV", help="run `git diff REV` in the checkout")
+    source.add_argument("--files", nargs="+", metavar="PATH", help="whole files changed")
+    sub.add_argument("--depth", type=int, help="hops walked from a changed symbol (default 4)")
+    sub.add_argument("--decay", type=float, help="score kept per hop, 0 to 1 (default 0.8)")
+    sub.add_argument("--top", type=int, default=20, help="rows to print (default 20)")
+
+
+_RUNNERS = {
+    "index": _run_index, "view": _run_view, "export": _run_export, "search": _run_search,
+    "ask": _run_ask, "impact": _run_impact, "tests": _run_tests, "mcp": _run_mcp,
+}
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
         config = load_config(args.config)
-        if args.command == "index":
-            return _run_index(args, config)
-        if args.command == "view":
-            return _run_view(args, config)
-        if args.command == "export":
-            return _run_export(args, config)
+        runner = _RUNNERS.get(args.command)
+        if runner is not None:
+            return runner(args, config)
         report = scan(args.source, config)
     except (IntakeError, OSError, ValueError, KeyError) as exc:
         print(f"codeatlas: {exc}", file=sys.stderr)

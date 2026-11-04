@@ -64,6 +64,7 @@ code,pre{font:12px ui-monospace,monospace}pre{white-space:pre-wrap;margin:4px 0}
 @media (max-width:900px){#explorer{grid-template-columns:1fr}}
 </style></head><body>
 <header id="header"></header>
+<section id="impactbox" hidden><h2>Impact of the change</h2><div id="impact"></div></section>
 <section><h2>Census</h2><div id="census"></div></section>
 <section><h2>Packages</h2><div id="packages"></div></section>
 <section><h2>Explorer</h2><div id="explorer">
@@ -117,6 +118,20 @@ function packages() {
   if (!D.packages.length) return fill("packages", h("div", { class: "mute" }, "No packages found."));
   fill("packages", table(["package", "ecosystem", "role", "files", "depends on"],
     D.packages.map(p => [p.name, p.ecosystem || "", p.role, p.files, p.depends_on.join(", ")])));
+}
+// Impact (`codeatlas view --impact DIFF`): changed nodes and the top targets.
+const changedSet = new Set((D.impact || {}).changed || []);
+const targetSet = new Set(((D.impact || {}).targets || []).map(t => t.key));
+function impactView() {
+  const I = D.impact;
+  if (!I) return;
+  document.getElementById("impactbox").hidden = false;
+  const link = key => byKey.has(key) ? h("a", { href: "#", onclick: () => { pickNode(byKey.get(key)); return false; } }, key) : key;
+  const kids = [h("div", { class: "mute" }, `${I.changed.length} changed symbols, ${I.total} targets; the top ${I.targets.length} are listed. Changed nodes are red in the graph, targets orange.`)];
+  kids.push(h("h3", {}, "Changed"), h("ul", {}, I.changed.map(k => h("li", {}, link(k)))));
+  kids.push(h("h3", {}, "Could break"), table(["target", "kind", "score", "signal"], I.targets.map(t => [link(t.key), t.kind, t.score.toFixed(3), t.signal])));
+  if (I.warnings.length) kids.push(I.warnings.map(w => h("div", { class: "warn" }, w)));
+  fill("impact", kids);
 }
 function problems() {
   const p = D.problems, kids = [];
@@ -218,10 +233,12 @@ function graph(i) {
     box.style.display = "none"; return;
   }
   box.style.display = "block";
-  const els = [...nodes].map(n => ({ data: { id: "n" + n, label: D.nodes[n].name || D.nodes[n].key, sel: n === i ? 1 : 0 } })).concat(
+  const els = [...nodes].map(n => ({ data: { id: "n" + n, label: D.nodes[n].name || D.nodes[n].key, sel: n === i ? 1 : 0, imp: changedSet.has(D.nodes[n].key) ? 2 : targetSet.has(D.nodes[n].key) ? 1 : 0 } })).concat(
     edges.map(id => { const e = D.edges[id]; return { data: { id: "e" + id, source: "n" + e.s, target: "n" + e.d, kind: e.kind, conf: e.conf } }; }));
   const cy = cytoscape({ container: box, elements: els, layout: { name: "cose", animate: false },
     style: [{ selector: "node", style: { label: "data(label)", "font-size": 9, width: 14, height: 14, "background-color": "#7a8aa8" } },
+      { selector: "node[imp = 1]", style: { "background-color": "#e08a1e" } },
+      { selector: "node[imp = 2]", style: { "background-color": "#d0342c" } },
       { selector: "node[sel = 1]", style: { "background-color": "#2457d6", width: 22, height: 22 } },
       { selector: "edge", style: { width: 1.5, "curve-style": "bezier", "target-arrow-shape": "triangle", opacity: "mapData(conf, 0, 1, 0.15, 1)", "line-color": "#8895ad", "target-arrow-color": "#8895ad" } },
       { selector: "edge[kind = 'calls']", style: { "line-color": "#2457d6", "target-arrow-color": "#2457d6" } },
@@ -230,6 +247,6 @@ function graph(i) {
       { selector: "edge[kind = 'tests']", style: { "line-color": "#b54708", "target-arrow-color": "#b54708" } }] });
   cy.on("tap", "node", ev => pickNode(Number(ev.target.id().slice(1))));
 }
-header(); census(); packages(); problems(); tree();
+header(); impactView(); census(); packages(); problems(); tree();
 </script></body></html>
 """

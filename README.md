@@ -1,12 +1,16 @@
 # CodeAtlas
 
-CodeAtlas takes a repository, in any mix of languages, and builds an honest map of it:
-packages, files, symbols, calls, tests and change history, each fact labelled with how it
-was found and how sure it is. It analyses code statically and never runs it.
+CodeAtlas takes a repository, in any mix of languages, and builds an **honest map** of it:
+packages, files, symbols, calls, tests and change history. Every fact on the map says
+how it was found (a resolved import, a naming convention, a name guess, git history) and
+how sure it is (a confidence from 0 to 1). On top of the map sit hybrid search, an
+**impact engine** that predicts what a change will break and which tests to run, an agent
+that answers questions with checked citations, and an MCP server that gives Claude Code
+the same tools.
 
-This is the Day 0 scaffold: intake, discovery and the structural (tags) tier. Later tasks
-add the deep Python and TypeScript adapters, the repository layer, the store, search, the
-impact engine and the agent (see `docs/tasks/`).
+CodeAtlas analyses code statically. It never installs, imports or runs code from the
+repository it indexes. No file is dropped quietly: a file it cannot analyse still gets a
+node with its language, its tier and the reason.
 
 ## Install
 
@@ -14,47 +18,161 @@ impact engine and the agent (see `docs/tasks/`).
 python -m pip install -e ".[dev]"
 ```
 
-Python 3.11 or newer. Works on Windows (PowerShell) and Linux.
+Python 3.11 or newer, on Windows (PowerShell) or Linux. `ask` needs `GROQ_API_KEY` or
+`GEMINI_API_KEY`; everything else works offline.
 
-## Use
+## A five-command tour
+
+On the fixture in this repository, a small Flask-style backend with a TypeScript frontend
+(output from a real run, trimmed where marked).
+
+**1. Index** a folder or `https://github.com/owner/repo[@ref]` (shallow clone):
 
 ```
-codeatlas scan path/to/repo
-codeatlas scan https://github.com/pallets/click
-codeatlas scan https://github.com/pallets/click@8.1.7 --json
+$ codeatlas index eval/fixtures/polyglot_app
+CodeAtlas 0.1.0: polyglot_app@2bae7bcbe8b2
+...
+total: 28 files (deep: 21, text: 7); skipped: 0
+
+Nodes: class 7, external 22, function 33, interface 2, module 28, package 2, route 3, test 11
+Edges: 226
+  by kind: calls 66, calls_http 6, contains 81, handles 3, imports 48, inherits 3, tests 19
+  by resolution: convention 4, direct 56, import_scoped 11, route_exact 4, route_pattern 2, self_method 14, structural 135
+Raw calls: 124, resolved 72, unresolved 52 (python 22, tsx 5, typescript 25)
 ```
 
-`scan` lists every file, detects its language and tier, extracts definitions and calls,
-and prints a census per language. A URL is fetched with one blobless `git clone` into
-`.codeatlas/repos/<owner>__<repo>/` and reused while the remote commit is unchanged.
+**2. View** the map as one self-contained HTML page (census, packages, a file and symbol
+explorer, a neighbourhood graph, and every problem found):
 
-Every file lands in a (language, tier) row. A file that cannot be parsed (binary,
-minified, too large, unreadable) is counted as text with its reason, and each folder left
-out (`node_modules`, `dist`, a symlink, a submodule) is listed once with its file count,
-so nothing disappears silently.
+```
+$ codeatlas view
+wrote .codeatlas/view.html (108 nodes, 226 edges)
+```
 
-## Tiers
+`codeatlas view --impact change.diff` adds a section listing what the diff changes and
+could break, and colours those nodes in the graph.
+
+**3. Search** (BM25 plus embeddings fused by rank, then one hop along the graph):
+
+```
+$ codeatlas search "create user" -k 5
+  1  0.0164  function  backend/routes.py::create_user  backend/routes.py:30  [bm25]
+  2  0.0161  function  backend/services.py::UserService.create_user  backend/services.py:16  [bm25]
+  3  0.0159  test      backend/tests/test_services.py::TestUserService.test_create_user_assigns_ids  backend/tests/test_services.py:14  [bm25]
+  4  0.0156  function  backend/app.py::create_app  backend/app.py:6  [bm25]
+  5  0.0154  function  backend/handlers.py::handle_create  backend/handlers.py:9  [bm25]
+note: no embeddings for this snapshot: BM25 only
+```
+
+`--embed` builds the embeddings first (a local model, downloaded once).
+
+**4. Impact**: what a change could break, each target with the evidence behind it. The
+change comes from `--diff FILE`, `--diff -` (stdin), `--git REV` (runs `git diff REV` in
+the indexed checkout) or `--files a.py b.ts`:
+
+```
+$ codeatlas impact --files backend/user_repo.py --top 4
+snapshot polyglot_app@2bae7bcbe8b2: 1 changed files, 4 changed symbols
+changed: backend/user_repo.py::, backend/user_repo.py::UserRepo, backend/user_repo.py::UserRepo.save, backend/user_repo.py::UserRepo.find_by_name
+
+10 targets, top 4 shown
+  1  0.800  module    backend/routes.py::
+       graph 0.800: backend/user_repo.py::UserRepo <-imports 1- backend/routes.py::
+  2  0.800  module    backend/services.py::
+       graph 0.800: backend/user_repo.py::UserRepo <-imports 1- backend/services.py::
+  3  0.800  module    backend/tests/test_services.py::
+       graph 0.800: backend/user_repo.py::UserRepo <-imports 1- backend/tests/test_services.py::
+  4  0.800  test      backend/tests/test_services.py::test_find_by_name
+       graph 0.800: backend/user_repo.py::UserRepo.find_by_name <-calls 1- backend/tests/test_services.py::test_find_by_name
+```
+
+`codeatlas tests` takes the same inputs and ranks the tests to run:
+
+```
+$ codeatlas tests --files backend/user_repo.py --top 3
+...
+  3  0.576  module    backend/tests/test_routes.py::
+       tests 0.576: backend/user_repo.py::UserRepo <-imports 1- backend/routes.py:: <-tests 0.8- backend/tests/test_routes.py:: (convention)
+
+test files to run (score >= 0.3): 2 of 4; skipped share 50%
+  backend/tests/test_services.py
+  backend/tests/test_routes.py
+```
+
+**5. Ask** the agent. It calls the same graph tools as the MCP server, cites
+`repo@sha:path:line`, and every citation is checked against the snapshot:
+
+```
+$ codeatlas ask "Which tests cover UserRepo.save?"
+```
+
+It prints the answer, each citation marked `ok` or `INVALID` (with the reason), steps and
+tokens, and the path of the trajectory file. Without a key it exits with code 2:
+
+```
+$ codeatlas ask "x"
+codeatlas: ask needs a language model: set GROQ_API_KEY or GEMINI_API_KEY
+```
+
+(The run for this README hit provider rate limits, so no answer is pasted here.)
+
+Every query command takes `--db`, `--snapshot` (default: the latest) and `--json`.
+`codeatlas scan` prints a census without writing a database; `codeatlas export` writes the
+graph as JSON. A longer run on a real repository is in [docs/demo.md](docs/demo.md).
+
+## Tiers and languages
 
 | Tier | Languages | What you get |
 | --- | --- | --- |
-| deep | Python, TypeScript, JavaScript (T01, T02) | hand-written adapters and resolvers |
-| structural | any grammar with a tags query: Python, TypeScript, TSX, JavaScript, Go, Java, Rust, C#, PHP, Ruby, C, C++, Scala, Lua, Swift, Elixir | definitions, owners of methods, name-level calls |
-| text | everything else | one node per file, with the reason |
+| deep | Python, TypeScript, JavaScript (and TSX) | hand-written adapters and resolvers: imports, types of receivers, routes, HTTP client calls, tests |
+| structural, with a resolution profile | Java, Go, C#, PHP, Ruby, C, C++, Rust | tree-sitter definitions and calls, imports resolved by one import-scoped resolver |
+| structural, name guesses | Scala, Lua, Swift, Elixir (the other bundled grammars) | definitions and calls; a call is matched by name, at low confidence, at most 5 candidates |
+| text | everything else | one searchable node per file, with the reason |
 
-Until T01 and T02 merge, Python and TypeScript/JavaScript run at the structural tier.
+The repository layer works for every language: manifests, packages and their
+dependencies, test files by convention, and co-change from git history. The HTTP linker
+joins client calls to server routes across languages.
+
+## How well it works
+
+The acceptance suite indexes 47 pinned public repositories
+(`eval/results/suite_20261103_wave3.md`, the newest): 47 of 47 complete, 69,762 files
+(deep 9,150, structural 15,862, text 44,750) in 38 languages, 1,130,634 raw calls of which
+45% stay unresolved, 275 seconds for all of them, 8 repositories stopped at a limit.
+
+On `polyglot_app` the graph scores 165 of 165 labelled edges at precision 1.0. Test
+selection reaches F1 0.84 on both mutation benchmarks (run-everything scores 0.52 and
+0.72) while skipping 46-64% of test files. Predicting which files change together, the
+engine does not yet beat plain co-change history.
+
+## MCP for Claude Code
+
+```
+codeatlas index path/to/repo --db /absolute/path/atlas.db
+claude mcp add codeatlas -- codeatlas mcp --db /absolute/path/atlas.db
+claude mcp list
+```
+
+Claude Code then has `search_symbols`, `find_callers`, `find_callees`, `impact`,
+`select_tests` and the other graph tools. `python -m codeatlas.agent mcp` does the same.
 
 ## Limits
 
-Set in `codeatlas.toml` (defaults shown there): 20,000 files, 1 MB per file, 300 seconds
-per index. When one is reached, CodeAtlas stops, keeps what it has, and names the limit
-under `limits_hit`.
+- Set in `codeatlas.toml`: 20,000 files, 1 MB per file, 300 seconds per index. When one
+  is reached, CodeAtlas keeps what it has and names the limit under `limits hit`.
+- Resolution is static. Dynamic dispatch, reflection, `getattr`, dependency injection and
+  monkeypatching are missed or guessed; a guess is labelled `name_guess` with a low
+  confidence.
+- Outside the deep tier, receivers have no types, so method calls on objects are name
+  guesses unless the language profile can scope them by import.
+- The impact engine reads the graph and history; it cannot see behaviour changes that
+  flow through data, configuration or files it could not parse.
+- `--git REV` needs the indexed checkout on disk and compares `REV` with the working tree,
+  so index the commit that is checked out.
+- `ask` depends on a free-tier LLM and can fail on rate limits; the trajectory is kept.
 
-## Develop
+## More
 
-```
-ruff check .
-pytest -q
-```
-
-Read `CLAUDE.md` and `docs/contract.md` first. Explainers for each module live in
-`docs/explainers/`.
+How each part works, why it was built that way and what was rejected:
+[docs/explainers/](docs/explainers/) (start with `pipeline.md`, `impact.md`, `agent.md`
+and `cli.md`). The shared types are in [docs/contract.md](docs/contract.md).
