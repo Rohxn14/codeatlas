@@ -139,8 +139,8 @@ FORWARD = "static int g(int);\nint f(void) { return g(1); }\nstatic int g(int x)
 def test_c_forward_declaration_in_the_same_file_gives_way(tmp_path: Path) -> None:
     files = {"a.c": FORWARD}
     definition = [n for n in parse("a.c", files["a.c"]).nodes if n.name == "g"][1]
-    # The second `g`, the one with a body. The caller is the module: see the explainer.
-    assert _resolve(tmp_path, files) == [("a.c::", definition.key, 1.0)]
+    # The second `g`, the one with a body; the caller is `f`, whose node spans its body.
+    assert _resolve(tmp_path, files) == [("a.c::f", definition.key, 1.0)]
 
 
 def test_without_a_checkout_prototypes_cannot_be_told_apart(tmp_path: Path) -> None:
@@ -170,15 +170,15 @@ CPP_FILES = {
 
 def test_cpp_namespace_qualifier_picks_one_of_two_same_named_functions(tmp_path: Path) -> None:
     edges = _resolve(tmp_path, CPP_FILES)
-    assert ("main.cpp::", "m.hpp::util.half", 1.0) in edges
-    assert ("main.cpp::", "m.hpp::legacy.half", 1.0) in edges
+    assert ("main.cpp::main", "m.hpp::util.half", 1.0) in edges
+    assert ("main.cpp::main", "m.hpp::legacy.half", 1.0) in edges
 
 
 def test_cpp_static_method_call_reaches_the_out_of_line_definition(tmp_path: Path) -> None:
     """`C C::make() {...}` is keyed `make` (the adapter does not read `C::`); the profile
     reads the qualifier from the source, so `C::make()` still finds it."""
     edges = _resolve(tmp_path, CPP_FILES)
-    assert ("main.cpp::", "m.cpp::make", 1.0) in edges
+    assert ("main.cpp::main", "m.cpp::make", 1.0) in edges
 
 
 def test_cpp_qualified_call_outside_the_repository_has_no_edge(tmp_path: Path) -> None:

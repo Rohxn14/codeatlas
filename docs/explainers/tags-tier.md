@@ -33,6 +33,17 @@ adapter if one is registered, otherwise the tags adapter (tier `STRUCTURAL`), ot
   class, so the enclosing class is the owner. Go declares methods at the top level with a
   receiver (`func (s *Server) Handle()`), and Rust inside `impl Point { ... }`. Two small
   tables (`_RECEIVER_FIELDS`, `_IMPL_BLOCKS`) cover those, without a per-language adapter.
+- **A C function's node is its definition, widened in the adapter (T21).** The upstream
+  C/C++ queries tag the declarator, so no call sat inside any function and every caller
+  was the module. Rejected: an `extra.scm` pattern tagging `function_definition` (it would
+  add a second node for each function, and upstream queries are never edited); a second
+  "body" span next to the node (the contract has one span). The signature keeps the
+  declarator text so `#hash` keys do not move. One accepted change: a struct or prototype
+  written inside a function body is now nested under it (`f.S`), as in other languages.
+- **Nested packages are joined, wrappers dropped.** `namespace A { namespace B {} }` gave
+  `package="A"`, the first capture, so `using A.B;` missed. Keeping every namespace that
+  directly holds code is what C# itself scopes by; keeping `A` too would let `using A;`
+  reach types it does not bring in.
 - **Never raise.** tree-sitter builds a tree even for broken code, marking `ERROR` and
   `MISSING` nodes. The adapter reports up to 20 of them in `errors` and keeps every
   definition it could still read. Any unexpected exception still returns the module node.
@@ -68,7 +79,14 @@ adapter if one is registered, otherwise the tags adapter (tier `STRUCTURAL`), ot
    is dropped; `module` becomes a *scope* only (it names a qualname prefix but is not a
    node, because the file is the module); every other tag (constants, macros, fields) is
    ignored. A node tagged twice (Rust tags a method as both method and function) is kept
-   once, as a method.
+   once, as a method. **C and C++**: the upstream query tags the `function_declarator`
+   (`h(void)`), which ends before the body. When that declarator, through any pointer,
+   reference or parenthesised wrappers, is the `declarator` of a `function_definition`
+   with a body, the definition's node becomes the whole `function_definition`, so its
+   span covers the body and calls inside it find it. A prototype (`int h(void);`, a
+   `declaration`), `S() = default;` (no body) and a function declarator in a parameter
+   list keep the declarator. The table `_DEFINITION_HOLDERS` names the rule; no language
+   branch is needed.
 5. **Qualnames and owners.** Walk the definitions outer-first. The qualname is the
    enclosing definition's qualname plus `.name`. A function whose direct enclosing
    definition is a class or interface gets that as `owner_key`. A top-level function with a
@@ -78,13 +96,25 @@ adapter if one is registered, otherwise the tags adapter (tier `STRUCTURAL`), ot
    the SHA-1 of its signature: `A.save#3f9c`, `A.save#b071`. Only identical signatures
    fall back to order: `A.fmt#c2d4`, `A.fmt#c2d4-2`.
 6. **Signature and doc comment.** The signature is the text from the definition's start
-   to its body, whitespace collapsed. The doc comment is the run of comment lines directly
+   to its body, whitespace collapsed. For a widened C/C++ definition it is still the
+   tagged declarator's text (`h(void)`, no return type): it feeds the `#hash` suffix, so
+   keys stay what they were before the node was widened. The doc comment is the run of comment lines directly
    above the definition, with comment markers removed.
 7. **Calls.** For each `reference.call` match: the call node is the node spanning both
    the tagged node and the name (Java's query tags the argument list, not the call).
    `callee_text` is the call's text up to the end of the name, whitespace removed; `name`
    is the name; `receiver` is what comes before it, minus one `.`, `?.`, `::` or `->`.
    `caller_key` is the innermost enclosing definition that is a node, else the module key.
+8. **Packages.** Each `@package.name` of the imports query is joined with the package
+   declarations around it: `namespace A { namespace B { } }` gives `A.B`. The module node
+   gets `attrs["packages"]`, the packages that directly hold a definition, in source order
+   (a declaration that only wraps others holds none); when no definition is inside any
+   package declaration (Java's `package x;`, C#'s `namespace A;`, which are siblings of
+   the code), every declared package. `attrs["package"]` is the first of them.
+
+C example: `static int h(void){return 0;} int f(void){ return h(); }` gives nodes
+`a.c::h` and `a.c::f`, each spanning its body, and one raw call `h` from `a.c::f`
+(before T21: from `a.c::`).
 
 Worked example (`tests/data/generic/server.go`, shortened):
 

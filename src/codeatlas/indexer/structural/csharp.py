@@ -4,17 +4,18 @@ from __future__ import annotations
 
 from codeatlas.indexer.structural.context import Context, FileInfo
 from codeatlas.indexer.structural.profile import Profile, Reach
-from codeatlas.models import RawImport
+from codeatlas.models import Node, RawCall, RawImport
 
 LANGUAGE = "c_sharp"
 
 
 class CSharpProfile(Profile):
-    """Files belong to the namespace they declare (`attrs["package"]`), not to a folder.
+    """Files belong to the namespaces they declare (`attrs["packages"]`), not to a folder.
 
     `using A.B;` reaches every file declaring namespace `A.B`; `using static A.B.C;`
     reaches only the members of class `C`; `using X = A.B.C;` names the class `X`. Names
-    that match no namespace of the repository (`System.IO`) are external.
+    that match no namespace of the repository (`System.IO`) are external. A file with two
+    namespaces (`namespace A {}` then `namespace B {}`) is reached by either.
     """
 
     languages = frozenset({LANGUAGE})
@@ -38,15 +39,43 @@ class CSharpProfile(Profile):
             return Reach(imp, tuple(class_files), None, None, class_name, None)
         return Reach(imp, external=imp.target)
 
+    def narrow(self, ctx: Context, file: FileInfo, call: RawCall, nodes: list[Node]) -> list[Node]:
+        """One candidate per node: `using A;` and `using B;` can both reach a file that
+        declares `A` and `B`, and the shared resolver lists that file once per import."""
+        return list({n.key: n for n in nodes}.values())
+
     def package_scope(self, ctx: Context, file: FileInfo) -> list[str]:
-        """Other files of the same namespace; none for a file outside any namespace."""
-        if file.package is None:
-            return []
-        return [p for p in ctx.by_package.get((LANGUAGE, file.package), []) if p != file.path]
+        """Other files sharing any of its namespaces; none for a file outside any."""
+        found: list[str] = []
+        for namespace in _declared(file):
+            found += [p for p in _namespace_files(ctx, namespace) if p != file.path]
+        return list(dict.fromkeys(found))
+
+
+def _declared(file: FileInfo) -> list[str]:
+    """Every namespace the file declares; `attrs["package"]` alone for older parses."""
+    packages = file.module.attrs.get("packages")
+    if isinstance(packages, list) and packages:
+        return [p for p in packages if isinstance(p, str) and p]
+    return [file.package] if file.package else []
 
 
 def _namespace_files(ctx: Context, namespace: str) -> list[str]:
-    return list(ctx.by_package.get((LANGUAGE, namespace), []))
+    return list(_by_namespace(ctx).get(namespace, []))
+
+
+def _by_namespace(ctx: Context) -> dict[str, list[str]]:
+    """Namespace -> files declaring it, built once per run. The context's `by_package`
+    table holds only each file's first namespace."""
+    table = ctx.cache.get("c_sharp_namespaces")
+    if table is None:
+        built: dict[str, list[str]] = {}
+        for path, info in ctx.files.items():
+            if info.language == LANGUAGE:
+                for namespace in _declared(info):
+                    built.setdefault(namespace, []).append(path)
+        table = ctx.cache["c_sharp_namespaces"] = built
+    return table  # type: ignore[return-value]
 
 
 def _class_files(ctx: Context, namespace: str, class_name: str) -> list[str]:

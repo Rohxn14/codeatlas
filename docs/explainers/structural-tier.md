@@ -12,7 +12,8 @@ has three small pieces:
 
 1. a **tags query** (exists for every grammar): definitions and calls;
 2. an **imports query** (`queries/<language>/imports.scm`): import statements and the
-   file's `package` declaration, turned into `RawImport`s and `attrs["package"]`;
+   file's `package` declarations, turned into `RawImport`s, `attrs["packages"]` (every
+   one, nested names joined) and `attrs["package"]` (the first);
 3. a **resolution profile** (`structural/<language>.py`): which files an import reaches,
    and which files a file can call into without importing them.
 
@@ -27,14 +28,17 @@ still gets `NAME_GUESS` edges, so every structural language has some CALLS edges
 (Update this table when a language gets a profile.) What each profile maps,
 and what it gets wrong:
 
-- **C#** (`structural/csharp.py`). A file belongs to the namespace it declares, not to its
-  folder (the `package` attribute, file-scoped or block). `using A.B;` reaches every file of
-  namespace `A.B`; `using static A.B.C;` only the members of class `C`, unqualified;
+- **C#** (`structural/csharp.py`). A file belongs to the namespaces it declares, not to its
+  folder (the `packages` attribute, file-scoped or block; `namespace A { namespace B {} }`
+  is `A.B`, and a file with `namespace A {}` then `namespace B {}` belongs to both). The
+  profile keeps its own namespace -> files table, because the context's `by_package` holds
+  only the first. `using A.B;` reaches every file of namespace `A.B`; `using static A.B.C;` only the members of class `C`, unqualified;
   `using X = A.B.C;` binds `X` to that class. `Foo.Bar()` with `Foo` a class of the same
   namespace or an imported one looks only at `Foo`'s methods. Wrong: `Console.WriteLine` after
   a bare `using System;` stays unresolved (nothing says `Console` is in `System`); an aliased
   or fully qualified external name is exact; `var x = ...; x.M()` is an untyped receiver
-  (up to 5 candidates); only the first namespace of a file is recorded.
+  (up to 5 candidates); a namespace that only wraps others (`A` above) is not recorded, so
+  `using A;` does not reach that file.
 - **PHP** (`structural/php.py`). `use App\Models\User;` (also `as`, grouped `use App\{A, B}`,
   `use function`) is looked up in the PSR-4 table T15 stored on each Composer Package node
   (`App\` -> `src/` gives `src/Models/User.php`); with no table, a file declaring that
@@ -149,8 +153,11 @@ inside them, and they mark the form) only searches include folders, else it is e
 Every header name is usable unqualified (`names=None`). A header and its same-named
 source (`x.h` with `x.c`/`x.cpp`, beside it or the only one in the repository) are each
 other's package scope. Prototypes: `int f(int);` is tagged as a function just like its
-definition, and the node's span covers only the declarator, so the profile reads the
-source after the span: a `;` before any `{` means no body. `narrow` then swaps a prototype
+definition. A definition's node spans the whole `function_definition` (see
+`tags-tier.md`), so its text ends with `}`; a prototype's node is only the declarator,
+and the profile reads the source after it: a `;` before any `{` means no body. (Before
+T21 every node was a declarator, and reading on past a body would have found the next
+`int x;`.) `narrow` then swaps a prototype
 for the same-named definition in its own file or partner source, and drops prototypes
 when a definition is among the candidates. The same text gives the qualifier written
 before an out-of-line name (`int C::get()` is keyed `get` but belongs to `C`).
@@ -195,11 +202,11 @@ namespace check rejects them all.
 
 **Known wrong or missing**:
 
-- **C and C++ callers are the module** (or, for a method defined inside its class, the
-  class): the upstream tags query tags the `function_declarator`, which does not contain
-  the body, so the adapter never finds an enclosing function for a call. Targets are
-  right; sources are coarse, and the pipeline then keeps one CALLS edge per (module,
-  target). The fix belongs in `generic/adapter.py` (see the T17b pull request).
+- **C and C++ callers in preprocessor-heavy code are still the module.** T21 made a
+  function's node span its body, so calls name their function: on jq, CALLS edges went
+  from 1,251 (every caller a module) to 3,140 (3,022 with a function caller). The other
+  118 sit where tree-sitter cannot form a `function_definition`: `#ifdef` branches inside
+  a body (`jv_dtoa.c`, `decNumber.c`) and functions written by macros (`builtin.c`).
 - Includes are not transitive: a function declared in a header that is included by an
   included header is a name guess.
 - Calls to the C library have no edge: no header in the repository says which names
@@ -257,7 +264,8 @@ Sample scores were unchanged by these fixes (Java, Go, C#, PHP, Ruby, C, C++, Ru
 ## Where
 
 - Input: `ParseResult`s of the structural languages (`calls`, `imports`, module
-  `attrs["package"]`, `attrs["package_key"]` set by the pipeline) and the `SymbolIndex`
+  `attrs["package"]` and `attrs["packages"]`, `attrs["package_key"]` set by the pipeline)
+  and the `SymbolIndex`
   (Package nodes for Go module paths and Cargo crates; `files()` for `CMakeLists.txt`).
 - Output: `Edge`s (`CALLS`, `IMPORTS`), with `Resolution.IMPORT_SCOPED`, `NAME_GUESS`,
   `STRUCTURAL`. EXTERNAL nodes are created by the pipeline from `::external:` targets (D-19).

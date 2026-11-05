@@ -271,7 +271,7 @@ def _read_shape(ctx: Context, node: Node) -> _Shape:
     if written:
         extra = tuple(p.strip() for p in written.group(1).decode("utf-8", "replace").split("::"))
         scope = scope + tuple(p for p in extra if p)
-    return _Shape(_ends_with_semicolon(source, end), scope)
+    return _Shape(_is_prototype(source, start, end), scope)
 
 
 def _lines(ctx: Context, path: str) -> list[bytes]:
@@ -285,6 +285,17 @@ def _lines(ctx: Context, path: str) -> list[bytes]:
 
 def _offset(lines: list[bytes], line: int, column: int) -> int:
     return sum(len(text) for text in lines[: line - 1]) + column
+
+
+def _is_prototype(source: bytes, start: int, end: int) -> bool:
+    """A definition's node spans its body, so its text ends with `}`; a prototype's node
+    is only the declarator, and what follows it decides.
+
+    Reading past a definition's `}` would find the next `int x;` and call it a prototype.
+    """
+    if source[start:end].rstrip().endswith(b"}"):
+        return False
+    return _ends_with_semicolon(source, end)
 
 
 def _ends_with_semicolon(source: bytes, position: int) -> bool:

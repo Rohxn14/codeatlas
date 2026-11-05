@@ -46,6 +46,15 @@ _OWNER_KINDS = frozenset({NodeKind.CLASS, NodeKind.INTERFACE})
 _RECEIVER_FIELDS: dict[str, str] = {"method_declaration": "receiver"}
 _IMPL_BLOCKS: dict[str, str] = {"impl_item": "type"}
 
+# C and C++ tags queries tag the declarator (`h(void)`), which ends before the body, so
+# no call would ever sit inside the function. Tagged node type -> the definition that
+# holds it; the wider node is used only when it has a body (a prototype stays as it is).
+_DEFINITION_HOLDERS: dict[str, str] = {"function_declarator": "function_definition"}
+_DECLARATOR_WRAPPERS = frozenset(
+    {"pointer_declarator", "reference_declarator", "parenthesized_declarator",
+     "attributed_declarator"}
+)
+
 _QUERIES_DIR = Path(__file__).resolve().parent.parent / "queries"
 _MAX_ERRORS = 20
 _CALL_SEPARATOR = re.compile(r"(\?\.|\.|::|->)$")
@@ -114,9 +123,10 @@ class TagsAdapter:
             definitions = self._definitions(matches, source, path)
             nodes = [module, *self._nodes(definitions, path, source, snapshot_id)]
             calls = self._calls(tree.root_node, matches, source, path, definitions)
-            imports, package = self._imports(tree.root_node, source, module.key)
-            if package:
-                nodes[0] = replace(module, attrs={**module.attrs, "package": package})
+            imports, packages = self._imports(tree.root_node, source, module.key, definitions)
+            if packages:
+                attrs = {**module.attrs, "package": packages[0], "packages": packages}
+                nodes[0] = replace(module, attrs=attrs)
         except Exception as exc:  # defensive: a grammar bug must not stop indexing
             return ParseResult(
                 path, self.language, self.tier, (module,), errors=(f"adapter failed: {exc}",)
@@ -134,22 +144,26 @@ class TagsAdapter:
     # Imports
 
     def _imports(
-        self, root: TSNode, source: bytes, module_key: str
-    ) -> tuple[list[RawImport], str | None]:
-        """Imports and the package declaration, from `imports.scm` (see queries/README.md)."""
+        self,
+        root: TSNode,
+        source: bytes,
+        module_key: str,
+        definitions: dict[NodeId, _Definition] | None = None,
+    ) -> tuple[list[RawImport], list[str]]:
+        """Imports and the declared packages, from `imports.scm` (see queries/README.md)."""
         if self._imports_query is None:
-            return [], None
+            return [], []
         statements: dict[NodeId, dict[str, list[TSNode]]] = {}
-        package: str | None = None
+        package_names: list[TSNode] = []
         for _, captures in QueryCursor(self._imports_query).matches(root):
-            if "package.name" in captures and package is None:
-                package = _text(captures["package.name"][0], source)
+            package_names += captures.get("package.name", [])[:1]
             if "import" in captures and "import.target" in captures:
                 merged = statements.setdefault(_ident(captures["import"][0]), {})
                 for capture, nodes in captures.items():
                     merged.setdefault(capture, []).extend(nodes)
         imports = [_raw_import(c, source, module_key) for c in statements.values()]
-        return sorted(imports, key=lambda i: i.line), package
+        packages = _packages(package_names, source, definitions or {})
+        return sorted(imports, key=lambda i: i.line), packages
 
     # Definitions
 
@@ -232,6 +246,44 @@ class TagsAdapter:
                 line=call.start_point[0] + 1,
             )
         return [calls[k] for k in sorted(calls)]
+
+
+def _packages(
+    names: list[TSNode], source: bytes, definitions: dict[NodeId, _Definition]
+) -> list[str]:
+    """Every package the file declares, nested ones joined: `namespace A { namespace B }`
+    is `A.B`. Kept in source order, without repeats.
+
+    A declaration that only wraps others (`A` above) holds no code, so a package is kept
+    only when a definition sits directly inside it. When no definition is inside any
+    package declaration (Java's `package x;`, C#'s `namespace A;`, which are siblings of
+    the code), every declared package is kept.
+    """
+    holders: dict[NodeId, str] = {}
+    for name in sorted(names, key=lambda n: n.start_byte):  # outer declarations first
+        declaration = name.parent
+        if declaration is None:
+            continue
+        outer = _enclosing_holder(declaration, holders)
+        own = _text(name, source)
+        holders[_ident(declaration)] = f"{outer}.{own}" if outer else own
+    used = {
+        holder
+        for definition in definitions.values()
+        if definition.kind is not None
+        and (holder := _enclosing_holder(definition.node, holders)) is not None
+    }
+    kept = [p for p in holders.values() if p in used] or list(holders.values())
+    return list(dict.fromkeys(kept))
+
+
+def _enclosing_holder(node: TSNode, holders: dict[NodeId, str]) -> str | None:
+    parent = node.parent
+    while parent is not None:
+        if _ident(parent) in holders:
+            return holders[_ident(parent)]
+        parent = parent.parent
+    return None
 
 
 def _raw_import(captures: dict[str, list[TSNode]], source: bytes, module_key: str) -> RawImport:
@@ -324,7 +376,30 @@ def _make_definition(
     kind = _type_kind(node) if tag == "type" else _KIND_BY_TAG.get(tag)
     if kind is None:
         return None
-    return _Definition(node, name, tag, kind, _signature(node, source))
+    # The signature stays the tagged node's text (`h(void)`): it feeds the `#hash` key
+    # suffix, so widening the node to the whole definition must not change it.
+    return _Definition(_definition_holder(node), name, tag, kind, _signature(node, source))
+
+
+def _definition_holder(node: TSNode) -> TSNode:
+    """The whole `function_definition` around a tagged C/C++ declarator, when it has a
+    body; otherwise the tagged node itself.
+
+    Only the definition's own declarator counts: `int (*f(void))(int)` wraps it in other
+    declarators, but a function declarator in a parameter list is not the definition's.
+    """
+    holder_type = _DEFINITION_HOLDERS.get(node.type)
+    if holder_type is None:
+        return node
+    child, parent = node, node.parent
+    while parent is not None and parent.type in _DECLARATOR_WRAPPERS:
+        child, parent = parent, parent.parent
+    if parent is None or parent.type != holder_type:
+        return node
+    declarator = parent.child_by_field_name("declarator")
+    if declarator is None or _ident(declarator) != _ident(child):
+        return node
+    return parent if parent.child_by_field_name("body") is not None else node
 
 
 def _type_kind(node: TSNode) -> NodeKind | None:

@@ -218,7 +218,7 @@
    "confidence": 1.0
   },
   {
-   "src_key": "lib/geometry.c::",
+   "src_key": "lib/geometry.c::area",
    "dst_key": "lib/geometry.c::square#8e3e-2",
    "kind": "calls",
    "confidence": 1.0
@@ -242,19 +242,19 @@
    "confidence": 1.0
   },
   {
-   "src_key": "src/main.c::",
+   "src_key": "src/main.c::main",
    "dst_key": "lib/geometry.c::area",
    "kind": "calls",
    "confidence": 1.0
   },
   {
-   "src_key": "src/main.c::",
+   "src_key": "src/main.c::main",
    "dst_key": "src/util/log.c::log_line",
    "kind": "calls",
    "confidence": 1.0
   },
   {
-   "src_key": "src/main.c::",
+   "src_key": "src/main.c::main",
    "dst_key": "lib/geometry.c::clamp",
    "kind": "calls",
    "confidence": 1.0
@@ -272,7 +272,7 @@
    "confidence": 1.0
   },
   {
-   "src_key": "src/util/log.c::",
+   "src_key": "src/util/log.c::log_line",
    "dst_key": "src/util/log.h::log_level",
    "kind": "calls",
    "confidence": 1.0
@@ -290,13 +290,13 @@
    "confidence": 1.0
   },
   {
-   "src_key": "tests/test_geometry.c::",
+   "src_key": "tests/test_geometry.c::main",
    "dst_key": "lib/geometry.c::area",
    "kind": "calls",
    "confidence": 1.0
   },
   {
-   "src_key": "tests/test_geometry.c::",
+   "src_key": "tests/test_geometry.c::main",
    "dst_key": "lib/geometry.c::clamp",
    "kind": "calls",
    "confidence": 1.0
