@@ -1,5 +1,12 @@
 # T17f: Structural tier review fixes (C#, PHP, Ruby, C, C++, Rust)
 
+> **Reading note.** This brief is history. It is what a cloud session was told to build, kept so you can see what was asked; it is not an instruction for new work.
+> - **Built in**: pull request #33.
+> - **Read first**: `docs/explainers/structural-tier.md` (section "Review fixes (T17f)"), for what was actually built and why.
+> - **Code**: `src/codeatlas/indexer/structural/`. **Tests**: `tests/indexer/structural/test_structural_fixes.py`.
+> - **Then** read this brief and its review at the end: the gap between them is where the interesting questions are.
+> - Reading order, glossary and how to study a module: `docs/README.md`.
+
 **Wave**: 3 fixes (runs in parallel with T11f and T12f; no file overlap)
 **Branch**: keep the one the cloud environment gives you
 **Why**: the reviews of T17a and T17b (end of their briefs). Both merged. The fixes are one session because they share `structural/resolver.py`. Most are wrong edges at confidence 1.0, the worst kind for the impact engine.

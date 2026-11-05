@@ -1,5 +1,12 @@
 # T19: Command line for search, ask, impact and tests; README
 
+> **Reading note.** This brief is history. It is what a cloud session was told to build, kept so you can see what was asked; it is not an instruction for new work.
+> - **Built in**: pull request #36, with fixes in #38.
+> - **Read first**: `docs/explainers/cli.md`, for what was actually built and why.
+> - **Code**: `src/codeatlas/cli.py`. **Tests**: `tests/test_cli_commands.py`.
+> - **Then** read this brief and its review at the end: the gap between them is where the interesting questions are.
+> - Reading order, glossary and how to study a module: `docs/README.md`.
+
 **Wave**: 4 (runs in parallel with T20 and T21; no file overlap)
 **Branch**: keep the one the cloud environment gives you
 
@@ -44,3 +51,9 @@ The CLI on a small repository built in the test: each command's exit code and th
 ## Done when
 
 The commands work on the fixture; tests pass on Linux and Windows CI; `ruff check .` passes; README and demo contain real output; explainer has What/Why/How/Where. Pull request title: `T19: CLI commands and README`.
+
+## Review (Nov 4)
+
+**Verdict**: merged (#36); meets "Done when". Every command exists with its options, error paths exit 2 with one line instead of a traceback, and the README's pasted output matches a re-run. Fixed in #38 (the fixes were pushed after #36 had been merged, so they came in a follow-up pull request): `--git` now refuses a checkout that has moved past the indexed commit; text that is not a diff exits 2 instead of reporting zero targets; stdin is read as UTF-8, which matters on Windows; the docs describe the blobless clone correctly; `search` and `ask` pass `--config` to the LLM clients. Left open: `--git` cannot find the checkout when the source was a relative path and you run from another folder (the fix belongs in intake).
+
+**Read these yourself**: `cli.py` `read_changes` and `_git_diff` (how a change reaches the impact engine, and the safety guards around running git).

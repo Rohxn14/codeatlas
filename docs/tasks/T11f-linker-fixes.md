@@ -1,5 +1,12 @@
 # T11f: HTTP linker review fixes
 
+> **Reading note.** This brief is history. It is what a cloud session was told to build, kept so you can see what was asked; it is not an instruction for new work.
+> - **Built in**: pull request #32.
+> - **Read first**: `docs/explainers/http-linker.md`, for what was actually built and why.
+> - **Code**: `src/codeatlas/indexer/linker/`, the HTTP parts of both deep adapters. **Tests**: `tests/indexer/linker/`.
+> - **Then** read this brief and its review at the end: the gap between them is where the interesting questions are.
+> - Reading order, glossary and how to study a module: `docs/README.md`.
+
 **Wave**: 3 fixes (runs in parallel with T12f and T17f; no file overlap)
 **Branch**: keep the one the cloud environment gives you
 **Why**: T11's review (end of `docs/tasks/T11-http-linker.md`) found the fixture's CALLS_HTTP recall at 0.33 (2 of 6): the linker is right, but two adapters never emit the client calls. Linker problems also never reach the build report.

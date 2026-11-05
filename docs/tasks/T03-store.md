@@ -1,5 +1,12 @@
 # T03: Graph store
 
+> **Reading note.** This brief is history. It is what a cloud session was told to build, kept so you can see what was asked; it is not an instruction for new work.
+> - **Built in**: pull request #5, with fixes in #19.
+> - **Read first**: `docs/explainers/store.md`, for what was actually built and why.
+> - **Code**: `src/codeatlas/store/`. **Tests**: `tests/store/`.
+> - **Then** read this brief and its review at the end: the gap between them is where the interesting questions are.
+> - Reading order, glossary and how to study a module: `docs/README.md`.
+
 **Wave**: 1 (parallel with T01, T02, T04, T05)
 **Branch**: `task/T03-store`
 

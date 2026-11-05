@@ -1,5 +1,12 @@
 # T10: Evaluation harness: acceptance suite, co-change benchmark, mutation truth
 
+> **Reading note.** This brief is history. It is what a cloud session was told to build, kept so you can see what was asked; it is not an instruction for new work.
+> - **Built in**: pull request its session opened no pull request; its branch was merged in #27.
+> - **Read first**: `docs/explainers/eval-harness.md`, for what was actually built and why.
+> - **Code**: `eval/suite/`, `eval/cochange/`, `eval/mutants/`. **Tests**: `tests/eval/`.
+> - **Then** read this brief and its review at the end: the gap between them is where the interesting questions are.
+> - Reading order, glossary and how to study a module: `docs/README.md`.
+
 **Wave**: 2 (all of Wave 2 runs in parallel)
 **Branch**: keep the one the cloud environment gives you
 
@@ -64,7 +71,7 @@ Tests pass on Linux and Windows CI; the three reports are in the pull request; t
 
 **What it built**: `python -m eval.suite` (47 pinned repositories, each built in a child process with a time limit, a JSON and markdown scoreboard, resume); `python -m eval.cochange` (held-out commits, precision and recall at 5 and 10, a `Predictor` protocol for T12, co-change and same-folder predictors); `python -m eval.mutants` (pinned benchmarks only, scratch copies only, a baseline check first, timeouts). Co-change beats the same-folder baseline on click (P@5 0.27 vs 0.12), cobra (0.30 vs 0.19) and express (0.43 vs 0.33).
 
-**Must fix (done)**: the mutator broke `@overload` stubs whose body shares the header's line, so three itsdangerous "caught" mutants were really syntax errors. It now skips overloads and any mutation that no longer parses, and both truth files were regenerated on the merged tree (caller basis `calls-edges`): itsdangerous 29 made, 29 caught; fixture 23 made, 22 caught. A test assumed no resolvers existed; fixed. The committed scoreboard predated Wave 2 (100% unresolved everywhere); re-run on the merged tree, see `docs/wave3.md`.
+**Must fix (done)**: the mutator broke `@overload` stubs whose body shares the header's line, so three itsdangerous "caught" mutants were really syntax errors. It now skips overloads and any mutation that no longer parses, and both truth files were regenerated on the merged tree (caller basis `calls-edges`): itsdangerous 29 made, 29 caught; fixture 23 made, 22 caught. A test assumed no resolvers existed; fixed. The committed scoreboard predated Wave 2 (100% unresolved everywhere); re-run on the merged tree, see `docs/history/wave3.md`.
 
 **Also fixed**: the Windows refusal is in `run_benchmark` itself; the message no longer suggests WSL (CLAUDE.md says cloud VM or container); the pin check raises instead of `assert`; a failed co-change clone is a row with its error.
 

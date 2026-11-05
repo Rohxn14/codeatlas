@@ -1,5 +1,12 @@
 # T20: Typed receivers for TypeScript and JavaScript (D-22)
 
+> **Reading note.** This brief is history. It is what a cloud session was told to build, kept so you can see what was asked; it is not an instruction for new work.
+> - **Built in**: pull request #35, with fixes in #37.
+> - **Read first**: `docs/explainers/typescript-resolver.md` (the typed-receivers part), for what was actually built and why.
+> - **Code**: `src/codeatlas/indexer/languages/typescript/resolver/types.py`. **Tests**: `tests/indexer/typescript/resolver/test_ts_types.py`.
+> - **Then** read this brief and its review at the end: the gap between them is where the interesting questions are.
+> - Reading order, glossary and how to study a module: `docs/README.md`.
+
 **Wave**: 4 (runs in parallel with T19 and T21; no file overlap)
 **Branch**: keep the one the cloud environment gives you
 
@@ -42,3 +49,9 @@ Built-in method stop-list (T07), the 5-candidate cut-off, D-23 (no TESTS edges f
 ## Done when
 
 Tests pass on Linux and Windows CI; `ruff check .` passes; the plan is committed; the numbers and the hand check are in the pull request; `docs/decisions.md` is not edited (the owner records D-22), but the pull request says D-22 is now implemented in both languages. Pull request title: `T20: typed receivers for TypeScript and JavaScript`.
+
+## Review (Nov 4)
+
+**Verdict**: merged (#35); meets "Done when". Fixture unchanged at 165 of 165; untyped receivers give the same edges as before. Must fix (done in #37): a callback or block variable that reuses a typed parameter's name (`rows.forEach((repo) => repo.save())`) took the outer type and produced a wrong edge at 0.9. Also fixed in #37: default-exported classes resolve through a default import, repository interfaces count as inside bases, and `this` inside a `function` expression is untyped. Left open for you: a receiver typed as an interface stays untyped, because resolving it to the interface's declaration needs a contract decision about method owners. The hand check of 20 new edges drew 18 from one file, so it says little; a fresh sample is worth doing.
+
+**Read these yourself**: `resolver/types.py` (the type sources and the scope rules), then compare it with the Python resolver's `types.py`: same idea, different language.

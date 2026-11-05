@@ -1,5 +1,12 @@
 # T09: Agent loop, graph tools and MCP server
 
+> **Reading note.** This brief is history. It is what a cloud session was told to build, kept so you can see what was asked; it is not an instruction for new work.
+> - **Built in**: pull request #23, with fixes in #27.
+> - **Read first**: `docs/explainers/agent.md`, for what was actually built and why.
+> - **Code**: `src/codeatlas/agent/`. **Tests**: `tests/agent/`.
+> - **Then** read this brief and its review at the end: the gap between them is where the interesting questions are.
+> - Reading order, glossary and how to study a module: `docs/README.md`.
+
 **Wave**: 2 (all of Wave 2 runs in parallel)
 **Branch**: keep the one the cloud environment gives you
 
@@ -76,7 +83,7 @@ Tests pass on Linux and Windows CI; the five questions are reported; the explain
 
 **Also fixed**: `semantic_search` uses the configured embedding model, passes on the search engine's notes, keeps at most k hits and drops EXTERNAL nodes.
 
-**Still open**: ask the five questions (see `docs/wave3.md`; the Groq free tier allows about 8,000 tokens a minute, so use a lower `max_steps` or Gemini); malformed citations are skipped, not reported; the trajectory stores result sizes, not contents; the MCP server needs `mcp>=2` while `pyproject.toml` says `>=1.2` (your edit to make).
+**Still open**: ask the five questions (see `docs/history/wave3.md`; the Groq free tier allows about 8,000 tokens a minute, so use a lower `max_steps` or Gemini); malformed citations are skipped, not reported; the trajectory stores result sizes, not contents; the MCP server needs `mcp>=2` while `pyproject.toml` says `>=1.2` (your edit to make).
 
 **Your decisions**: should `ask` exit non-zero on an invalid citation (recommended, for the eval)? Should trajectories store tool results, capped at 4,000 characters (recommended, for strategy memory later)?
 

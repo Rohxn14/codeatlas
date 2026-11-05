@@ -1,5 +1,12 @@
 # T00: Scaffold, intake, discovery and the structural tags tier
 
+> **Reading note.** This brief is history. It is what a cloud session was told to build, kept so you can see what was asked; it is not an instruction for new work.
+> - **Built in**: pull request #2, with fixes in #3 and #4.
+> - **Read first**: `docs/explainers/intake-and-discovery.md`, then `docs/explainers/tags-tier.md`, for what was actually built and why.
+> - **Code**: `src/codeatlas/cli.py`, `config.py`, `indexer/intake.py`, `indexer/discover.py`, `indexer/registry.py`, `indexer/generic/adapter.py`. **Tests**: `tests/test_intake.py`, `tests/test_discover.py`, `tests/test_generic_adapter.py`.
+> - **Then** read this brief and its review at the end: the gap between them is where the interesting questions are.
+> - Reading order, glossary and how to study a module: `docs/README.md`.
+
 **Wave**: Day 0 (one session, merged before Wave 1)
 **Branch**: `task/T00-scaffold`
 

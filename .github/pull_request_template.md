@@ -1,33 +1,27 @@
-## Task
+## What and why
 
-Txx: brief at `docs/tasks/Txx-....md`
-
-## Summary
-
-What this pull request adds, in three to five sentences.
+What this pull request changes, and why, in three to five sentences. Link the plan in `docs/plans/` if there is one.
 
 ## How it was verified
 
 - [ ] `pytest -q` passes
 - [ ] `ruff check .` passes
+- [ ] `python scripts/score_fixture.py` unchanged, or the change is explained (for anything touching the indexer)
 - [ ] Other checks (commands and results):
 
 ## Files touched
 
-Every path changed. All of them must be listed in the task brief, apart from tests and the explainer.
+Every path changed, with one line each on why.
 
-## Explainer
+## Explainer and decisions
 
-`docs/explainers/<module>.md`
+- Explainer updated: `docs/explainers/<module>.md` (or "no behaviour change")
+- Decisions recorded in `docs/decisions.md` (or "none")
 
 ## Known limitations
 
 What does not work yet, and what would break it.
 
-## Questions for the owner
+## Open questions
 
-Design choices the brief left open, each with the option taken and the alternative rejected.
-
-## Contract change request
-
-None, or: what is needed, why, and the smallest change that would do it.
+Choices made along the way that the owner should confirm or reverse, each with the option taken and the alternative rejected.
