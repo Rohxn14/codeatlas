@@ -1,5 +1,12 @@
 # T11: Cross-language HTTP linker
 
+> **Reading note.** This brief is history. It is what a cloud session was told to build, kept so you can see what was asked; it is not an instruction for new work.
+> - **Built in**: pull request #28, with fixes in #32 (brief T11f).
+> - **Read first**: `docs/explainers/http-linker.md`, for what was actually built and why.
+> - **Code**: `src/codeatlas/indexer/linker/`. **Tests**: `tests/indexer/linker/`.
+> - **Then** read this brief and its review at the end: the gap between them is where the interesting questions are.
+> - Reading order, glossary and how to study a module: `docs/README.md`.
+
 **Wave**: 3 (all of Wave 3 runs in parallel)
 **Branch**: keep the one the cloud environment gives you
 

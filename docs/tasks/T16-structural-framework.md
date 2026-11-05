@@ -1,5 +1,12 @@
 # T16: Structural framework, with Java and Go first
 
+> **Reading note.** This brief is history. It is what a cloud session was told to build, kept so you can see what was asked; it is not an instruction for new work.
+> - **Built in**: pull request #25, with fixes in #27.
+> - **Read first**: `docs/explainers/structural-tier.md`, for what was actually built and why.
+> - **Code**: `src/codeatlas/indexer/structural/`, `src/codeatlas/indexer/queries/`, `.claude/skills/add-language/SKILL.md`. **Tests**: `tests/indexer/structural/`.
+> - **Then** read this brief and its review at the end: the gap between them is where the interesting questions are.
+> - Reading order, glossary and how to study a module: `docs/README.md`.
+
 **Wave**: 2 (all of Wave 2 runs in parallel)
 **Branch**: keep the one the cloud environment gives you
 

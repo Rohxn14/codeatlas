@@ -155,7 +155,7 @@ While it runs, answer Q1 to Q4 in `docs/decisions.md` and send me your answers; 
 ## 7. Review and merge T00
 
 1. In VS Code, open a local `claude` session in the repo and ask: "Use the reviewer agent on task/T00-scaffold." Read its report.
-2. Then follow section 3 of `docs/cloud-playbook.md` at deep depth. T00 sets the patterns every later session copies (layout, test style, explainer depth), so this review matters more than most.
+2. Then follow section 3 of `docs/history/cloud-playbook.md` at deep depth. T00 sets the patterns every later session copies (layout, test style, explainer depth), so this review matters more than most.
 3. Note T00's cost in the usage menu: it is the baseline for budgeting every later wave.
 4. Squash merge, then fill in the T00 entry of `docs/learning-log.md`.
 

@@ -1,5 +1,12 @@
 # T17b: C, C++ and Rust through the add-language skill
 
+> **Reading note.** This brief is history. It is what a cloud session was told to build, kept so you can see what was asked; it is not an instruction for new work.
+> - **Built in**: pull request #31, with fixes in #33 (brief T17f).
+> - **Read first**: `docs/explainers/structural-tier.md` (the C, C++ and Rust parts), for what was actually built and why.
+> - **Code**: `src/codeatlas/indexer/structural/c.py`, `rust.py`. **Tests**: `tests/indexer/structural/`.
+> - **Then** read this brief and its review at the end: the gap between them is where the interesting questions are.
+> - Reading order, glossary and how to study a module: `docs/README.md`.
+
 **Wave**: 3 (optional: launch only if the credit allows; otherwise the owner does it locally)
 **Branch**: keep the one the cloud environment gives you
 

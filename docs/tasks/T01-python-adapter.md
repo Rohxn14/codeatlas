@@ -1,5 +1,12 @@
 # T01: Python adapter (deep tier)
 
+> **Reading note.** This brief is history. It is what a cloud session was told to build, kept so you can see what was asked; it is not an instruction for new work.
+> - **Built in**: pull request #6, with fixes in #19.
+> - **Read first**: `docs/explainers/python-adapter.md`, for what was actually built and why.
+> - **Code**: `src/codeatlas/indexer/languages/python/` (everything except `resolver/`). **Tests**: `tests/indexer/python/`.
+> - **Then** read this brief and its review at the end: the gap between them is where the interesting questions are.
+> - Reading order, glossary and how to study a module: `docs/README.md`.
+
 **Wave**: 1 (parallel with T02 to T05)
 **Branch**: `task/T01-python-adapter`
 
@@ -81,12 +88,12 @@ T00 is merged, so build on what exists:
 **Must fix** (issue #13, part 1)
 1. `routes.py:87-98`: `patch` is an HTTP verb, so `@mock.patch("os.getcwd")` in a test file becomes a `PATCH` route through the FastAPI fallback. Common in real test suites; it would feed false routes to the linker (T11). Fix: a route path must be `""` or start with `/`.
 
-**Found while cross-checking with T05** (issue #13, part 2, decision D-11 in `docs/day2.md`)
+**Found while cross-checking with T05** (issue #13, part 2, decision D-11 in `docs/history/day2.md`)
 2. The fixture labels count `@logged` above `create_user` as a call from `create_user` to `logged`. This adapter records nothing for a bare `@logged` and credits `@deco(1)` to the module, so that edge can never exist, and the impact engine would miss that changing a decorator changes every function it wraps. The issue asks the session to credit function decorators to the decorated function.
 
 **Should fix** (issue #13, parts 3 and 4)
 3. `definitions.py:149`: CRLF docstrings keep `\r` on Python 3.11 and 3.12, so the same file gives a different docstring on Windows than on Linux.
-4. The explainer understates when deep and structural keys differ for repeated names: any comment between the colon and the body changes T00's signature text (59 of 4,646 files). The cause is in T00's `_signature`; see "Your small fix" in `docs/day2.md`.
+4. The explainer understates when deep and structural keys differ for repeated names: any comment between the colon and the body changes T00's signature text (59 of 4,646 files). The cause is in T00's `_signature`; see "Your small fix" in `docs/history/day2.md`.
 
 **Your decisions** (write your answer next to each)
 

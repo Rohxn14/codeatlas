@@ -1,5 +1,12 @@
 # T18: Pipeline, `codeatlas index` and `codeatlas view`
 
+> **Reading note.** This brief is history. It is what a cloud session was told to build, kept so you can see what was asked; it is not an instruction for new work.
+> - **Built in**: pull request #20, with fixes in #27.
+> - **Read first**: `docs/explainers/pipeline.md`, for what was actually built and why.
+> - **Code**: `src/codeatlas/indexer/pipeline/`, `src/codeatlas/view/`. **Tests**: `tests/pipeline/`, `tests/view/`.
+> - **Then** read this brief and its review at the end: the gap between them is where the interesting questions are.
+> - Reading order, glossary and how to study a module: `docs/README.md`.
+
 **Wave**: 2 (parallel with T06, T07, T16, T08, T09, T10)
 **Branch**: keep the one the cloud environment gives you
 

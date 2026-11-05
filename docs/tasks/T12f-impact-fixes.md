@@ -1,5 +1,12 @@
 # T12f: Impact engine review fixes
 
+> **Reading note.** This brief is history. It is what a cloud session was told to build, kept so you can see what was asked; it is not an instruction for new work.
+> - **Built in**: pull request #34.
+> - **Read first**: `docs/explainers/impact.md`, for what was actually built and why.
+> - **Code**: `src/codeatlas/impact/`. **Tests**: `tests/impact/`.
+> - **Then** read this brief and its review at the end: the gap between them is where the interesting questions are.
+> - Reading order, glossary and how to study a module: `docs/README.md`.
+
 **Wave**: 3 fixes (runs in parallel with T11f and T17f; no file overlap)
 **Branch**: keep the one the cloud environment gives you
 **Why**: T12's review (end of `docs/tasks/T12-impact-engine.md`). The engine ignores T11's route edges, though T11 merged first; `parse_diff` silently drops some changes; and the co-change numbers are flattered by structure from the held-out commits.

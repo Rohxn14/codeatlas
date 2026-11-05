@@ -1,5 +1,12 @@
 # T05: Polyglot fixture, SCIP oracle and graph scorer
 
+> **Reading note.** This brief is history. It is what a cloud session was told to build, kept so you can see what was asked; it is not an instruction for new work.
+> - **Built in**: pull request #10, with fixes in #19.
+> - **Read first**: `docs/explainers/graph-eval.md`, for what was actually built and why.
+> - **Code**: `eval/fixtures/polyglot_app/`, `eval/oracle/`, `scripts/score_fixture.py`. **Tests**: `tests/eval/`.
+> - **Then** read this brief and its review at the end: the gap between them is where the interesting questions are.
+> - Reading order, glossary and how to study a module: `docs/README.md`.
+
 **Wave**: 1 (parallel with T01 to T04)
 **Branch**: `task/T05-fixture-oracle`
 

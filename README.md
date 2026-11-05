@@ -12,6 +12,10 @@ CodeAtlas analyses code statically. It never installs, imports or runs code from
 repository it indexes. No file is dropped quietly: a file it cannot analyse still gets a
 node with its language, its tier and the reason.
 
+**Status (Nov 2026):** v1 works end to end and is measured on 47 public repositories.
+Next: an impact engine v2 and a free public demo that replays recorded agent runs instead
+of calling a live model. See [docs/roadmap.md](docs/roadmap.md).
+
 ## Install
 
 ```
@@ -136,7 +140,8 @@ joins client calls to server routes across languages.
 ## How well it works
 
 The acceptance suite indexes 47 pinned public repositories
-(`eval/results/suite_20261103_wave3.md`, the newest): 47 of 47 complete, 69,762 files
+(`eval/results/suite_20261103_wave3.md`, the newest; measured before typed TypeScript
+receivers and the C/C++ caller fix, so re-run it before quoting): 47 of 47 complete, 69,762 files
 (deep 9,150, structural 15,862, text 44,750) in 38 languages, 1,130,634 raw calls of which
 45% stay unresolved, 275 seconds for all of them, 8 repositories stopped at a limit.
 
@@ -173,8 +178,55 @@ Claude Code then has `search_symbols`, `find_callers`, `find_callees`, `impact`,
   fetch old file contents over the network.
 - `ask` depends on a free-tier LLM and can fail on rate limits; the trajectory is kept.
 
-## More
+## Project layout
 
-How each part works, why it was built that way and what was rejected:
-[docs/explainers/](docs/explainers/) (start with `pipeline.md`, `impact.md`, `agent.md`
-and `cli.md`). The shared types are in [docs/contract.md](docs/contract.md).
+```
+src/codeatlas/
+  cli.py                 the codeatlas command
+  models.py              the shared types (see docs/contract.md)
+  indexer/
+    intake.py discover.py registry.py   a folder or URL becomes files with languages and tiers
+    generic/             the tags adapter: any tree-sitter language
+    languages/python/    deep adapter, and resolver/
+    languages/typescript/ deep adapter, and resolver/
+    structural/          one import-scoped resolver plus a profile per language
+    queries/             tree-sitter queries (tags extras, imports)
+    linker/              HTTP client calls to server routes
+    pipeline/            one build, start to end; the index report
+  repo/                  manifests, packages, test conventions, co-change
+  store/                 SQLite, FTS5, the NetworkX view
+  search/                hybrid search
+  llm/                   Groq and Gemini, record and replay, embeddings
+  agent/                 the agent loop, its tools, the MCP server
+  impact/                diffs to changed symbols, impact ranking, test selection
+  view/                  the HTML viewer
+eval/                    fixture, oracle, acceptance suite, mutants, co-change benchmark
+docs/                    start at docs/README.md
+```
+
+## Develop
+
+On Windows (PowerShell):
+
+```powershell
+python -m venv .venv; .\.venv\Scripts\Activate.ps1
+python -m pip install -e ".[dev]"
+ruff check .
+pytest -q                          # about 880 tests, under a minute; no network
+python scripts/score_fixture.py    # the fixture graph against its hand-made labels
+python -m eval.suite --only click  # one repository of the acceptance suite
+```
+
+CI runs lint and tests on Linux and Windows, Python 3.11 and 3.12, for every push and
+pull request. Work goes through a branch and a pull request; `CLAUDE.md` has the rules
+Claude Code follows in this repository.
+
+## Learn how it works
+
+[docs/README.md](docs/README.md) is the way in: what each document is for, the order to
+read the modules in (following one repository through the system), how to study a
+module, a glossary, and one build traced through the code.
+
+Each module has an explainer in [docs/explainers/](docs/explainers/) (What, Why, How with
+a worked example, Where). The shared types are in [docs/contract.md](docs/contract.md),
+every design decision and its reason in [docs/decisions.md](docs/decisions.md).

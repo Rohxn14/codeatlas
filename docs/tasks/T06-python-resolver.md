@@ -1,5 +1,12 @@
 # T06: Python resolver (deep tier)
 
+> **Reading note.** This brief is history. It is what a cloud session was told to build, kept so you can see what was asked; it is not an instruction for new work.
+> - **Built in**: pull request #24, with fixes in #27.
+> - **Read first**: `docs/explainers/python-resolver.md`, for what was actually built and why.
+> - **Code**: `src/codeatlas/indexer/languages/python/resolver/`. **Tests**: `tests/indexer/python/resolver/`.
+> - **Then** read this brief and its review at the end: the gap between them is where the interesting questions are.
+> - Reading order, glossary and how to study a module: `docs/README.md`.
+
 **Wave**: 2 (all of Wave 2 runs in parallel)
 **Branch**: keep the one the cloud environment gives you
 
@@ -88,7 +95,7 @@ Tests pass on Linux and Windows CI; the plan is committed; the scores are in the
 **Still open**: TESTS edges copy name guesses (about 15,000 on networkx at 0.2 to 0.3); `Mro.complete` is set but not used; the plan's file list is stale.
 
 **Your decisions**:
-1. Typed receivers at `SELF_METHOD` 0.9: T07 chose `IMPORT_SCOPED` 1/n for TypeScript. Make them agree (proposal D-22 in `docs/wave3.md`; recommended: 0.9 for both, once the TS adapter records types).
+1. Typed receivers at `SELF_METHOD` 0.9: T07 chose `IMPORT_SCOPED` 1/n for TypeScript. Make them agree (proposal D-22 in `docs/history/wave3.md`; recommended: 0.9 for both, once the TS adapter records types).
 2. TESTS edges from name guesses: recommended to keep only direct, self-method and import-scoped TESTS, since the impact engine will trust them.
 3. The name-guess cut-off of 5: all three resolvers use it; answer Q2 in `docs/decisions.md` with it.
 

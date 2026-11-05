@@ -1,5 +1,12 @@
 # T21: Structural adapter scopes: C/C++ callers and C# nested namespaces
 
+> **Reading note.** This brief is history. It is what a cloud session was told to build, kept so you can see what was asked; it is not an instruction for new work.
+> - **Built in**: pull request #39 (merged without a review: a good first one to review yourself).
+> - **Read first**: `docs/explainers/tags-tier.md` and `docs/explainers/structural-tier.md`, for what was actually built and why.
+> - **Code**: `src/codeatlas/indexer/generic/adapter.py`. **Tests**: `tests/indexer/structural/`.
+> - **Then** read this brief and its review at the end: the gap between them is where the interesting questions are.
+> - Reading order, glossary and how to study a module: `docs/README.md`.
+
 **Wave**: 4 (optional; runs in parallel with T19 and T20; no file overlap)
 **Branch**: keep the one the cloud environment gives you
 
@@ -31,3 +38,7 @@ Write `docs/plans/T21.md` (half a page) as your first commit, then keep going: h
 ## Measure and done when
 
 In the pull request: the C, C++ and C# samples before and after (calls precision and recall), and one real C repository from `eval/suite/repos.yaml` (shallow clone, at most two attempts) with CALLS whose caller is a module before and after. Tests pass on Linux and Windows CI; `ruff check .` passes; explainer updated. Pull request title: `T21: structural adapter scopes for C, C++ and C#`.
+
+## Review
+
+**Not reviewed yet.** Merged as #39 on Nov 4 without a review. A good first review to do yourself: run the reviewer agent on #39, then read `generic/adapter.py` around `_enclosing_key` and the C/C++ definition spans, and check the C, C++ and C# samples' before-and-after numbers in the pull request. Write the review here.
