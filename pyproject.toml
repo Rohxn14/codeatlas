@@ -1,5 +1,6 @@
 [build-system]
-requires = ["setuptools>=68"]
+# 77 is the first setuptools that reads an SPDX `license` string (PEP 639).
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -8,6 +9,8 @@ version = "0.1.0"
 description = "An honest, multi-language map of any public repository, with impact analysis and an agent on top."
 readme = "README.md"
 requires-python = ">=3.11"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
 dependencies = [
     # Parsing: the tree-sitter runtime plus one wheel per grammar. Each wheel ships a
     # compiled grammar and, for these languages, its upstream tags query.

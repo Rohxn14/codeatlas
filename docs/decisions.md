@@ -16,6 +16,13 @@ Every design decision lands here: the question, the decision, and why. When a pu
 | D-08 | Strategy memory moves to the local phase | Frees cloud sessions for the repository layer and more languages; it belongs with AdaptiveAgent anyway | 2026-10-29 |
 | D-09 | The MCP server is built with the agent tools in T09 | Same tools, one extra entry point; lets the owner practise giving an agent his own tools | 2026-10-29 |
 | D-10 | The SCIP oracle runs on Linux only (cloud sessions, CI or WSL), never on Windows | scip-python crashes on Windows: it builds a RegExp from `path.sep`; the upstream fix (PR #211) was closed unmerged. Patching the installed copy would make the answer key unreproducible | 2026-10-30 |
+| D-24 | Audience order: developers using Claude Code (through the MCP server) first, web visitors second, teams later | Least new code, it forces the engine to be right before anything is drawn on top of it, and retrieval and generation are tested through Groq, Gemini and Claude Code's MCP client first | 2026-11-11 |
+| D-25 | The web app is FastAPI with server-rendered pages and small scripts for the diagram and code view; no separate front-end app | The owner delegated the choice. One language to learn and explain; a React app adds a second language and a build chain. Adding `fastapi` and its server is still asked for when the web app starts | 2026-11-11 |
+| D-26 | A public visitor may run everything that needs no language model, live: index a public repository (within limits), search, the diagram, impact. Chat is shown only as replays of runs recorded locally. Live model access for visitors is a later question, only if the project scales | "Any repository" then works for free, and no key ever sits on a server. Keeps CLAUDE.md's rule that a visitor never triggers a live model call; changes the roadmap's "the server never clones anything on request" | 2026-11-11 |
+| D-27 | Locally, the free Groq and Gemini tiers stay the only providers. A reliable paid provider is chosen at the production stage | No new dependency or cost while the agent is still being measured | 2026-11-11 |
+| D-28 | The code is licensed under Apache-2.0 (`LICENSE`, the unmodified text from apache.org; `license` in `pyproject.toml`) | Without a licence nobody may use or contribute to the code. Apache-2.0 is permissive and has an explicit patent grant, which companies look for; MIT has none, AGPL would keep most companies away | 2026-11-12 |
+
+D-24 to D-28 come from `docs/plans/product-plan.md` (P1 to P5). Still open from that plan: P6 to P9.
 
 ## Proposed on Oct 30 and Nov 2: confirm when you review
 
