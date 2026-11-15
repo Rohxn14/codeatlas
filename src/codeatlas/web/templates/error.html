@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}{{ status }} · CodeAtlas{% endblock %}
+{% block main %}
+<section class="empty">
+  <p class="eyebrow">Error {{ status }}</p>
+  <h1>{% if status == 404 %}Nothing at this address{% else %}This page could not be shown{% endif %}</h1>
+  <p>{{ detail }}</p>
+  <p><a href="/">Back to the start</a></p>
+</section>
+{% endblock %}

@@ -1,0 +1,241 @@
+/* CodeAtlas web app. One stylesheet, no build step.
+   Colours, sizes and spacing are named once here and used everywhere below. */
+
+:root {
+  --bg: #fbfaf7;
+  --surface: #ffffff;
+  --ink: #1c1b18;
+  --muted: #6b675e;
+  --line: #e3dfd5;
+  --accent: #1f5f5b;
+  --accent-soft: #e3efed;
+  --warn-bg: #fdf3d7;
+  --warn-ink: #6a4b00;
+
+  /* Tiers: how deeply a file was read. */
+  --deep: #1f5f5b;
+  --structural: #6aa39d;
+  --text: #cfcabd;
+
+  /* Confidence levels share one colour; the pattern carries the meaning, so the
+     page still reads in greyscale and for colour-blind readers. */
+  --edge: #2b4a7a;
+
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, "Cascadia Code", Consolas, Menlo, monospace;
+  --gutter: 16px;
+  --radius: 8px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #151614;
+    --surface: #1e1f1c;
+    --ink: #ecebe6;
+    --muted: #a09c91;
+    --line: #34352f;
+    --accent: #7cc4bd;
+    --accent-soft: #1f3432;
+    --warn-bg: #3a2f10;
+    --warn-ink: #f1d58a;
+    --deep: #7cc4bd;
+    --structural: #4b8a84;
+    --text: #4a4a43;
+    --edge: #8fb0e6;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 16px/1.55 var(--font);
+}
+
+a { color: var(--accent); }
+a:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+code, pre, .path { font-family: var(--mono); font-size: 0.9em; }
+.path { overflow-wrap: anywhere; }
+pre {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 12px;
+  overflow-x: auto;
+}
+
+.muted { color: var(--muted); }
+
+/* Top bar */
+
+.topbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 24px;
+  padding: 12px var(--gutter);
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+.brand { font-weight: 700; letter-spacing: 0.01em; text-decoration: none; color: var(--ink); }
+.topbar nav { display: flex; gap: 16px; }
+.topbar nav a { text-decoration: none; color: var(--muted); padding: 4px 0; }
+.topbar nav a[aria-current="page"] { color: var(--ink); border-bottom: 2px solid var(--accent); }
+.topbar-end { margin-left: auto; font-size: 0.9rem; }
+
+/* Page */
+
+main { max-width: 1040px; margin: 0 auto; padding: 32px var(--gutter) 48px; }
+footer {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 16px var(--gutter) 40px;
+  color: var(--muted);
+  font-size: 0.85rem;
+  border-top: 1px solid var(--line);
+}
+
+h1 { font-size: 2rem; line-height: 1.2; margin: 0 0 8px; overflow-wrap: anywhere; }
+h2 { font-size: 1.25rem; margin: 0 0 12px; }
+section { margin-top: 48px; }
+.eyebrow {
+  margin: 0 0 4px;
+  color: var(--muted);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.meta { color: var(--muted); margin: 0; }
+
+.notice, .callout {
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  margin: 16px 0 0;
+}
+.notice { background: var(--warn-bg); color: var(--warn-ink); }
+.callout { background: var(--accent-soft); }
+
+.empty { text-align: left; margin-top: 24px; }
+
+/* Stat tiles */
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-top: 24px;
+}
+.tile {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+.tile .num { display: block; font-size: 1.75rem; font-weight: 700; line-height: 1.1; }
+.tile .lbl { color: var(--muted); font-size: 0.9rem; }
+
+/* Meters: one bar split into parts, with a legend that repeats each part's pattern */
+
+.meter {
+  display: flex;
+  height: 20px;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+.seg { display: block; min-width: 3px; }
+.seg + .seg { border-left: 2px solid var(--surface); }
+
+.seg-deep { background: var(--deep); }
+.seg-structural { background: var(--structural); }
+.seg-text { background: var(--text); }
+
+.seg-certain { background: var(--edge); }
+.seg-likely {
+  background: repeating-linear-gradient(90deg, var(--edge) 0 8px, transparent 8px 12px);
+}
+.seg-guess {
+  background: repeating-linear-gradient(90deg, var(--edge) 0 3px, transparent 3px 7px);
+}
+
+.legend {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 24px;
+  padding: 0;
+  margin: 8px 0 0;
+  font-size: 0.9rem;
+}
+.legend .key {
+  display: inline-block;
+  width: 28px;
+  height: 10px;
+  margin-right: 6px;
+  border-radius: 2px;
+  vertical-align: baseline;
+}
+
+.defs {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 16px;
+  margin: 16px 0 0;
+  font-size: 0.9rem;
+}
+.defs dt { font-weight: 600; }
+.defs dd { margin: 0; color: var(--muted); }
+
+/* Tables */
+
+.table-wrap {
+  overflow-x: auto;
+  margin-top: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
+tbody tr:last-child td { border-bottom: 0; }
+th { color: var(--muted); font-weight: 600; white-space: nowrap; }
+.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.tag {
+  display: inline-block;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  font-size: 0.8rem;
+}
+.tag::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+.tag-deep::before { background: var(--deep); }
+.tag-structural::before { background: var(--structural); }
+.tag-text::before { background: var(--text); }
+
+/* Gaps */
+
+.gaps { padding-left: 20px; margin: 0; }
+.gaps li { margin: 4px 0; }
+.plain { list-style: none; padding: 0; margin: 8px 0 0; font-size: 0.9rem; }
+.plain li { padding: 4px 0; border-bottom: 1px solid var(--line); }
+details { margin-top: 16px; }
+summary { cursor: pointer; font-weight: 600; }
+
+@media (max-width: 600px) {
+  h1 { font-size: 1.5rem; }
+  section { margin-top: 32px; }
+  .defs { grid-template-columns: 1fr; }
+  .defs dd { margin-bottom: 8px; }
+}

@@ -25,9 +25,10 @@ Every design decision lands here: the question, the decision, and why. When a pu
 | D-30 | New packages `fastapi`, `uvicorn` and `jinja2`, in an optional `[web]` extra | D-25 chose FastAPI. An extra keeps a plain install small; `serve` prints the install command when the extra is missing | 2026-11-15 |
 | D-31 | The architecture diagram is drawn from the graph only, with a layered layout written in this repository: no model and no diagram library (P6, option a) | A drawing made from edges can be checked arrow by arrow. A model can name a group of files later, but must not decide structure. A hand-written layout is code the owner can read | 2026-11-15 |
 | D-32 | Pages are rendered on the server; scripts are plain JavaScript files with no build step | One language to learn first (D-25) | 2026-11-15 |
+| D-33 | The app shows confidence at three levels: certain (0.9 or more, solid), likely (0.5 to 0.9, dashed), guess (under 0.5, dotted). One colour; the pattern carries the meaning. The number stored on an edge is unchanged | 0.9 is the lowest typical confidence of the rule-based resolutions in the contract (`self_method`, `route_exact`); under 0.5 means at best one of more than two candidates. A pattern still reads in greyscale and for colour-blind readers | 2026-11-15 |
 
 D-24 to D-28 come from `docs/plans/product-plan.md` (P1 to P5). Still open from that plan: P7 to P9.
-D-29 to D-32 were taken by Claude under the owner's Nov 15 delegation (`docs/plans/app-v1.md`); each can be reversed at a checkpoint.
+D-29 to D-33 were taken by Claude under the owner's Nov 15 delegation (`docs/plans/app-v1.md`); each can be reversed at a checkpoint.
 
 ## Proposed on Oct 30 and Nov 2: confirm when you review
 

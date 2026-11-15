@@ -7,7 +7,8 @@ and `export` build and show the map; `search`, `ask`, `impact`, `tests` and `mcp
 The query commands are thin front ends: they open the store, pick a snapshot, call one
 existing module (`search/hybrid.py`, `agent/loop.py`, `impact/engine.py`,
 `agent/mcp_server.py`) and print the result as text or, with `--json`, as one JSON object.
-`view --impact DIFF` adds an impact section to the HTML page.
+`view --impact DIFF` adds an impact section to the HTML page. `serve` starts the local
+web app (`web-app.md`); its packages are optional, so it imports them only when it runs.
 
 ## Why
 

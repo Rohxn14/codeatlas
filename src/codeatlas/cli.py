@@ -13,6 +13,7 @@ import json
 import os
 import subprocess
 import sys
+import webbrowser
 from collections import Counter
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass, field
@@ -599,6 +600,27 @@ def _run_mcp(args: argparse.Namespace, config: Config) -> int:
     return 0
 
 
+def _run_serve(args: argparse.Namespace, config: Config) -> int:
+    """Start the local web app. The web packages are optional, so they are imported here."""
+    try:
+        import uvicorn
+
+        from codeatlas.web import create_app
+    except ImportError as exc:
+        raise ValueError(
+            f'the web app needs extra packages ({exc.name}): run `pip install -e ".[web]"`'
+        ) from exc
+    db_path = Path(args.db) if args.db else default_db_path(config)
+    if not db_path.exists():
+        raise ValueError(f"no database at {db_path}: run `codeatlas index <path-or-url>` first")
+    url = f"http://{args.host}:{args.port}/"
+    print(f"codeatlas: serving {db_path} at {url} (Ctrl+C to stop)")
+    if not args.no_open:
+        webbrowser.open(url)
+    uvicorn.run(create_app(db_path, config), host=args.host, port=args.port, log_level="warning")
+    return 0
+
+
 # Entry point
 
 
@@ -649,6 +671,13 @@ def build_parser() -> argparse.ArgumentParser:
                             ("tests", "rank the tests a change should run")):
         _change_inputs(_query_command(add, name, help_text))
 
+    serve_cmd = add("serve", "open the local web app on an indexed database")
+    serve_cmd.add_argument("--db", type=Path, help="database file")
+    # 127.0.0.1 is this machine only. Another host would let other machines read the index.
+    serve_cmd.add_argument("--host", default="127.0.0.1", help="address to listen on")
+    serve_cmd.add_argument("--port", type=int, default=8765, help="port to listen on")
+    serve_cmd.add_argument("--no-open", action="store_true", help="do not open a browser")
+
     mcp_cmd = add("mcp", "serve the agent's tools over MCP on stdio")
     mcp_cmd.add_argument("--db", type=Path, help="database file")
     mcp_cmd.add_argument("--snapshot", help="snapshot id (default: the latest)")
@@ -677,6 +706,7 @@ def _change_inputs(sub: argparse.ArgumentParser) -> None:
 _RUNNERS = {
     "index": _run_index, "view": _run_view, "export": _run_export, "search": _run_search,
     "ask": _run_ask, "impact": _run_impact, "tests": _run_tests, "mcp": _run_mcp,
+    "serve": _run_serve,
 }
 
 

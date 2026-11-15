@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}CodeAtlas{% endblock %}</title>
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/">CodeAtlas</a>
+    {% if snapshot %}
+    <nav aria-label="Repository">
+      <a href="/s/{{ snapshot.id | slug }}/" aria-current="page">Overview</a>
+    </nav>
+    {% endif %}
+    <a class="topbar-end" href="/snapshots">All repositories</a>
+  </header>
+  <main>
+    {% block main %}{% endblock %}
+  </main>
+  <footer>
+    CodeAtlas {{ version }}. Built by reading code, never by running it.
+  </footer>
+</body>
+</html>

@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+{% block title %}{{ snapshot.repo }} · CodeAtlas{% endblock %}
+
+{% macro meter(parts, label) %}
+<div class="meter" role="img" aria-label="{{ label }}">
+  {% for part in parts %}{% if part.share > 0 %}
+  <span class="seg seg-{{ part.name }}" style="flex-grow: {{ part.count }}" title="{{ part.name }}: {{ part.count | thousands }}"></span>
+  {% endif %}{% endfor %}
+</div>
+<ul class="legend">
+  {% for part in parts %}
+  <li><span class="key seg-{{ part.name }}"></span><strong>{{ part.name }}</strong> {{ part.count | thousands }} <span class="muted">({{ part.share | percent }})</span></li>
+  {% endfor %}
+</ul>
+{% endmacro %}
+
+{% block main %}
+<p class="eyebrow">Repository overview</p>
+<h1>{{ snapshot.repo }}</h1>
+<p class="meta">
+  commit <code>{{ snapshot.commit_sha[:12] }}</code>
+  · indexed {{ snapshot.indexed_at[:16] | replace("T", " ") }} UTC
+  · from <span class="path">{{ snapshot.source }}</span>
+</p>
+
+{% if o.problems.limits_hit %}
+<p class="notice">
+  Indexing stopped early at a limit ({{ o.problems.limits_hit | join(", ") }}).
+  This map covers only part of the repository.
+</p>
+{% endif %}
+
+<section class="tiles" aria-label="Totals">
+  <div class="tile"><span class="num">{{ o.totals.files | thousands }}</span><span class="lbl">files</span></div>
+  <div class="tile"><span class="num">{{ o.totals.symbols | thousands }}</span><span class="lbl">classes, functions and tests</span></div>
+  <div class="tile"><span class="num">{{ o.totals.edges | thousands }}</span><span class="lbl">edges between them</span></div>
+  <div class="tile"><span class="num">{{ o.totals.languages }}</span><span class="lbl">languages</span></div>
+</section>
+
+<section>
+  <h2>How deeply the files were read</h2>
+  {% set parts = [] %}
+  {% for t in o.tiers %}{% set _ = parts.append({"name": t.tier, "count": t.files, "share": t.share}) %}{% endfor %}
+  {{ meter(parts, "Files by tier") }}
+  <dl class="defs">
+    <dt>deep</dt><dd>A hand-written adapter and resolver: definitions, imports, calls with typed receivers, routes.</dd>
+    <dt>structural</dt><dd>A tree-sitter grammar: definitions and calls, resolved through imports where the language has a profile.</dd>
+    <dt>text</dt><dd>Searchable as a file only. Nothing inside it is on the map.</dd>
+  </dl>
+</section>
+
+<section>
+  <h2>How sure the map is</h2>
+  <p>
+    Every edge records how it was found and a confidence from 0 to 1.
+    These are the {{ o.trust_total.total | thousands }} edges found by analysis
+    (containment is left out: a file containing its functions is true by construction).
+  </p>
+  {% set parts = [] %}
+  {% for l in o.trust_total.levels %}{% set _ = parts.append({"name": l.level, "count": l.count, "share": l.share}) %}{% endfor %}
+  {{ meter(parts, "Edges by confidence level") }}
+  <dl class="defs">
+    <dt>certain</dt><dd>Confidence 0.9 or more: {{ level_meaning.certain }}.</dd>
+    <dt>likely</dt><dd>0.5 to 0.9: {{ level_meaning.likely }}.</dd>
+    <dt>guess</dt><dd>Under 0.5: {{ level_meaning.guess }}.</dd>
+  </dl>
+
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Edge kind</th><th class="n">Edges</th><th class="n">Certain</th><th class="n">Likely</th><th class="n">Guess</th></tr></thead>
+    <tbody>
+    {% for row in o.trust %}
+      <tr>
+        <td><code>{{ row.kind }}</code>{% if row.by_construction %} <span class="muted">(by construction)</span>{% endif %}</td>
+        <td class="n">{{ row.total | thousands }}</td>
+        <td class="n">{{ row.levels.certain | thousands }}</td>
+        <td class="n">{{ row.levels.likely | thousands }}</td>
+        <td class="n">{{ row.levels.guess | thousands }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+
+  <p class="callout">
+    <strong>{{ o.calls.resolved | thousands }} of {{ o.calls.total | thousands }} calls
+    ({{ o.calls.share | percent }}) got an edge.</strong>
+    Resolved does not mean correct: a call that got an edge may point to the wrong
+    function, and a call without one may be to a built-in or an outside library, which
+    is not a gap. Precision is measured on a labelled fixture, not on this repository.
+  </p>
+</section>
+
+<section>
+  <h2>Languages</h2>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Language</th><th>Tier</th><th class="n">Files</th><th class="n">Symbols</th><th class="n">Calls</th><th class="n">Resolved</th><th class="n">Files with parse errors</th></tr></thead>
+    <tbody>
+    {% for row in o.languages %}
+      <tr>
+        <td>{{ row.language }}</td>
+        <td><span class="tag tag-{{ row.tier }}">{{ row.tier }}</span></td>
+        <td class="n">{{ row.files | thousands }}</td>
+        <td class="n">{{ row.symbols | thousands }}</td>
+        <td class="n">{{ row.calls | thousands }}</td>
+        <td class="n">{{ row.share | percent }}</td>
+        <td class="n">{{ row.errors | thousands }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section>
+  <h2>Packages</h2>
+  {% if o.packages %}
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Package</th><th>Ecosystem</th><th>Role</th><th class="n">Files</th><th>Depends on</th></tr></thead>
+    <tbody>
+    {% for p in o.packages %}
+      <tr>
+        <td>{{ p.name }}</td>
+        <td>{{ p.ecosystem or "–" }}</td>
+        <td>{{ p.role }}</td>
+        <td class="n">{{ p.files | thousands }}</td>
+        <td class="muted">{{ p.depends_on | join(", ") or "–" }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="muted">No package manifest (such as pyproject.toml or package.json) was found.</p>
+  {% endif %}
+</section>
+
+<section id="gaps">
+  <h2>What could not be analysed</h2>
+  {% set p = o.problems %}
+  {% if p.report_missing %}
+  <p class="notice">The index report for this snapshot is missing, so skipped files and dropped edges are not listed. Re-index with <code>--force</code> to recreate it.</p>
+  {% endif %}
+  <ul class="gaps">
+    <li><strong>{{ o.tiers[2].files | thousands }}</strong> files are text only (see the tiers above).</li>
+    <li><strong>{{ (o.calls.total - o.calls.resolved) | thousands }}</strong> calls have no edge.</li>
+    <li><strong>{{ p.files_with_errors.total | thousands }}</strong> files had parse errors; what could be read from them is on the map.</li>
+    <li><strong>{{ p.skipped_by_reason.values() | sum | thousands }}</strong> files were skipped{% if p.skipped_by_reason %}:
+      {% for reason, count in p.skipped_by_reason.items() %}{{ count | thousands }} {{ reason }}{{ ", " if not loop.last }}{% endfor %}{% endif %}.</li>
+    <li><strong>{{ p.not_entered.total | thousands }}</strong> folders or files were not entered.</li>
+    {% if p.languages_without_resolver %}
+    <li>Calls are matched by name only in: {{ p.languages_without_resolver | join(", ") }}.</li>
+    {% endif %}
+    {% for reason, count in p.dropped_edges.items() %}
+    <li><strong>{{ count | thousands }}</strong> edges dropped: {{ reason }}.</li>
+    {% endfor %}
+  </ul>
+
+  {% if p.files_with_errors.total %}
+  <details>
+    <summary>Files with parse errors ({{ p.files_with_errors.total | thousands }})</summary>
+    <ul class="plain">
+      {% for f in p.files_with_errors.shown %}
+      <li><span class="path">{{ f.path }}</span> <span class="muted">{{ f.errors | join("; ") }}</span></li>
+      {% endfor %}
+    </ul>
+    {% if p.files_with_errors.total > p.files_with_errors.shown | length %}
+    <p class="muted">Showing the first {{ p.files_with_errors.shown | length }} of {{ p.files_with_errors.total | thousands }}.</p>
+    {% endif %}
+  </details>
+  {% endif %}
+
+  {% if p.skipped_files.total %}
+  <details>
+    <summary>Skipped files kept as nodes ({{ p.skipped_files.total | thousands }})</summary>
+    <ul class="plain">
+      {% for f in p.skipped_files.shown %}
+      <li><span class="path">{{ f.path }}</span> <span class="muted">{{ f.reason }}</span></li>
+      {% endfor %}
+    </ul>
+    {% if p.skipped_files.total > p.skipped_files.shown | length %}
+    <p class="muted">Showing the first {{ p.skipped_files.shown | length }} of {{ p.skipped_files.total | thousands }}.</p>
+    {% endif %}
+  </details>
+  {% endif %}
+
+  {% if p.failures %}
+  <details>
+    <summary>Notes from the indexer ({{ p.failures | length }})</summary>
+    <ul class="plain">
+      {% for line in p.failures %}<li>{{ line }}</li>{% endfor %}
+    </ul>
+  </details>
+  {% endif %}
+</section>
+{% endblock %}

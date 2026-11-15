@@ -65,6 +65,7 @@ Each step uses what the step before it produced.
 | 14 | The agent and the MCP server | `agent.md` | `agent/` | 1,060 | T09 |
 | 15 | The impact engine: what a change breaks, which tests to run | `impact.md` | `impact/` | 1,020 | T12, T12f |
 | 16 | The command line | `cli.md` | `cli.py` | 700 | T19 |
+| 16b | The local web app | `web-app.md` | `web/` | 250 plus pages | `plans/app-v1.md` |
 | 17 | Measuring it: the fixture, the oracle, the suite, mutants, co-change | `graph-eval.md`, `eval-harness.md` | `eval/`, `scripts/score_fixture.py` | 2,850 | T05, T10 |
 
 At one module a day, that is about three weeks. Steps 8, 10 and 15 are the deep ones:
