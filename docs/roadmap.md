@@ -48,7 +48,6 @@ Small things the reviews found and left for later. None is urgent.
 - `pyproject.toml` says `mcp>=1.2`; the MCP server needs `mcp>=2`.
 - The eval harness kills only the test process on a timeout, not its children.
 - Search's embedding numbers were measured without `bge-small` (the download failed in the cloud); re-run `scripts/eval_search.py` locally.
-- `--git` cannot find the checkout when the indexed source was a relative path and you run from another folder (intake stores the path as typed).
 - C# `global using` applies only to its own file.
 
 ## CI/CD

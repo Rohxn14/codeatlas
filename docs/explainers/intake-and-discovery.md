@@ -86,6 +86,10 @@ Intake (`open_source`):
    one. Two renames, because Windows cannot rename onto an existing folder.
 6. A local path must be an existing folder; its SHA is `git rev-parse HEAD`, or `None`
    outside git (then `scan` uses a hash of all file hashes instead).
+7. The snapshot's `source` is the URL as given, or, for a local folder, its resolved
+   absolute path (`C:/work/app`, never `.`). Queries run from other folders find the
+   checkout through it: the MCP server starts wherever Claude Code is opened, and a
+   relative `.` would mean that folder.
 
 Discovery (`discover`):
 

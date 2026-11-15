@@ -105,7 +105,9 @@ def open_source(source: str, config: Config) -> IntakeResult:
     # A folder inside another repository gets no SHA: the outer repository's HEAD does
     # not describe it, so the caller falls back to a hash of the files' contents.
     sha = head_sha(root) if is_repo_top_level(root) else None
-    return IntakeResult(root, root.name, source, sha)
+    # The absolute path, not the text as typed: queries run from other folders (an MCP
+    # server, `impact --git`) find the checkout through it, and `.` would mean their folder.
+    return IntakeResult(root, root.name, root.as_posix(), sha)
 
 
 def clone_or_reuse(remote: str, dest: Path, ref: str | None = None) -> tuple[str, bool]:

@@ -178,6 +178,20 @@ def test_open_local_path(make_repo: Callable[..., Path]) -> None:
     assert result.commit_sha == head_sha(origin)
 
 
+def test_relative_path_is_stored_absolute(
+    make_repo: Callable[..., Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Queries run from other folders (an MCP server, `--git`) must still find the checkout.
+
+    The source as typed (`.`) would point at whatever folder the query runs in.
+    """
+    origin = make_repo({"a.py": "x = 1\n"})
+    monkeypatch.chdir(origin)
+    result = open_source(".", Config())
+    assert Path(result.source).is_absolute()
+    assert Path(result.source) == origin.resolve()
+
+
 def test_open_folder_outside_git(tmp_path: Path) -> None:
     result = open_source(str(tmp_path), Config())
     assert result.commit_sha is None
