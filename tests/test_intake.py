@@ -90,6 +90,50 @@ def test_clone_keeps_history(make_repo: Callable[..., Path], tmp_path: Path) -> 
     assert git(dest, "rev-list", "--count", "HEAD") == "2"
 
 
+def test_clone_allows_long_paths(make_repo: Callable[..., Path], tmp_path: Path) -> None:
+    """Stored in the clone's config, so a later checkout there can write long paths too."""
+    origin = make_repo({"a.txt": "1\n"})
+    dest = tmp_path / "clone"
+    clone_or_reuse(origin.as_uri(), dest)
+    assert git(dest, "config", "--get", "core.longpaths") == "true"
+
+
+def _flaky_rename(monkeypatch: pytest.MonkeyPatch, failures: int) -> list[str]:
+    """Make the next `failures` renames raise PermissionError, as a held file does on Windows."""
+    real_rename = Path.rename
+    calls: list[str] = []
+
+    def rename(self: Path, target: Path) -> Path:
+        calls.append(self.name)
+        if len(calls) <= failures:
+            raise PermissionError(5, "Access is denied")
+        return real_rename(self, target)
+
+    monkeypatch.setattr(Path, "rename", rename)
+    monkeypatch.setattr(intake.time, "sleep", lambda _seconds: None)
+    return calls
+
+
+def test_swap_retries_while_a_file_is_held_open(
+    make_repo: Callable[..., Path], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    origin = make_repo({"a.txt": "1\n"})
+    calls = _flaky_rename(monkeypatch, failures=2)
+    sha, _ = clone_or_reuse(origin.as_uri(), tmp_path / "clone")
+    assert sha == head_sha(origin)
+    assert len(calls) == 3  # two refusals, then the rename that worked
+
+
+def test_swap_gives_up_and_cleans_up_when_the_file_stays_held(
+    make_repo: Callable[..., Path], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    origin = make_repo({"a.txt": "1\n"})
+    _flaky_rename(monkeypatch, failures=1000)
+    with pytest.raises(PermissionError):
+        clone_or_reuse(origin.as_uri(), tmp_path / "repos" / "clone")
+    assert list((tmp_path / "repos").iterdir()) == []  # the temporary clone was removed
+
+
 def test_clone_at_tag(make_repo: Callable[..., Path], tmp_path: Path) -> None:
     origin = make_repo({"a.txt": "1\n"})
     git(origin, "tag", "-a", "v1", "-m", "release")

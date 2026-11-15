@@ -80,10 +80,18 @@ Intake (`open_source`):
 3. If the target folder carries the CodeAtlas mark and its `HEAD` equals that SHA, reuse
    it. If the target exists, is not empty and has no mark, stop with an error.
 4. Otherwise clone into a new temporary folder beside the target:
-   `git clone --filter=blob:none --single-branch --no-tags [--branch <ref>] -- <url> <tmp>`,
-   then write the mark. On failure, delete the temporary folder and leave the target alone.
+   `git clone --quiet --filter=blob:none --single-branch --no-tags -c core.longpaths=true
+   [--branch <ref>] -- <url> <tmp>`, then write the mark. On failure, delete the temporary
+   folder and leave the target alone. `core.longpaths` is saved in the clone's own config:
+   Git for Windows refuses paths over 260 characters without it (microsoft/TypeScript
+   has 23 such paths once cloned under `.codeatlas/`), and later commands in the clone
+   (`checkout`, `diff`) need it too. `--quiet` keeps progress lines out of the error.
 5. Swap: rename the old clone aside, rename the new one into place, then delete the old
-   one. Two renames, because Windows cannot rename onto an existing folder.
+   one. Two renames, because Windows cannot rename onto an existing folder. Each rename
+   is retried for about five seconds on a permission error: Windows refuses to rename a
+   folder while another program (antivirus, search indexer, an editor) has a file in it
+   open, and it does that to a fresh clone for a moment. In the Nov 15 suite run on
+   Windows, 9 of 47 repositories failed this way, and each succeeded when re-run.
 6. A local path must be an existing folder; its SHA is `git rev-parse HEAD`, or `None`
    outside git (then `scan` uses a hash of all file hashes instead).
 7. The snapshot's `source` is the URL as given, or, for a local folder, its resolved
