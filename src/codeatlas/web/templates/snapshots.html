@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Repositories · CodeAtlas{% endblock %}
+{% block main %}
+<h1>Indexed repositories</h1>
+{% if snapshots %}
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Repository</th><th>Commit</th><th>Indexed</th><th>Source</th></tr></thead>
+  <tbody>
+  {% for s in snapshots %}
+    <tr>
+      <td><a href="/s/{{ s.id | slug }}/">{{ s.repo }}</a></td>
+      <td><code>{{ s.commit_sha[:12] }}</code></td>
+      <td>{{ s.indexed_at[:16] | replace("T", " ") }}</td>
+      <td class="muted">{{ s.source }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<section class="empty">
+  <h2>No repository is indexed yet</h2>
+  <p>Index one, then reload this page:</p>
+  <pre>codeatlas index https://github.com/pallets/itsdangerous</pre>
+</section>
+{% endif %}
+{% endblock %}

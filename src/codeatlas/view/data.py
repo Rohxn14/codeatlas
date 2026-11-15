@@ -64,8 +64,8 @@ def build_view_data(
     return {
         "snapshot": {**_plain(snapshot), "limits_hit": list(snapshot.limits_hit)},
         "focus": focus,
-        "census": _census(files, nodes, calls),
-        "packages": _packages(nodes, edges),
+        "census": census(files, nodes, calls),
+        "packages": packages(nodes, edges),
         "files": [
             {"path": f.path, "language": f.language, "tier": str(f.tier)}
             for f in files
@@ -82,7 +82,7 @@ def build_view_data(
             "capped": _capped(nodes, focus, max_nodes),
             "max_nodes": max_nodes,
         },
-        "problems": _problems(nodes, report),
+        "problems": problems(nodes, report),
         "report": report,
     }
 
@@ -203,7 +203,7 @@ def _edge(e: Edge, index: dict[str, int]) -> dict[str, Any]:
     }
 
 
-def _census(files: list[Any], nodes: list[Node], calls: list[Any]) -> list[dict[str, Any]]:
+def census(files: list[Any], nodes: list[Node], calls: list[Any]) -> list[dict[str, Any]]:
     """One row per (language, tier) over the whole snapshot, not just the shown part."""
     language_of = {f.path: f.language for f in files}
     rows: dict[tuple[str, str], dict[str, Any]] = {}
@@ -234,7 +234,7 @@ def _census(files: list[Any], nodes: list[Node], calls: list[Any]) -> list[dict[
     return sorted(rows.values(), key=lambda r: (-r["files"], r["language"], r["tier"]))
 
 
-def _packages(nodes: list[Node], edges: list[Edge]) -> list[dict[str, Any]]:
+def packages(nodes: list[Node], edges: list[Edge]) -> list[dict[str, Any]]:
     packages = {n.id: n for n in nodes if n.kind is NodeKind.PACKAGE}
     file_counts: Counter[str] = Counter(
         e.src_id for e in edges if e.kind is EdgeKind.CONTAINS and e.src_id in packages
@@ -257,7 +257,7 @@ def _packages(nodes: list[Node], edges: list[Edge]) -> list[dict[str, Any]]:
     ]
 
 
-def _problems(nodes: list[Node], report: dict[str, Any] | None) -> dict[str, Any]:
+def problems(nodes: list[Node], report: dict[str, Any] | None) -> dict[str, Any]:
     with_errors = [
         {"path": n.path, "errors": list(n.attrs["errors"])}  # type: ignore[call-overload]
         for n in nodes

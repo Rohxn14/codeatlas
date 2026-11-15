@@ -56,6 +56,10 @@ wrote .codeatlas/view.html (108 nodes, 226 edges)
 `codeatlas view --impact change.diff` adds a section listing what the diff changes and
 could break, and colours those nodes in the graph.
 
+`codeatlas serve` opens the local web app instead (being built, see
+`docs/plans/app-v1.md`). So far it has the overview page: totals, how deeply each
+language was read, how sure the edges are, and what could not be analysed.
+
 **3. Search** (BM25 plus embeddings fused by rank, then one hop along the graph):
 
 ```
@@ -200,6 +204,7 @@ src/codeatlas/
   agent/                 the agent loop, its tools, the MCP server
   impact/                diffs to changed symbols, impact ranking, test selection
   view/                  the HTML viewer
+  web/                   the local web app behind `codeatlas serve`
 eval/                    fixture, oracle, acceptance suite, mutants, co-change benchmark
 docs/                    start at docs/README.md
 ```

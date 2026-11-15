@@ -90,6 +90,11 @@ class GraphStore:
         ).fetchone()
         return _snapshot(row) if row else None
 
+    def snapshots(self) -> list[Snapshot]:
+        """Every snapshot in the database, newest first: what the web app lists."""
+        rows = self._conn.execute("SELECT * FROM snapshots ORDER BY indexed_at DESC, rowid DESC")
+        return [_snapshot(row) for row in rows]
+
     def delete_snapshot(self, snapshot_id: str) -> int:
         """Remove a snapshot and everything in it, so the same commit can be indexed again.
 
