@@ -13,6 +13,7 @@ from codeatlas.models import Edge, EdgeKind, FileRecord, Resolution, Snapshot, T
 from codeatlas.store import GraphStore
 from codeatlas.web import create_app, find_snapshot, snapshot_slug
 from codeatlas.web.confidence import CERTAIN, GUESS, LIKELY, level
+from codeatlas.web.data import load_snapshot
 from codeatlas.web.overview import build_overview, share, tier_shares, trust_rows, trust_total
 
 FILES = {
@@ -77,7 +78,9 @@ def test_trust_leaves_containment_out_of_the_meter() -> None:
 def test_overview_counts_match_the_store(indexed: tuple[Path, Config, str]) -> None:
     db_path, _, snapshot_id = indexed
     with GraphStore(db_path) as store:
-        overview = build_overview(store, snapshot_id)
+        snapshot = store.get_snapshot(snapshot_id)
+        assert snapshot is not None
+        overview = build_overview(load_snapshot(store, snapshot))
         assert overview["totals"]["files"] == len(store.files(snapshot_id))
         assert overview["totals"]["edges"] == len(store.edges(snapshot_id))
         calls = store.raw_calls(snapshot_id)
@@ -85,11 +88,6 @@ def test_overview_counts_match_the_store(indexed: tuple[Path, Config, str]) -> N
     assert overview["calls"]["resolved"] == sum(1 for _, done in calls if done)
     assert overview["problems"]["files_with_errors"]["total"] == 1
     assert overview["problems"]["report_missing"] is True  # no report was passed in
-
-
-def test_overview_of_an_unknown_snapshot_raises(indexed: tuple[Path, Config, str]) -> None:
-    with GraphStore(indexed[0]) as store, pytest.raises(KeyError):
-        build_overview(store, "nope@000")
 
 
 # Slugs
@@ -112,12 +110,12 @@ def test_home_redirects_to_the_only_snapshot(indexed: tuple[Path, Config, str]) 
     assert response.headers["location"] == f"/s/{snapshot_slug(snapshot_id)}/"
 
 
-def test_overview_page_shows_counts_and_gaps(indexed: tuple[Path, Config, str]) -> None:
+def test_coverage_page_shows_counts_and_gaps(indexed: tuple[Path, Config, str]) -> None:
     db_path, config, snapshot_id = indexed
     client = TestClient(create_app(db_path, config))
-    page = client.get(f"/s/{snapshot_slug(snapshot_id)}/")
+    page = client.get(f"/s/{snapshot_slug(snapshot_id)}/coverage")
     assert page.status_code == 200
-    assert "<h1>demo</h1>" in page.text
+    assert "How much of demo is on the map" in page.text
     assert "What could not be analysed" in page.text
     assert "app/broken.py" in page.text  # the file with a parse error is named
     assert "Resolved does not mean correct" in page.text
@@ -160,7 +158,7 @@ def test_repository_text_is_escaped(tmp_path: Path) -> None:
     with GraphStore(db_path) as store:
         store.create_snapshot(snapshot)
     client = TestClient(create_app(db_path, Config(data_dir=tmp_path.as_posix())))
-    for address in ("/s/x@abc/", "/snapshots"):
+    for address in ("/s/x@abc/", "/s/x@abc/coverage", "/snapshots"):
         page = client.get(address)
         assert page.status_code == 200
         assert "<img" not in page.text and "<b>src" not in page.text

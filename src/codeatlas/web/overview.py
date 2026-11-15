@@ -1,4 +1,4 @@
-"""The facts on the overview page, read from the store and counted here.
+"""The facts on the coverage page, read from the store and counted here.
 
 Nothing on the page is written by a model: every number is a count of rows in one
 snapshot. The page states what was not analysed next to what was, so a reader can tell a
@@ -11,9 +11,9 @@ from collections import Counter
 from typing import Any
 
 from codeatlas.models import Edge, EdgeKind, FileRecord, Node, NodeKind, Tier
-from codeatlas.store import GraphStore
 from codeatlas.view.data import census, packages, problems
 from codeatlas.web.confidence import LEVELS, level
+from codeatlas.web.data import Loaded
 
 SYMBOL_KINDS = (NodeKind.CLASS, NodeKind.INTERFACE, NodeKind.FUNCTION, NodeKind.TEST)
 # Containment is true by construction (a file contains its functions). Counting it would
@@ -22,17 +22,11 @@ _NOT_FOUND_BY_ANALYSIS = (EdgeKind.CONTAINS,)
 MAX_PROBLEM_ROWS = 25
 
 
-def build_overview(
-    store: GraphStore, snapshot_id: str, report: dict[str, Any] | None = None
-) -> dict[str, Any]:
-    """Everything the overview page shows for one snapshot."""
-    snapshot = store.get_snapshot(snapshot_id)
-    if snapshot is None:
-        raise KeyError(f"no snapshot {snapshot_id!r}")
-    nodes = store.nodes(snapshot_id)
-    edges = store.edges(snapshot_id)
-    files = store.files(snapshot_id)
-    calls = store.raw_calls(snapshot_id)
+def build_overview(loaded: Loaded) -> dict[str, Any]:
+    """Everything the coverage page shows for one snapshot."""
+    snapshot, report = loaded.snapshot, loaded.report
+    nodes, edges = list(loaded.nodes.values()), loaded.edges
+    files, calls = loaded.files, loaded.calls
     languages = census(files, nodes, calls)
     resolved = sum(1 for _, done in calls if done)
     return {

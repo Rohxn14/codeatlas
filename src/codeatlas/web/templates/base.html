@@ -11,7 +11,9 @@
     <a class="brand" href="/">CodeAtlas</a>
     {% if snapshot %}
     <nav aria-label="Repository">
-      <a href="/s/{{ snapshot.id | slug }}/" aria-current="page">Overview</a>
+      <span class="repo">{{ snapshot.repo }}</span>
+      <a href="/s/{{ snapshot.id | slug }}/"{% if tab == "map" %} aria-current="page"{% endif %}>Map</a>
+      <a href="/s/{{ snapshot.id | slug }}/coverage"{% if tab == "coverage" %} aria-current="page"{% endif %}>Coverage</a>
     </nav>
     {% endif %}
     <a class="topbar-end" href="/snapshots">All repositories</a>

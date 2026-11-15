@@ -7,6 +7,7 @@ autoescape, because names, paths and docstrings there are untrusted text.
 
 from __future__ import annotations
 
+import threading
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
@@ -23,6 +24,8 @@ from codeatlas.indexer.pipeline.index import load_report
 from codeatlas.models import Snapshot
 from codeatlas.store import GraphStore
 from codeatlas.web.confidence import MEANING
+from codeatlas.web.data import Loaded, load_snapshot
+from codeatlas.web.diagram import arrow_edges, build_diagram
 from codeatlas.web.overview import build_overview
 
 _HERE = Path(__file__).parent
@@ -54,9 +57,10 @@ def create_app(db_path: Path, config: Config) -> FastAPI:
     templates = Jinja2Templates(directory=_HERE / "templates")
     templates.env.filters.update(percent=percent, thousands=thousands, slug=snapshot_slug)
     templates.env.globals.update(version=__version__, level_meaning=MEANING)
-    # Overview facts per snapshot id. A snapshot never changes once written, so the first
-    # count is kept for the life of the server; re-indexing with --force needs a restart.
-    overviews: dict[str, dict[str, Any]] = {}
+    # Snapshots already read, by id. A snapshot never changes once written, so it is read
+    # once and kept for the life of the server; re-indexing with --force needs a restart.
+    cache: dict[str, Loaded] = {}
+    cache_lock = threading.Lock()
 
     def get_store() -> Iterator[GraphStore]:
         # SQLite connections belong to the thread that opened them, and FastAPI runs each
@@ -66,11 +70,24 @@ def create_app(db_path: Path, config: Config) -> FastAPI:
         with GraphStore(db_path) as store:
             yield store
 
-    def get_snapshot(slug: str, store: GraphStore = Depends(get_store)) -> Snapshot:  # noqa: B008
+    def get_loaded(slug: str, store: GraphStore = Depends(get_store)) -> Loaded:  # noqa: B008
+        """The snapshot a page is about, read on first use. The lock stops two requests
+        arriving together from both reading the same snapshot."""
         snapshot = find_snapshot(store, slug)
         if snapshot is None:
             raise HTTPException(404, f"no snapshot {slug!r} in {db_path}")
-        return snapshot
+        with cache_lock:
+            if snapshot.id not in cache:
+                saved = load_report(config, snapshot.id)
+                cache[snapshot.id] = load_snapshot(
+                    store, snapshot, saved.to_dict() if saved else None
+                )
+            return cache[snapshot.id]
+
+    def page(request: Request, name: str, loaded: Loaded, tab: str, **values: Any) -> Any:
+        return templates.TemplateResponse(
+            request, name, {"snapshot": loaded.snapshot, "tab": tab, **values}
+        )
 
     @app.get("/", response_class=HTMLResponse)
     def home(request: Request, store: GraphStore = Depends(get_store)) -> Any:  # noqa: B008
@@ -87,19 +104,28 @@ def create_app(db_path: Path, config: Config) -> FastAPI:
         )
 
     @app.get("/s/{slug}/", response_class=HTMLResponse)
-    def overview(
+    def map_page(
         request: Request,
-        snapshot: Snapshot = Depends(get_snapshot),  # noqa: B008
-        store: GraphStore = Depends(get_store),  # noqa: B008
+        loaded: Loaded = Depends(get_loaded),  # noqa: B008
+        focus: str = "",
+        src: str = "",
+        dst: str = "",
+        pick: str = "",
+        all: bool = False,  # noqa: A002  (the name is the address parameter `?all=1`)
     ) -> Any:
-        if snapshot.id not in overviews:
-            saved = load_report(config, snapshot.id)
-            overviews[snapshot.id] = build_overview(
-                store, snapshot.id, saved.to_dict() if saved else None
-            )
-        return templates.TemplateResponse(
-            request, "overview.html", {"o": overviews[snapshot.id], "snapshot": snapshot}
-        )
+        """The architecture diagram of one folder. `src` and `dst` open one arrow, `pick`
+        keeps one box's arrows, `all` draws every arrow of a crowded diagram."""
+        diagram = build_diagram(loaded.files, loaded.links, focus, pick, all)
+        if focus and not diagram["exists"]:
+            raise HTTPException(404, f"no folder {focus!r} in {loaded.snapshot.id}")
+        picked = arrow_edges(loaded.links, loaded.nodes, focus, src, dst) if src and dst else None
+        return page(request, "map.html", loaded, "map", d=diagram, picked=picked)
+
+    @app.get("/s/{slug}/coverage", response_class=HTMLResponse)
+    def coverage(request: Request, loaded: Loaded = Depends(get_loaded)) -> Any:  # noqa: B008
+        if loaded.overview is None:
+            loaded.overview = build_overview(loaded)
+        return page(request, "coverage.html", loaded, "coverage", o=loaded.overview)
 
     @app.exception_handler(HTTPException)
     def http_error(request: Request, exc: HTTPException) -> Any:

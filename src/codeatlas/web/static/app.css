@@ -20,6 +20,7 @@
   /* Confidence levels share one colour; the pattern carries the meaning, so the
      page still reads in greyscale and for colour-blind readers. */
   --edge: #2b4a7a;
+  --hot: #c2410c;   /* the arrow under the pointer, or the one opened */
 
   --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --mono: ui-monospace, "Cascadia Code", Consolas, Menlo, monospace;
@@ -42,6 +43,7 @@
     --structural: #4b8a84;
     --text: #4a4a43;
     --edge: #8fb0e6;
+    --hot: #fb923c;
   }
 }
 
@@ -239,3 +241,64 @@ summary { cursor: pointer; font-weight: 600; }
   .defs { grid-template-columns: 1fr; }
   .defs dd { margin-bottom: 8px; }
 }
+
+/* Top bar: the repository's name before its tabs */
+
+.topbar .repo { color: var(--ink); font-weight: 600; }
+
+/* Breadcrumb in the page heading */
+
+.crumb { color: var(--ink); text-decoration: none; }
+.crumb:hover { text-decoration: underline; }
+h1 .sep { color: var(--muted); margin: 0 6px; font-weight: 400; }
+.meta strong { color: var(--ink); font-weight: 600; }
+
+/* The architecture diagram */
+
+.diagram-wrap {
+  margin-top: 24px;
+  padding: 8px;
+  overflow-x: auto;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.diagram { display: block; margin: 0 auto; max-width: none; }
+
+.box rect { fill: var(--bg); stroke: var(--line); stroke-width: 1.5; }
+.box.tier-deep rect { stroke: var(--deep); }
+.box.tier-structural rect { stroke: var(--structural); }
+.box.tier-text rect { stroke-dasharray: 3 3; }
+.box .name { font: 600 14px var(--font); fill: var(--ink); }
+.box .sub { font: 12px var(--font); fill: var(--muted); }
+a:hover .box rect, a:focus-visible .box rect, .box.picked rect { fill: var(--accent-soft); }
+.box.picked rect { stroke: var(--hot); stroke-width: 2; }
+
+.arrow .line { fill: none; stroke: var(--edge); opacity: 0.8; }
+.arrow .hit { fill: none; stroke: transparent; stroke-width: 14; }
+.level-likely .line, .line.level-likely { stroke-dasharray: 8 5; }
+.level-guess .line, .line.level-guess { stroke-dasharray: 2 5; }
+.head { fill: var(--edge); }
+a:hover .arrow .line, a:focus-visible .arrow .line, .arrow.on .line {
+  stroke: var(--hot);
+  opacity: 1;
+}
+.head.on { fill: var(--hot); }
+
+.swatch { width: 40px; height: 10px; margin-right: 6px; vertical-align: middle; }
+.swatch .line { fill: none; stroke: var(--edge); stroke-width: 2.5; }
+
+.notes { margin: 16px 0 0; padding-left: 20px; color: var(--muted); font-size: 0.9rem; }
+
+.conf { white-space: nowrap; }
+.conf-guess { color: var(--muted); }
+
+.chips { list-style: none; display: flex; flex-wrap: wrap; gap: 8px; padding: 0; margin: 12px 0 0; }
+.chips li {
+  padding: 4px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 0.9rem;
+}
+.chips li.tier-text { color: var(--muted); border-style: dashed; }
