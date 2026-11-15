@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block title %}{{ snapshot.repo }} · CodeAtlas{% endblock %}
+
+{# The address of this page for a folder, plus any extra parameters, e.g. {"pick": "a.py"}. #}
+{% macro here(focus, extra={}) %}/s/{{ snapshot.id | slug }}/?{% if focus %}focus={{ focus | urlencode }}&amp;{% endif %}{% for k, v in extra.items() %}{{ k }}={{ v | urlencode }}&amp;{% endfor %}{% endmacro %}
+{% set keep = {"pick": d.pick} if d.pick else ({"all": 1} if d.show_all else {}) %}
+
+{% block main %}
+<p class="eyebrow">Map</p>
+<h1>
+  <a class="crumb" href="/s/{{ snapshot.id | slug }}/">{{ snapshot.repo }}</a>
+  {%- for c in d.crumbs %}<span class="sep">/</span><a class="crumb" href="{{ here(c.focus) }}">{{ c.name }}</a>{% endfor %}
+</h1>
+<p class="meta">
+  How the {{ "folder" if d.focus else "repository" }} is put together.
+  A box is a folder or a file. An arrow from A to B means code in A uses code in B:
+  it imports it, calls it, inherits from it or calls its HTTP route.
+  <strong>Click a folder to open it, a file to see only its arrows, an arrow to list the edges behind it.</strong>
+</p>
+
+{% if d.boxes %}
+<div class="diagram-wrap">
+<svg class="diagram" viewBox="0 0 {{ d.width }} {{ d.height }}" width="{{ d.width }}" height="{{ d.height }}"
+     role="img" aria-label="Architecture diagram of {{ d.focus or snapshot.repo }}">
+  <defs>
+    <marker id="head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L10,5 L0,10 z" class="head"/>
+    </marker>
+    <marker id="head-on" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L10,5 L0,10 z" class="head on"/>
+    </marker>
+  </defs>
+
+  {# Arrows first, boxes on top: an arrow that crosses a box passes behind it. #}
+  {% for a in d.arrows %}
+  {% set on = picked and picked.src == a.src and picked.dst == a.dst %}
+  <a href="{{ here(d.focus, keep) }}src={{ a.src | urlencode }}&amp;dst={{ a.dst | urlencode }}#arrow">
+    <g class="arrow level-{{ a.level }}{% if on %} on{% endif %}">
+      <title>{{ a.src }} uses {{ a.dst }}: {{ a.count | thousands }} edge{{ "" if a.count == 1 else "s" }} ({{ a.levels.certain }} certain, {{ a.levels.likely }} likely, {{ a.levels.guess }} guess). Click to list them.</title>
+      <path class="hit" d="{{ a.path }}"/>
+      <path class="line" d="{{ a.path }}" stroke-width="{{ a.width }}" marker-end="url(#{{ "head-on" if on else "head" }})"/>
+    </g>
+  </a>
+  {% endfor %}
+
+  {% for b in d.boxes %}
+  <a href="{% if b.is_folder %}{{ here(b.path) }}{% elif d.pick == b.path %}{{ here(d.focus) }}{% else %}{{ here(d.focus, {"pick": b.path}) }}{% endif %}">
+  <g class="box tier-{{ b.tier }}{% if d.pick == b.path %} picked{% endif %}">
+    <title>{{ b.path }}: {% if b.is_folder %}{{ b.files }} file{{ "" if b.files == 1 else "s" }}. Click to open.{% elif d.pick == b.path %}Click to show the other arrows again.{% else %}Click to show only this file's arrows.{% endif %}</title>
+    <rect x="{{ b.x }}" y="{{ b.y }}" width="{{ d.box_w }}" height="{{ d.box_h }}" rx="8"/>
+    <text class="name" x="{{ b.x + 14 }}" y="{{ b.y + 24 }}">{{ b.name | truncate(19, True, "…", 0) }}</text>
+    <text class="sub" x="{{ b.x + 14 }}" y="{{ b.y + 43 }}">{% if b.is_folder %}{{ b.files | thousands }} file{{ "" if b.files == 1 else "s" }}{% else %}file · {{ b.tier }}{% endif %}</text>
+  </g>
+  </a>
+  {% endfor %}
+</svg>
+</div>
+
+<ul class="legend">
+  <li><svg class="swatch" viewBox="0 0 40 10"><path class="line level-certain" d="M0,5 H40"/></svg><strong>certain</strong> <span class="muted">at least one edge found by a rule of the language</span></li>
+  <li><svg class="swatch" viewBox="0 0 40 10"><path class="line level-likely" d="M0,5 H40"/></svg><strong>likely</strong> <span class="muted">best edge is one of a few candidates</span></li>
+  <li><svg class="swatch" viewBox="0 0 40 10"><path class="line level-guess" d="M0,5 H40"/></svg><strong>guess</strong> <span class="muted">matched by name only</span></li>
+  <li class="muted">A thicker line has more edges behind it.</li>
+</ul>
+{% elif d.loose %}
+<p class="callout">No file in this folder uses code in another file of this folder, so there are no arrows to draw.</p>
+{% else %}
+<p class="callout">This snapshot has no files.</p>
+{% endif %}
+
+{% if d.hidden_boxes or d.outside or d.hidden_arrows or d.show_all %}
+<ul class="notes">
+  {% if d.pick %}<li>Showing only the arrows of <span class="path">{{ d.pick }}</span>; {{ d.hidden_arrows | thousands }} others are hidden. <a href="{{ here(d.focus) }}">Show the heaviest arrows again</a>.</li>
+  {% elif d.hidden_arrows %}<li>The {{ d.arrows | length }} heaviest arrows are drawn; {{ d.hidden_arrows | thousands }} lighter ones are hidden to keep this readable. Click a file to see all of its arrows, or <a href="{{ here(d.focus, {"all": 1}) }}">draw every arrow</a>.</li>
+  {% elif d.show_all %}<li>Every arrow is drawn. <a href="{{ here(d.focus) }}">Draw only the heaviest</a>.</li>{% endif %}
+  {% if d.hidden_boxes %}<li>{{ d.hidden_boxes }} connected boxes with the fewest edges are not drawn, to keep the diagram readable. Open a folder to see inside it.</li>{% endif %}
+  {% if d.outside %}<li>{{ d.outside | thousands }} edges connect this folder to the rest of the repository. They are drawn one level up.</li>{% endif %}
+</ul>
+{% endif %}
+
+{% if picked %}
+<section id="arrow">
+  <h2><span class="path">{{ picked.src }}</span> uses <span class="path">{{ picked.dst }}</span></h2>
+  <p class="muted">
+    {{ picked.total | thousands }} stored edge{{ "" if picked.total == 1 else "s" }} behind this arrow, surest first.
+    {% if picked.total > picked.rows | length %}Showing the first {{ picked.rows | length }}.{% endif %}
+  </p>
+  {% if picked.rows %}
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>From</th><th></th><th>To</th><th>How it was found</th><th class="n">Confidence</th></tr></thead>
+    <tbody>
+    {% for r in picked.rows %}
+      <tr>
+        <td><strong>{{ r.src.qualname or r.src.name }}</strong><br><span class="path muted">{{ r.src.path }}{% if r.line %}:{{ r.line }}{% endif %}</span></td>
+        <td><code>{{ r.kind }}</code></td>
+        <td><strong>{{ r.dst.qualname or r.dst.name }}</strong><br><span class="path muted">{{ r.dst.path }}</span></td>
+        <td><code>{{ r.resolution }}</code></td>
+        <td class="n"><span class="conf conf-{{ r.level }}">{{ "%.2f" | format(r.confidence) }} {{ r.level }}</span></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="callout">No edge goes from <span class="path">{{ picked.src }}</span> to <span class="path">{{ picked.dst }}</span>.</p>
+  {% endif %}
+</section>
+{% endif %}
+
+{% if d.loose %}
+<section>
+  <h2>Not connected here</h2>
+  <p class="muted">
+    {{ d.loose | length }} folder{{ "" if d.loose | length == 1 else "s" }} and files
+    with no arrow to another box at this level: nothing here uses them and they use
+    nothing here, or they hold no code the map can read.
+  </p>
+  <ul class="chips">
+    {% for b in d.loose %}
+    <li class="tier-{{ b.tier }}">
+      {% if b.is_folder %}<a href="{{ here(b.path) }}">{{ b.name }}</a> <span class="muted">{{ b.files | thousands }}</span>
+      {% else %}{{ b.name }}{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+{% endblock %}

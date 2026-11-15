@@ -4,8 +4,9 @@ Modules: `src/codeatlas/web/app.py`, `src/codeatlas/web/overview.py`,
 `src/codeatlas/web/confidence.py`, the pages in `src/codeatlas/web/templates/` and the
 stylesheet `src/codeatlas/web/static/app.css`. Command: `codeatlas serve` in `cli.py`.
 
-Built in checkpoints (`docs/plans/app-v1.md`). This explainer covers checkpoint 1: the
-server and the overview page.
+Built in checkpoints (`docs/plans/app-v1.md`). This explainer covers checkpoint 1 (the
+server and the coverage page, first called the overview) and checkpoint 2 (the
+architecture diagram, in its own section at the end).
 
 ## What
 
@@ -29,7 +30,8 @@ Routes so far:
 | --- | --- |
 | `/` | The overview, when the database holds one snapshot; otherwise the list |
 | `/snapshots` | Every indexed snapshot, newest first |
-| `/s/{slug}/` | The overview of one snapshot |
+| `/s/{slug}/` | The map of one snapshot: the architecture diagram (checkpoint 2) |
+| `/s/{slug}/coverage` | The coverage page described below |
 | `/static/app.css` | The stylesheet |
 
 The overview page shows, for one snapshot: totals; files by tier; edges by confidence
@@ -66,20 +68,20 @@ Rejected:
 
 ## How
 
-One request for `/s/demo@abc123/`, step by step:
+One request for `/s/demo@abc123/coverage`, step by step:
 
 1. uvicorn receives the request and hands it to the FastAPI app made by `create_app`.
-2. FastAPI matches the route `/s/{slug}/` and sees that `overview()` asks for a store
-   and a snapshot. It calls `get_store`, which opens a `GraphStore` on the database for
-   this request only. SQLite connections belong to the thread that opened them, and
-   each request runs on a worker thread, so a shared connection would fail.
-3. `get_snapshot` calls `find_snapshot(store, "demo@abc123")`. It turns every snapshot
+2. FastAPI matches the route and sees that `coverage()` asks for a loaded snapshot.
+   It first calls `get_store`, which opens a `GraphStore` on the database for this
+   request only. SQLite connections belong to the thread that opened them, and each
+   request runs on a worker thread, so a shared connection would fail.
+3. `get_loaded` calls `find_snapshot(store, "demo@abc123")`. It turns every snapshot
    id in the database into its slug and compares. No match gives a 404 page.
-4. `overview()` looks in the `overviews` dictionary. On the first visit it calls
-   `build_overview`, which reads the snapshot's nodes, edges, files and raw calls once
-   and counts them. A snapshot never changes after it is written, so the result is kept
-   for the life of the server.
-5. Jinja2 fills `overview.html`. Autoescape is on: a repository named `<img src=x>`
+4. `get_loaded` then looks in the cache. On the first visit `load_snapshot` reads the
+   snapshot's nodes, edges, files and raw calls once. `coverage()` calls
+   `build_overview` on them and keeps the result. A snapshot never changes after it is
+   written, so both are kept for the life of the server.
+5. Jinja2 fills `coverage.html`. Autoescape is on: a repository named `<img src=x>`
    reaches the page as the text `&lt;img src=x&gt;`, never as a tag. Names, paths and
    docstrings come from repositories nobody here wrote, so they are untrusted.
 6. When the request ends, `get_store` closes the connection.
@@ -103,7 +105,7 @@ install command. It listens on `127.0.0.1`, which only this machine can reach.
 
 ## Where
 
-- Tests: `tests/web/test_web_app.py` (19 tests): the level boundaries, each counting
+- Tests: `tests/web/test_web_app.py` (18 tests): the level boundaries, each counting
   function, the routes, the 404 and 503 pages, escaping of repository text, and the
   command's error when there is no database.
 - Measured on Nov 15, 2026, on this repository's own index (619 files, 12,493 edges):
@@ -125,3 +127,119 @@ python -m pip install -e ".[dev]"            # includes the web packages
 codeatlas index eval/fixtures/polyglot_app
 codeatlas serve                              # opens http://127.0.0.1:8765/
 ```
+
+## The architecture diagram (checkpoint 2)
+
+Modules: `web/diagram.py` (boxes and arrows), `web/layout.py` (rows and order),
+`web/data.py` (a snapshot read once and kept), the page `templates/map.html`.
+
+### What
+
+The map page, `/s/{slug}/`, is now the home of a repository. It draws one folder:
+
+- A **box** is a folder or a file directly inside the folder being looked at (the
+  **focus**). At the root of Antidote the boxes are `app/`, `api/`, `web/`, `tests/`.
+- An **arrow** from A to B means at least one stored edge of kind `imports`, `calls`,
+  `inherits` or `calls_http` goes from a file in A to a file in B.
+- The arrow's **thickness** grows with the number of edges behind it. Its **line
+  style** is the best confidence level behind it: solid if any edge is certain.
+- Clicking a folder opens it (`?focus=app/`). Clicking a file keeps only that file's
+  arrows (`?pick=app/gate.py`). Clicking an arrow lists the edges behind it
+  (`?src=web/&dst=api/`), surest first, each with how it was found.
+- Boxes with no arrow at this level are listed under "Not connected here".
+
+The statistics that were the first page moved to a second tab, Coverage
+(`/s/{slug}/coverage`).
+
+### Why
+
+- **The owner's review of checkpoint 1**: a page of counts "serves no purpose". Counts
+  are something to check, not something to use. A map is used to see how a repository
+  is put together and to move through it, so the diagram became the home page.
+- **Drawn from edges, not by a model** (D-31). Every arrow can be opened and checked.
+  A diagram a model writes from file names can be wrong with no sign of it.
+- **Folders, not packages, are the boxes.** Every repository has folders; many have no
+  package manifest, or one package for everything (PitwallOS has one).
+- **Our own layout code** (D-31): about 100 lines in `layout.py` that can be read in
+  one sitting, instead of a diagram library.
+- **Pages rendered on the server, links instead of scripts** (D-32). Opening a folder
+  or an arrow is an ordinary link, so every view has an address that can be shared and
+  the back button works. There is no JavaScript on the page.
+
+Rejected:
+
+- **Drawing every arrow.** Antidote's `app/` folder has 25 boxes and well over a
+  hundred arrows; all real, together unreadable. By default the heaviest are drawn
+  (three for every two boxes, at least 12) and the page says how many are hidden (D-34).
+- **Arrows at the middle of each side.** They all met at one point and lay on top of
+  each other. Each arrow now has its own point on the side (`route_arrows`).
+- **Arrows drawn over the boxes.** They crossed the names. Arrows are drawn first and
+  boxes on top, so a long arrow passes behind the boxes between its ends.
+- **Line style from the average confidence.** One certain import plus forty name
+  guesses would read as a guess, though the dependency is certain. The best level is
+  used, and the list behind the arrow shows the split.
+
+### How
+
+Worked example: three files and three edges, looking at the root.
+
+```
+app/api/users.py  --calls 1.0-->  lib/util.py
+app/db.py         --calls 0.2-->  lib/util.py
+app/api/users.py  --calls 1.0-->  app/db.py
+```
+
+1. `file_links` (once per snapshot, in `load_snapshot`) keeps the edges of the four
+   "uses" kinds whose two ends are in different files. An edge to an outside library
+   has no file at its far end, so it is not a link.
+2. `box_path(path, focus)` names the box a file falls in: its first part below the
+   focus. At the root, `app/api/users.py` and `app/db.py` both fall in `app/`.
+3. `_arrows` counts links per ordered pair of boxes. `app/ -> lib/` gets 2 edges
+   (1 certain, 1 guess). The third edge starts and ends in `app/`, so it draws nothing
+   here; it appears after opening `app/`. Links with one end outside the focus are
+   counted as "outside" and reported, not drawn.
+4. `layered_rows` (`layout.py`) decides the rows:
+   - `acyclic_pairs` takes arrows heaviest first and skips any that would close a
+     cycle, so the rest can be ordered top to bottom. With `a -> b` at 10 edges and
+     `b -> a` at 2, `a` goes above `b` and the lighter arrow points upwards.
+   - `assign_layers` puts a box one row below the lowest box that uses it. Boxes that
+     nothing uses are in the top row.
+   - `order_rows` sorts each row by the average position of each box's neighbours,
+     four times, alternating down and up. This is the "barycentre" method; it shortens
+     arrows and removes many crossings.
+5. `_wrap` splits a row of more than six boxes; `_place` gives each box its x and y.
+6. `arrows_to_draw` picks which arrows are drawn: one box's, the heaviest, or all.
+7. `route_arrows` gives each arrow its own point on the side of each box it touches,
+   ordered by where the other end is, and `curve` joins the two points.
+8. `map.html` writes the SVG: arrows first, then boxes. Each is a link.
+
+`arrow_edges` answers a click on an arrow: the links whose two ends fall in the two
+boxes, sorted surest first, cut to 200 rows with the total kept.
+
+`web/data.py` holds `Loaded`: one snapshot's nodes, edges, files, raw calls and links,
+read on the first request and kept in a dictionary for the life of the server. A lock
+stops two requests that arrive together from both reading it.
+
+### Where
+
+- Tests: `tests/web/test_web_diagram.py` (27 tests): each layout step, `box_path`,
+  counting arrows, the level rule, the cap, picking a box, the edges behind an arrow,
+  and the page itself (boxes, an opened arrow, a missing arrow, a folder, a 404).
+- Measured on Nov 15, 2026:
+
+| Repository | Files | First map page | Repeat |
+| --- | --- | --- | --- |
+| Antidote | 161 | 0.14 s | 0.02 s |
+| PitwallOS | 249 | 0.25 s | 0.02 s |
+| pydantic/logfire | 1,091 | 0.92 s | 0.03 s |
+
+- Looked at in a browser on Antidote and PitwallOS, dark mode, 1200 and 1400 pixels.
+- Known limits:
+  - A long arrow can pass behind a box between its ends, which hides part of it.
+  - A repository whose code sits in one top folder (PitwallOS: `src/`) shows only a
+    few boxes at the root; the structure appears after opening that folder.
+  - Rows are only wrapped, not balanced, so a folder with a long chain of files gives
+    a tall drawing.
+  - Not measured on a very large repository (django, TypeScript): every snapshot
+    opened stays in memory.
+  - A file box cannot be opened yet; the source page is checkpoint 3.

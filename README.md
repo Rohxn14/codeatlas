@@ -57,8 +57,11 @@ wrote .codeatlas/view.html (108 nodes, 226 edges)
 could break, and colours those nodes in the graph.
 
 `codeatlas serve` opens the local web app instead (being built, see
-`docs/plans/app-v1.md`). So far it has the overview page: totals, how deeply each
-language was read, how sure the edges are, and what could not be analysed.
+`docs/plans/app-v1.md`). So far it has two pages per repository. **Map** is an
+architecture diagram drawn from the stored edges: folders and files as boxes, an arrow
+where code in one uses code in another, and a click on an arrow lists the edges behind
+it. **Coverage** shows how deeply each language was read, how sure the edges are, and
+what could not be analysed.
 
 **3. Search** (BM25 plus embeddings fused by rank, then one hop along the graph):
 

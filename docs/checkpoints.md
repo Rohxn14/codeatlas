@@ -4,6 +4,63 @@ One entry per checkpoint of `docs/plans/app-v1.md`, newest first. Each says what
 built, how to see it, what was measured, the weakest points, and the choices the owner
 may want to reverse. Written for someone who was not watching the work.
 
+## Checkpoint 2: the architecture diagram as the home page (Nov 15, 2026)
+
+**Why it changed shape**
+
+Your review of checkpoint 1: the page "serves no purpose". It was a page of counts,
+which is something to check, not something to use. So the diagram is now the first
+page of a repository, and the counts moved to a second tab, Coverage.
+
+**Built**
+
+- The map page: one folder drawn as boxes (its folders and files) and arrows (code in
+  A uses code in B), laid out in rows with users above what they use.
+- Three clicks: a folder opens it; a file keeps only that file's arrows; an arrow
+  lists the stored edges behind it, each with how it was found and its confidence.
+- Line style is the confidence level (D-33); thickness is the number of edges.
+- What is left out is said on the page: hidden arrows, edges that leave the folder,
+  boxes with no arrow.
+- PitwallOS, Antidote and pydantic/logfire are indexed in the default database.
+
+**How to see it**
+
+```powershell
+codeatlas serve        # then pick Antidote graph-hacks
+```
+
+Try: click `app/`, then click `gate.py`, then click one of its arrows. At the root,
+click the thin arrow from `web/` to `api/`: it is the one HTTP call from the
+TypeScript front end to the Python server.
+
+Then read "The architecture diagram" in `docs/explainers/web-app.md`.
+
+**Measured**
+
+- 27 new tests (45 for the web app); the full suite and `ruff` pass.
+- First map page: Antidote 0.14 s, PitwallOS 0.25 s, logfire (1,091 files) 0.92 s;
+  repeat visits 0.03 s or less.
+
+**Weakest points**
+
+- A file cannot be opened yet. The diagram ends at file boxes; source and symbols are
+  checkpoint 3, and until then the map is still not a full tool.
+- A long arrow can pass behind a box that lies between its two ends.
+- PitwallOS shows four boxes at the root, because all its code is in `src/`.
+- The layout is simple: rows are wrapped at six boxes, not balanced, so a folder with
+  a long chain of files makes a tall drawing.
+- Light mode is still not looked at.
+
+**Choices you may want to reverse**
+
+- D-34: which edge kinds make an arrow; the best-level rule; the cap on drawn arrows.
+- No JavaScript: every click loads a page. It is simple and every view has an
+  address, but there is no zoom, drag or hover panel.
+- `tests/` is drawn like any other folder. It could be hidden by default.
+
+**Next**: checkpoint 3, source and symbols: open a file, see its code, its symbols,
+who calls each one, and a search box.
+
 ## Checkpoint 1: `codeatlas serve` and the overview page (Nov 15, 2026)
 
 **Built**

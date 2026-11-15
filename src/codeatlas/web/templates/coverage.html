@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{{ snapshot.repo }} · CodeAtlas{% endblock %}
+{% block title %}Coverage · {{ snapshot.repo }} · CodeAtlas{% endblock %}
 
 {% macro meter(parts, label) %}
 <div class="meter" role="img" aria-label="{{ label }}">
@@ -15,8 +15,8 @@
 {% endmacro %}
 
 {% block main %}
-<p class="eyebrow">Repository overview</p>
-<h1>{{ snapshot.repo }}</h1>
+<p class="eyebrow">Coverage</p>
+<h1>How much of {{ snapshot.repo }} is on the map</h1>
 <p class="meta">
   commit <code>{{ snapshot.commit_sha[:12] }}</code>
   · indexed {{ snapshot.indexed_at[:16] | replace("T", " ") }} UTC
