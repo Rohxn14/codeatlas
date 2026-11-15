@@ -21,8 +21,13 @@ Every design decision lands here: the question, the decision, and why. When a pu
 | D-26 | A public visitor may run everything that needs no language model, live: index a public repository (within limits), search, the diagram, impact. Chat is shown only as replays of runs recorded locally. Live model access for visitors is a later question, only if the project scales | "Any repository" then works for free, and no key ever sits on a server. Keeps CLAUDE.md's rule that a visitor never triggers a live model call; changes the roadmap's "the server never clones anything on request" | 2026-11-11 |
 | D-27 | Locally, the free Groq and Gemini tiers stay the only providers. A reliable paid provider is chosen at the production stage | No new dependency or cost while the agent is still being measured | 2026-11-11 |
 | D-28 | The code is licensed under Apache-2.0 (`LICENSE`, the unmodified text from apache.org; `license` in `pyproject.toml`) | Without a licence nobody may use or contribute to the code. Apache-2.0 is permissive and has an explicit patent grant, which companies look for; MIT has none, AGPL would keep most companies away | 2026-11-12 |
+| D-29 | The local web app (`codeatlas serve`) is built before the MCP experiment. This changes the order in D-24, not the audiences | On Nov 15 the owner asked for an application he can review. The app and the MCP server read the same store through the same functions, so the work is shared | 2026-11-15 |
+| D-30 | New packages `fastapi`, `uvicorn` and `jinja2`, in an optional `[web]` extra | D-25 chose FastAPI. An extra keeps a plain install small; `serve` prints the install command when the extra is missing | 2026-11-15 |
+| D-31 | The architecture diagram is drawn from the graph only, with a layered layout written in this repository: no model and no diagram library (P6, option a) | A drawing made from edges can be checked arrow by arrow. A model can name a group of files later, but must not decide structure. A hand-written layout is code the owner can read | 2026-11-15 |
+| D-32 | Pages are rendered on the server; scripts are plain JavaScript files with no build step | One language to learn first (D-25) | 2026-11-15 |
 
-D-24 to D-28 come from `docs/plans/product-plan.md` (P1 to P5). Still open from that plan: P6 to P9.
+D-24 to D-28 come from `docs/plans/product-plan.md` (P1 to P5). Still open from that plan: P7 to P9.
+D-29 to D-32 were taken by Claude under the owner's Nov 15 delegation (`docs/plans/app-v1.md`); each can be reversed at a checkpoint.
 
 ## Proposed on Oct 30 and Nov 2: confirm when you review
 

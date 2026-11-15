@@ -15,6 +15,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import time
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
@@ -29,6 +30,9 @@ _NAME = re.compile(r"^[A-Za-z0-9_.-]+$")
 _REF = re.compile(r"^(?!-)(?!.*\.\.)[A-Za-z0-9_./-]+$")
 _CLONE_TIMEOUT_SECONDS = 600
 _GIT_TIMEOUT_SECONDS = 60
+# Windows refuses to rename a folder while another program has a file in it open, and
+# antivirus scanners, search indexers and editors open freshly cloned files for a moment.
+_RENAME_DELAYS_SECONDS = (0.1, 0.2, 0.5, 1.0, 1.5, 2.0)
 # Written inside `.git/` (so discovery never lists it) to mark a clone as CodeAtlas's own.
 _MARKER = Path(".git") / "codeatlas-clone"
 
@@ -105,7 +109,9 @@ def open_source(source: str, config: Config) -> IntakeResult:
     # A folder inside another repository gets no SHA: the outer repository's HEAD does
     # not describe it, so the caller falls back to a hash of the files' contents.
     sha = head_sha(root) if is_repo_top_level(root) else None
-    return IntakeResult(root, root.name, source, sha)
+    # The absolute path, not the text as typed: queries run from other folders (an MCP
+    # server, `impact --git`) find the checkout through it, and `.` would mean their folder.
+    return IntakeResult(root, root.name, root.as_posix(), sha)
 
 
 def clone_or_reuse(remote: str, dest: Path, ref: str | None = None) -> tuple[str, bool]:
@@ -139,7 +145,11 @@ def clone_or_reuse(remote: str, dest: Path, ref: str | None = None) -> tuple[str
 
 def _clone_into(remote: str, folder: Path, ref: str | None) -> str:
     """Clone into an empty folder, mark it as CodeAtlas's, and return its HEAD."""
-    args = ["clone", "--filter=blob:none", "--single-branch", "--no-tags"]
+    # core.longpaths is stored in the clone's own config, so every later git command there
+    # (checkout, diff) can also write paths over 260 characters on Windows. --quiet keeps
+    # progress lines out of stderr, which would otherwise bury the error message.
+    args = ["clone", "--quiet", "--filter=blob:none", "--single-branch", "--no-tags",
+            "-c", "core.longpaths=true"]
     if ref:
         args += ["--branch", ref]
     _git([*args, "--", remote, str(folder)], timeout=_CLONE_TIMEOUT_SECONDS)
@@ -156,20 +166,35 @@ def _swap_in(fresh: Path, dest: Path) -> None:
     Two renames rather than one, because Windows cannot rename onto an existing folder.
     """
     if not dest.exists():
-        fresh.rename(dest)
+        _rename(fresh, dest)
         return
     if not _is_codeatlas_clone(dest):  # an empty folder: nothing to keep
         dest.rmdir()
-        fresh.rename(dest)
+        _rename(fresh, dest)
         return
     old = dest.with_name(f".{dest.name}.old-{uuid.uuid4().hex[:8]}")
-    dest.rename(old)
+    _rename(dest, old)
     try:
-        fresh.rename(dest)
+        _rename(fresh, dest)
     except OSError:
-        old.rename(dest)
+        _rename(old, dest)
         raise
     _remove_tree(old)  # checked by _is_codeatlas_clone above
+
+
+def _rename(source: Path, target: Path) -> None:
+    """Rename, retrying for a few seconds while another program holds a file open.
+
+    Only a permission error is retried (Windows reports a held file that way); any other
+    error, and the last permission error, is raised.
+    """
+    for delay in _RENAME_DELAYS_SECONDS:
+        try:
+            source.rename(target)
+            return
+        except PermissionError:
+            time.sleep(delay)
+    source.rename(target)
 
 
 def _is_empty_dir(path: Path) -> bool:
