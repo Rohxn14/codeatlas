@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% import "_parts.html" as parts %}
+{% block title %}{{ node.qualname or node.name }} · {{ snapshot.repo }} · CodeAtlas{% endblock %}
+
+{% macro relations(rel, empty, line_label) %}
+{% if rel.rows %}
+<p class="muted">
+  {{ rel.levels.certain }} certain, {{ rel.levels.likely }} likely, {{ rel.levels.guess }} guess.
+  {% if rel.total > rel.rows | length %}Showing the surest {{ rel.rows | length }} of {{ rel.total | thousands }}.{% endif %}
+</p>
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Symbol</th><th>Relation</th><th>How it was found</th><th class="n">Confidence</th></tr></thead>
+  <tbody>
+  {% for r in rel.rows %}
+    <tr>
+      <td>{{ parts.node_link(base, r.other) }}</td>
+      <td><code>{{ r.kind }}</code>{% if r.line %} <span class="muted">{{ line_label }} {{ r.line }}</span>{% endif %}</td>
+      <td><code>{{ r.resolution }}</code></td>
+      <td class="n">{{ parts.conf(r) }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<p class="muted">{{ empty }}</p>
+{% endif %}
+{% endmacro %}
+
+{% block main %}
+<p class="eyebrow">{{ node.kind }}</p>
+{{ parts.path_heading(base, snapshot.repo, crumbs) }}
+<h2 class="symbol-name">
+  {% if y.owner and y.owner.kind != "module" %}<a href="{{ parts.symbol_url(base, y.owner.key) }}">{{ y.owner.qualname }}</a>.{% endif %}{{ node.name }}
+</h2>
+<p class="meta">
+  <a href="{{ parts.file_url(base, node.path) }}#L{{ node.span.start_line }}">lines {{ node.span.start_line }} to {{ node.span.end_line }}</a>
+  · {{ node.language }}
+</p>
+{% if node.signature %}<pre class="signature">{{ node.signature }}</pre>{% endif %}
+{% if node.docstring %}<p class="doc">{{ node.docstring }}</p>{% endif %}
+
+<section>
+  <h2>Used by <span class="count">{{ y.used_by.total }}</span></h2>
+  {{ relations(y.used_by, "Nothing in the repository uses this, as far as the map can see. It may be an entry point, be called dynamically, or be unused.", "at line") }}
+</section>
+
+<section>
+  <h2>Uses <span class="count">{{ y.uses.total }}</span></h2>
+  {{ relations(y.uses, "This uses nothing the map could resolve.", "at line") }}
+</section>
+
+{% if y.unresolved_total %}
+<section>
+  <h2>Calls with no edge <span class="count">{{ y.unresolved_total }}</span></h2>
+  <p class="muted">
+    Calls written in this symbol that the map could not connect to a definition. Many
+    are built-ins or outside libraries, which is not a gap; some are real gaps.
+  </p>
+  <ul class="chips">
+    {% for call in y.unresolved %}
+    <li><code>{{ call.callee_text | truncate(48, True, "…", 0) }}</code> <a class="muted" href="{{ parts.file_url(base, node.path) }}#L{{ call.line }}">line {{ call.line }}</a></li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{% if y.members %}
+<section>
+  <h2>Members <span class="count">{{ y.members | length }}</span></h2>
+  <ul class="outline">
+    {% for m in y.members %}
+    <li><a href="{{ parts.symbol_url(base, m.key) }}">{{ m.name }}</a> <span class="tag">{{ m.kind }}</span></li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+<section>
+  <h2>Source</h2>
+  {% if why_not %}
+  <p class="callout">{{ why_not }}</p>
+  {% elif body %}
+  {{ parts.code(body, start, none, base) }}
+  {% if cut %}<p class="muted">Showing the first {{ body | length }} lines. <a href="{{ parts.file_url(base, node.path) }}#L{{ node.span.start_line }}">Open the file</a> for the rest.</p>{% endif %}
+  {% else %}
+  <p class="muted">This symbol has no source lines of its own.</p>
+  {% endif %}
+</section>
+{% endblock %}

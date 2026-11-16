@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_parts.html" as parts %}
 {% block title %}{{ snapshot.repo }} · CodeAtlas{% endblock %}
 
 {# The address of this page for a folder, plus any extra parameters, e.g. {"pick": "a.py"}. #}
@@ -17,6 +18,13 @@
   it imports it, calls it, inherits from it or calls its HTTP route.
   <strong>Click a folder to open it, a file to see only its arrows, an arrow to list the edges behind it.</strong>
 </p>
+
+{% if d.pick %}
+<p class="callout">
+  <strong class="path">{{ d.pick }}</strong> and the files it is connected to.
+  <a href="{{ parts.file_url(base, d.pick) }}">Open this file</a> to read its code and symbols.
+</p>
+{% endif %}
 
 {% if d.boxes %}
 <div class="diagram-wrap">
@@ -92,11 +100,11 @@
     <tbody>
     {% for r in picked.rows %}
       <tr>
-        <td><strong>{{ r.src.qualname or r.src.name }}</strong><br><span class="path muted">{{ r.src.path }}{% if r.line %}:{{ r.line }}{% endif %}</span></td>
-        <td><code>{{ r.kind }}</code></td>
-        <td><strong>{{ r.dst.qualname or r.dst.name }}</strong><br><span class="path muted">{{ r.dst.path }}</span></td>
+        <td>{{ parts.node_link(base, r.src) }}</td>
+        <td><code>{{ r.kind }}</code>{% if r.line %}<br><a class="muted" href="{{ parts.file_url(base, r.src.path) }}#L{{ r.line }}">line {{ r.line }}</a>{% endif %}</td>
+        <td>{{ parts.node_link(base, r.dst) }}</td>
         <td><code>{{ r.resolution }}</code></td>
-        <td class="n"><span class="conf conf-{{ r.level }}">{{ "%.2f" | format(r.confidence) }} {{ r.level }}</span></td>
+        <td class="n">{{ parts.conf(r) }}</td>
       </tr>
     {% endfor %}
     </tbody>
@@ -120,7 +128,7 @@
     {% for b in d.loose %}
     <li class="tier-{{ b.tier }}">
       {% if b.is_folder %}<a href="{{ here(b.path) }}">{{ b.name }}</a> <span class="muted">{{ b.files | thousands }}</span>
-      {% else %}{{ b.name }}{% endif %}
+      {% else %}<a href="{{ parts.file_url(base, b.path) }}">{{ b.name }}</a>{% endif %}
     </li>
     {% endfor %}
   </ul>

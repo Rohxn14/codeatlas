@@ -4,6 +4,53 @@ One entry per checkpoint of `docs/plans/app-v1.md`, newest first. Each says what
 built, how to see it, what was measured, the weakest points, and the choices the owner
 may want to reverse. Written for someone who was not watching the work.
 
+## Checkpoint 3: files, symbols and search (Nov 16, 2026)
+
+**Built**
+
+- A file page: the files it uses and is used by, its symbols, its source with line
+  numbers. Lines that start a symbol are marked and open the symbol.
+- A symbol page: signature, docstring, **used by** and **uses** (each row with how it
+  was found and its confidence), the calls that got no edge, the source.
+- Search, in the top bar of every page: exact names, whole-word matches in names,
+  docstrings and paths, then names that contain the text.
+- Links between everything: map to file, arrow to symbol, source line to symbol,
+  caller to caller.
+
+**How to see it**
+
+```powershell
+codeatlas serve        # pick Antidote graph-hacks
+```
+
+Try: click `app/`, click `gate.py`, "Open this file", click `evaluate` in the outline,
+then follow one of its callers. Or type `gate` in the search box.
+
+Then read "Files, symbols and search" in `docs/explainers/web-app.md`.
+
+**Measured**
+
+- 17 new tests (62 for the web app); the full suite and `ruff` pass.
+- File and search pages answer in about 0.02 s once a snapshot is loaded.
+
+**Weakest points**
+
+- No syntax colouring; the code is plain text.
+- Search finds names and docstrings, not code bodies, and has no filters.
+- If the checkout changed since it was indexed, source lines can be off by a few
+  lines and the page does not say so.
+- All of it is still read-only browsing. Impact (checkpoint 4) is the first page that
+  answers a question nobody else's tool answers.
+
+**Choices you may want to reverse**
+
+- No syntax colouring, to avoid a new package. `pygments` would do it.
+- Search in the app is text only; search by meaning stays on the command line.
+- "Used by" is above "Uses" on a symbol page.
+
+**Next**: checkpoint 4, the impact playground: paste a diff or pick a recent commit,
+see what it reaches and which tests to run.
+
 ## Checkpoint 2: the architecture diagram as the home page (Nov 15, 2026)
 
 **Why it changed shape**

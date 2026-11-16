@@ -277,10 +277,19 @@ def curve(start: tuple[float, float], end: tuple[float, float], src_side: str) -
     return f"M{sx:.0f},{sy:.0f} C{sx:.0f},{mid:.0f} {ex:.0f},{mid:.0f} {ex:.0f},{ey:.0f}"
 
 
-def crumbs(focus: str) -> list[dict[str, str]]:
-    """The folders from the root down to `focus`, each with the focus that opens it."""
-    parts = focus.strip("/").split("/") if focus else []
-    return [{"name": part, "focus": "/".join(parts[:i + 1]) + "/"} for i, part in enumerate(parts)]
+def crumbs(path: str) -> list[dict[str, str]]:
+    """The folders from the root down a path, each with the focus that opens it.
+
+    For a folder (`app/api/`) every part is a folder. For a file (`app/api/users.py`)
+    the last part is the file itself, marked with an empty focus.
+    """
+    parts = path.strip("/").split("/") if path else []
+    is_file = bool(path) and not path.endswith("/")
+    return [
+        {"name": part,
+         "focus": "" if is_file and i == len(parts) - 1 else "/".join(parts[:i + 1]) + "/"}
+        for i, part in enumerate(parts)
+    ]
 
 
 def arrow_edges(

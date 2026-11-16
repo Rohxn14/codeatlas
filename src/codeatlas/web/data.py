@@ -26,6 +26,9 @@ class Loaded:
     calls: list[tuple[RawCall, bool]]
     report: dict[str, Any] | None
     links: list[Link] = field(default_factory=list)
+    by_key: dict[str, Node] = field(default_factory=dict)
+    out_edges: dict[str, list[Edge]] = field(default_factory=dict)
+    in_edges: dict[str, list[Edge]] = field(default_factory=dict)
     overview: dict[str, Any] | None = None
 
 
@@ -34,6 +37,11 @@ def load_snapshot(
 ) -> Loaded:
     nodes = {node.id: node for node in store.nodes(snapshot.id)}
     edges = store.edges(snapshot.id)
+    out_edges: dict[str, list[Edge]] = {}
+    in_edges: dict[str, list[Edge]] = {}
+    for edge in edges:
+        out_edges.setdefault(edge.src_id, []).append(edge)
+        in_edges.setdefault(edge.dst_id, []).append(edge)
     return Loaded(
         snapshot=snapshot,
         nodes=nodes,
@@ -42,4 +50,7 @@ def load_snapshot(
         calls=store.raw_calls(snapshot.id),
         report=report,
         links=file_links(nodes, edges),
+        by_key={node.key: node for node in nodes.values()},
+        out_edges=out_edges,
+        in_edges=in_edges,
     )
