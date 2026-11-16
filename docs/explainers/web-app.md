@@ -72,20 +72,29 @@ Rejected:
 One request for `/s/demo@abc123/coverage`, step by step:
 
 1. uvicorn receives the request and hands it to the FastAPI app made by `create_app`.
-2. FastAPI matches the route and sees that `coverage()` asks for a loaded snapshot.
-   It first calls `get_store`, which opens a `GraphStore` on the database for this
-   request only. SQLite connections belong to the thread that opened them, and each
-   request runs on a worker thread, so a shared connection would fail.
-3. `get_loaded` calls `find_snapshot(store, "demo@abc123")`. It turns every snapshot
+2. FastAPI matches the route and runs `coverage()` on a worker thread. It calls
+   `get_loaded("demo@abc123")`, which looks in the cache first.
+3. On the first visit `get_loaded` calls `open_store`, which opens a `GraphStore` on
+   the database, and `find_snapshot(store, "demo@abc123")`. That turns every snapshot
    id in the database into its slug and compares. No match gives a 404 page.
-4. `get_loaded` then looks in the cache. On the first visit `load_snapshot` reads the
-   snapshot's nodes, edges, files and raw calls once. `coverage()` calls
-   `build_overview` on them and keeps the result. A snapshot never changes after it is
-   written, so both are kept for the life of the server.
+4. `load_snapshot` then reads the snapshot's nodes, edges, files and raw calls once,
+   and the connection is closed. `coverage()` calls `build_overview` on them and keeps
+   the result. A snapshot never changes after it is written, so both are kept for the
+   life of the server.
 5. Jinja2 fills `coverage.html`. Autoescape is on: a repository named `<img src=x>`
    reaches the page as the text `&lt;img src=x&gt;`, never as a tag. Names, paths and
    docstrings come from repositories nobody here wrote, so they are untrusted.
-6. When the request ends, `get_store` closes the connection.
+
+**Why each handler opens its own connection.** A SQLite connection belongs to the
+thread that opened it, and requests that arrive together run on different worker
+threads. The first version asked FastAPI for the connection through a dependency
+(`Depends(get_store)`). FastAPI may run a dependency on one thread and the handler on
+another, so the handler used a connection it did not open. One person clicking never
+saw it, because one request at a time keeps landing on the same thread. Sixteen
+requests at once did: 62 of 64 failed with `SQLite objects created in a thread can only
+be used in that same thread`. Now a handler opens the store in a `with` block and
+closes it itself, all on its own thread; the same 64 requests, and 18 more, all
+succeed. `test_many_requests_at_once_each_get_a_page` fails on the old code.
 
 `build_overview` in small steps. Worked example: three edges, `contains` at 1.0,
 `calls` at 1.0 and `calls` at 0.2.

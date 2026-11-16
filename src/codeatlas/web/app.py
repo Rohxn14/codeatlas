@@ -8,11 +8,10 @@ autoescape, because names, paths and docstrings there are untrusted text.
 from __future__ import annotations
 
 import threading
-from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
-from fastapi import Depends, FastAPI, Request
+from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -54,38 +53,43 @@ def thousands(value: int) -> str:
 
 
 def create_app(db_path: Path, config: Config) -> FastAPI:
-    """The app for one database. Each request opens its own connection (see `get_store`)."""
+    """The app for one database. Each request opens its own connection (see `open_store`)."""
     app = FastAPI(title="CodeAtlas", version=__version__, docs_url=None, redoc_url=None)
     app.mount("/static", StaticFiles(directory=_HERE / "static"), name="static")
     templates = Jinja2Templates(directory=_HERE / "templates")
     templates.env.filters.update(percent=percent, thousands=thousands, slug=snapshot_slug)
     templates.env.globals.update(version=__version__, level_meaning=MEANING)
-    # Snapshots already read, by id. A snapshot never changes once written, so it is read
+    # Snapshots already read, by slug. A snapshot never changes once written, so it is read
     # once and kept for the life of the server; re-indexing with --force needs a restart.
     cache: dict[str, Loaded] = {}
     cache_lock = threading.Lock()
 
-    def get_store() -> Iterator[GraphStore]:
-        # SQLite connections belong to the thread that opened them, and FastAPI runs each
-        # request on a worker thread, so a shared connection would fail.
+    def open_store() -> GraphStore:
+        """A connection for the request that asks, to be used in a `with` block.
+
+        A SQLite connection belongs to the thread that opened it, and requests that
+        arrive together run on different worker threads. So a handler opens its own
+        connection and closes it itself. A FastAPI dependency would not do: it can be
+        run on a different thread from the handler it serves.
+        """
         if not db_path.exists():
             raise HTTPException(503, f"no database at {db_path}: run `codeatlas index` first")
-        with GraphStore(db_path) as store:
-            yield store
+        return GraphStore(db_path)
 
-    def get_loaded(slug: str, store: GraphStore = Depends(get_store)) -> Loaded:  # noqa: B008
+    def get_loaded(slug: str) -> Loaded:
         """The snapshot a page is about, read on first use. The lock stops two requests
         arriving together from both reading the same snapshot."""
-        snapshot = find_snapshot(store, slug)
-        if snapshot is None:
-            raise HTTPException(404, f"no snapshot {slug!r} in {db_path}")
         with cache_lock:
-            if snapshot.id not in cache:
-                saved = load_report(config, snapshot.id)
-                cache[snapshot.id] = load_snapshot(
-                    store, snapshot, saved.to_dict() if saved else None
-                )
-            return cache[snapshot.id]
+            if slug not in cache:
+                with open_store() as store:
+                    snapshot = find_snapshot(store, slug)
+                    if snapshot is None:
+                        raise HTTPException(404, f"no snapshot {slug!r} in {db_path}")
+                    saved = load_report(config, snapshot.id)
+                    cache[slug] = load_snapshot(
+                        store, snapshot, saved.to_dict() if saved else None
+                    )
+            return cache[slug]
 
     def page(request: Request, name: str, loaded: Loaded, tab: str, **values: Any) -> Any:
         return templates.TemplateResponse(
@@ -95,23 +99,24 @@ def create_app(db_path: Path, config: Config) -> FastAPI:
         )
 
     @app.get("/", response_class=HTMLResponse)
-    def home(request: Request, store: GraphStore = Depends(get_store)) -> Any:  # noqa: B008
+    def home(request: Request) -> Any:
         """With one snapshot, go straight to it; otherwise list them."""
-        snapshots = store.snapshots()
+        with open_store() as store:
+            snapshots = store.snapshots()
         if len(snapshots) == 1:
             return RedirectResponse(f"/s/{snapshot_slug(snapshots[0].id)}/")
         return templates.TemplateResponse(request, "snapshots.html", {"snapshots": snapshots})
 
     @app.get("/snapshots", response_class=HTMLResponse)
-    def snapshot_list(request: Request, store: GraphStore = Depends(get_store)) -> Any:  # noqa: B008
-        return templates.TemplateResponse(
-            request, "snapshots.html", {"snapshots": store.snapshots()}
-        )
+    def snapshot_list(request: Request) -> Any:
+        with open_store() as store:
+            snapshots = store.snapshots()
+        return templates.TemplateResponse(request, "snapshots.html", {"snapshots": snapshots})
 
     @app.get("/s/{slug}/", response_class=HTMLResponse)
     def map_page(
         request: Request,
-        loaded: Loaded = Depends(get_loaded),  # noqa: B008
+        slug: str,
         focus: str = "",
         src: str = "",
         dst: str = "",
@@ -120,6 +125,7 @@ def create_app(db_path: Path, config: Config) -> FastAPI:
     ) -> Any:
         """The architecture diagram of one folder. `src` and `dst` open one arrow, `pick`
         keeps one box's arrows, `all` draws every arrow of a crowded diagram."""
+        loaded = get_loaded(slug)
         diagram = build_diagram(loaded.files, loaded.links, focus, pick, all)
         if focus and not diagram["exists"]:
             raise HTTPException(404, f"no folder {focus!r} in {loaded.snapshot.id}")
@@ -127,18 +133,16 @@ def create_app(db_path: Path, config: Config) -> FastAPI:
         return page(request, "map.html", loaded, "map", d=diagram, picked=picked)
 
     @app.get("/s/{slug}/coverage", response_class=HTMLResponse)
-    def coverage(request: Request, loaded: Loaded = Depends(get_loaded)) -> Any:  # noqa: B008
+    def coverage(request: Request, slug: str) -> Any:
+        loaded = get_loaded(slug)
         if loaded.overview is None:
             loaded.overview = build_overview(loaded)
         return page(request, "coverage.html", loaded, "coverage", o=loaded.overview)
 
     @app.get("/s/{slug}/file", response_class=HTMLResponse)
-    def file_view(
-        request: Request,
-        path: str,
-        loaded: Loaded = Depends(get_loaded),  # noqa: B008
-    ) -> Any:
+    def file_view(request: Request, slug: str, path: str) -> Any:
         """One file: what it uses, what uses it, its symbols and its source."""
+        loaded = get_loaded(slug)
         facts = file_page(loaded, path)
         if facts is None:
             raise HTTPException(404, f"no file {path!r} in {loaded.snapshot.id}")
@@ -149,12 +153,9 @@ def create_app(db_path: Path, config: Config) -> FastAPI:
                     total_lines=len(lines or []), why_not=why_not)
 
     @app.get("/s/{slug}/symbol", response_class=HTMLResponse)
-    def symbol_view(
-        request: Request,
-        key: str,
-        loaded: Loaded = Depends(get_loaded),  # noqa: B008
-    ) -> Any:
+    def symbol_view(request: Request, slug: str, key: str) -> Any:
         """One symbol: its source, what it uses, what uses it, calls that got no edge."""
+        loaded = get_loaded(slug)
         facts = symbol_page(loaded, key)
         if facts is None:
             raise HTTPException(404, f"no symbol {key!r} in {loaded.snapshot.id}")
@@ -168,14 +169,11 @@ def create_app(db_path: Path, config: Config) -> FastAPI:
                     cut=node.span.end_line > end, why_not=why_not)
 
     @app.get("/s/{slug}/search", response_class=HTMLResponse)
-    def search_view(
-        request: Request,
-        q: str = "",
-        loaded: Loaded = Depends(get_loaded),  # noqa: B008
-        store: GraphStore = Depends(get_store),  # noqa: B008
-    ) -> Any:
+    def search_view(request: Request, slug: str, q: str = "") -> Any:
         """Symbols and files by name, docstring or path."""
-        ranked = [node for node, _ in store.search_text(loaded.snapshot.id, q, k=MAX_HITS)]
+        loaded = get_loaded(slug)
+        with open_store() as store:
+            ranked = [node for node, _ in store.search_text(loaded.snapshot.id, q, k=MAX_HITS)]
         hits = search(loaded, ranked, q) if q.strip() else []
         return page(request, "search.html", loaded, "search", q=q, hits=hits)
 

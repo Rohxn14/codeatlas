@@ -175,3 +175,22 @@ def test_serve_without_a_database_says_what_to_run(
     toml.write_text(f'[paths]\ndata_dir = "{(tmp_path / "data").as_posix()}"\n', encoding="utf-8")
     assert main(["serve", "--config", str(toml), "--no-open"]) == 2
     assert "codeatlas index" in capsys.readouterr().err
+
+
+def test_many_requests_at_once_each_get_a_page(tmp_path: Path) -> None:
+    """A SQLite connection belongs to the thread that opened it. Requests that arrive
+    together run on different worker threads, so each must open and close its own."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    config = Config(data_dir=(tmp_path / "data").as_posix())
+    db_path = tmp_path / "data" / "codeatlas.db"
+    db_path.parent.mkdir(parents=True)
+    with GraphStore(db_path) as store:
+        store.create_snapshot(Snapshot("demo@abc", "demo", "abc", "2026-11-16T00:00:00Z", "0", "x"))
+    with TestClient(create_app(db_path, config)) as client:
+        def get(_: int) -> int:
+            return client.get("/s/demo@abc/search", params={"q": "anything"}).status_code
+
+        with ThreadPoolExecutor(8) as pool:
+            codes = list(pool.map(get, range(40)))
+    assert codes == [200] * 40
