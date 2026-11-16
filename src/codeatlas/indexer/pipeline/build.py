@@ -79,7 +79,7 @@ def build_graph(
     registry: Registry | None = None,
     replace_existing: bool = False,
 ) -> BuildResult:
-    """Index `source` (a folder or a GitHub URL) into `store`; returns what happened.
+    """Index `source` (a folder or a repository URL) into `store`; returns what happened.
 
     An existing snapshot of the same commit raises `ValueError` unless
     `replace_existing`, which deletes it first.
@@ -194,7 +194,7 @@ def _run_resolvers(
     """Run each resolver on its languages; collect its edges and its own problems.
 
     A resolver that needs repository files (tsconfig.json, package.json) offers
-    `set_repo_root(path)`: the pipeline passes the checkout, which for a GitHub URL is
+    `set_repo_root(path)`: the pipeline passes the checkout, which for a URL is
     the clone, so it never has to guess the root from the store. A resolver's
     `problems` list (unreadable configs, say) is copied into the build's problems, so
     nothing it skipped is silent.

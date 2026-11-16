@@ -2,7 +2,7 @@
 
 ## What
 
-`build_graph(source, store)` turns a folder or a GitHub URL into one stored snapshot: every file as a module node, every symbol the adapters found, containment, the repository layer (packages, test pairings, co-change), and whatever the registered resolvers and linkers add. `parse_source` is its first half and is what `codeatlas scan` uses. `scripts/score_fixture.py` runs the whole thing on the polyglot fixture and scores it against the hand labels.
+`build_graph(source, store)` turns a folder or a repository URL into one stored snapshot: every file as a module node, every symbol the adapters found, containment, the repository layer (packages, test pairings, co-change), and whatever the registered resolvers and linkers add. `parse_source` is its first half and is what `codeatlas scan` uses. `scripts/score_fixture.py` runs the whole thing on the polyglot fixture and scores it against the hand labels.
 
 T18 adds `index_repository` (build once, save a report), the commands `codeatlas index`, `view` and `export`, and the HTML viewer. The resolvers (T06, T07, T16) and the linker (T11) plug in through `plugins.py`.
 

@@ -1,9 +1,13 @@
-"""Intake: turn what the user typed (a local path or a public GitHub URL) into a folder on disk.
+"""Intake: turn what the user typed (a local path or a public repository URL) into a folder.
 
 A URL is fetched with one blobless, single-branch `git clone`: the full commit history
 comes along (the repository layer needs it for co-change), but file contents only for
 the checked-out commit. Nothing is fetched file by file through the GitHub REST API,
 and nothing from the cloned repository is ever run.
+
+Only a short list of public hosts is accepted (`HOSTS`). The text someone types ends up
+as an argument to `git clone`, so it is taken apart and rebuilt from checked pieces,
+never passed on as typed.
 """
 
 from __future__ import annotations
@@ -24,7 +28,9 @@ from urllib.parse import urlsplit
 from codeatlas.config import Config
 from codeatlas.indexer.discover import is_repo_top_level
 
-_GITHUB_HOSTS = frozenset({"github.com", "www.github.com"})
+# Public hosts whose repositories live at `https://<host>/<owner>/<repo>`.
+HOSTS = ("github.com", "gitlab.com", "bitbucket.org", "codeberg.org")
+DEFAULT_HOST = HOSTS[0]
 _NAME = re.compile(r"^[A-Za-z0-9_.-]+$")
 # Branch and tag names: no leading dash (it would read as a git option), no "..".
 _REF = re.compile(r"^(?!-)(?!.*\.\.)[A-Za-z0-9_./-]+$")
@@ -42,21 +48,27 @@ class IntakeError(Exception):
 
 
 @dataclass(frozen=True, slots=True)
-class GitHubSource:
-    """A parsed `https://github.com/owner/repo[@ref]`."""
+class RepoSource:
+    """A parsed `https://<host>/owner/repo[@ref]`."""
 
     owner: str
     repo: str
     ref: str | None = None
+    host: str = DEFAULT_HOST
 
     @property
     def clone_url(self) -> str:
-        return f"https://github.com/{self.owner}/{self.repo}.git"
+        return f"https://{self.host}/{self.owner}/{self.repo}.git"
 
     @property
     def dirname(self) -> str:
-        """Folder name under `.codeatlas/repos/`."""
-        return f"{self.owner}__{self.repo}"
+        """Folder name under `.codeatlas/repos/`.
+
+        GitHub clones keep the name they had before other hosts were accepted; the
+        others carry the host, so the same owner and name on two hosts do not collide.
+        """
+        name = f"{self.owner}__{self.repo}"
+        return name if self.host == DEFAULT_HOST else f"{self.host}__{name}"
 
 
 @dataclass(frozen=True, slots=True)
@@ -75,14 +87,16 @@ def looks_like_url(text: str) -> bool:
     return "://" in text
 
 
-def parse_github_url(text: str) -> GitHubSource:
-    """Parse `https://github.com/owner/repo`, optionally ending in `.git`, `/` or `@ref`."""
+def parse_repo_url(text: str) -> RepoSource:
+    """Parse `https://<host>/owner/repo`, optionally ending in `.git`, `/` or `@ref`."""
     parts = urlsplit(text.strip())
     if parts.scheme != "https":
         raise IntakeError(f"only https URLs are accepted: {text!r}")
-    host = (parts.hostname or "").lower()
-    if host not in _GITHUB_HOSTS or parts.username or parts.password or parts.port:
-        raise IntakeError(f"only public github.com URLs are accepted: {text!r}")
+    host = (parts.hostname or "").lower().removeprefix("www.")
+    if host not in HOSTS or parts.username or parts.password or parts.port:
+        raise IntakeError(
+            f"only public repositories on {', '.join(HOSTS)} are accepted: {text!r}"
+        )
     if parts.query or parts.fragment:
         raise IntakeError(f"URL must not have a query or fragment: {text!r}")
     owner, _, rest = parts.path.strip("/").partition("/")
@@ -90,19 +104,20 @@ def parse_github_url(text: str) -> GitHubSource:
     if repo.endswith(".git"):
         repo = repo[: -len(".git")]
     if not _NAME.match(owner) or not _NAME.match(repo):
-        raise IntakeError(f"expected https://github.com/<owner>/<repo>[@ref]: {text!r}")
+        # GitLab subgroups (`group/subgroup/repo`) end here too: only two parts are read.
+        raise IntakeError(f"expected https://{host}/<owner>/<repo>[@ref]: {text!r}")
     if at and not _REF.match(ref):
         raise IntakeError(f"invalid ref {ref!r} in {text!r}")
-    return GitHubSource(owner=owner, repo=repo, ref=ref if at else None)
+    return RepoSource(owner=owner, repo=repo, ref=ref if at else None, host=host)
 
 
 def open_source(source: str, config: Config) -> IntakeResult:
-    """Resolve a local path or a GitHub URL to an `IntakeResult` ready for discovery."""
+    """Resolve a local path or a repository URL to an `IntakeResult` ready for discovery."""
     if looks_like_url(source):
-        github = parse_github_url(source)
-        dest = config.repos_dir / github.dirname
-        sha, reused = clone_or_reuse(github.clone_url, dest, github.ref)
-        return IntakeResult(dest.resolve(), github.repo, source, sha, reused)
+        remote = parse_repo_url(source)
+        dest = config.repos_dir / remote.dirname
+        sha, reused = clone_or_reuse(remote.clone_url, dest, remote.ref)
+        return IntakeResult(dest.resolve(), remote.repo, source, sha, reused)
     root = Path(source).expanduser().resolve()
     if not root.is_dir():
         raise IntakeError(f"not a folder: {source}")

@@ -1,4 +1,4 @@
-"""The pipeline: turn a path or a GitHub URL into a stored graph.
+"""The pipeline: turn a path or a repository URL into a stored graph.
 
 `parse_source` does intake, discovery and parsing (what `codeatlas scan` shows);
 `build_graph` adds containment, the repository layer, the registered resolvers and

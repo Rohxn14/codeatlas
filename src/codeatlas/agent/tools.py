@@ -71,11 +71,11 @@ class ToolContext:
         local = Path(source)
         if local.is_dir():
             return local
-        from codeatlas.indexer.intake import IntakeError, looks_like_url, parse_github_url
+        from codeatlas.indexer.intake import IntakeError, looks_like_url, parse_repo_url
 
         if looks_like_url(source):
             try:
-                clone = self.config.repos_dir / parse_github_url(source).dirname
+                clone = self.config.repos_dir / parse_repo_url(source).dirname
             except IntakeError:
                 return None
             return clone if clone.is_dir() else None
