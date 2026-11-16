@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+{% import "_parts.html" as parts %}
+{% block title %}Impact · {{ snapshot.repo }} · CodeAtlas{% endblock %}
+
+{# One name on an evidence path, linked when the snapshot has it. #}
+{% macro named(x) %}
+{%- if x.node and x.node.kind == "module" -%}<a class="path" href="{{ parts.file_url(base, x.node.path) }}">{{ x.label }}</a>
+{%- elif x.node and x.node.kind not in ("external", "package") -%}<a href="{{ parts.symbol_url(base, x.key) }}">{{ x.label }}</a>
+{%- else -%}<span>{{ x.label }}</span>{%- endif -%}
+{% endmacro %}
+
+{# Why a row is on the page: the signal, then the path from the change outwards. #}
+{% macro why(row) %}
+{% if row.why %}
+<span class="muted">{{ row.why.signal }}</span>
+{% if row.why.hops | length > 1 %}
+<div class="hops">
+  {% for hop in row.why.hops %}
+  {%- if not loop.first %}<span class="hop-edge" title="found with confidence {{ "%.2f" | format(hop.confidence or 0) }}">← {{ hop.kind | replace("_", " ") }} {{ "%.2f" | format(hop.confidence or 0) }} ←</span>{% endif %}
+  <span class="hop">{{ named(hop) }}</span>
+  {% endfor %}
+</div>
+{% endif %}
+{% if row.why.detail and row.why.hops | length <= 2 %}<div class="muted small">{{ row.why.detail }}</div>{% endif %}
+{% if row.also %}<div class="muted small">Also: {{ row.also | join("; ") }}.</div>{% endif %}
+{% endif %}
+{% endmacro %}
+
+{% block main %}
+<p class="eyebrow">Impact</p>
+
+{% if not chosen %}
+<h1>What could a change break?</h1>
+<p class="meta">
+  Choose a change. CodeAtlas follows the map backwards from what the change touches,
+  through callers, importers, HTTP clients and tests, and lists what it reaches and
+  which test files to run. Nothing is run; this is read from the map.
+</p>
+{% if error %}<p class="notice">{{ error }}</p>{% endif %}
+
+<section>
+  <h2>Uncommitted changes</h2>
+  {% if worktree %}
+  <p>The edits in the checkout that are not committed yet.
+    <a class="button" href="{{ base }}/impact?change=worktree">Check my uncommitted changes</a></p>
+  {% elif has_checkout %}
+  <p class="muted">Not available: the checkout is not a git repository, or it has moved on from the indexed commit <code>{{ snapshot.commit_sha[:12] }}</code>. Index it again to use this.</p>
+  {% else %}
+  <p class="muted">Not available: the indexed checkout is no longer on disk.</p>
+  {% endif %}
+</section>
+
+<section>
+  <h2>A recent commit</h2>
+  {% if commits %}
+  <p class="muted">The indexed commit is exact to the line. For an older commit the line numbers have moved since, so each file it changed counts whole.</p>
+  <ul class="plain commits">
+    {% for c in commits %}
+    <li>
+      <a href="{{ base }}/impact?commit={{ c.sha }}"><code>{{ c.sha[:7] }}</code> {{ c.subject | truncate(90, False, "…", 0) }}</a>
+      <span class="muted">{{ c.date }}</span>
+      {% if c.sha == snapshot.commit_sha %}<span class="tag">indexed commit</span>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted">No commits to show: the checkout is gone or is not a git repository.</p>
+  {% endif %}
+</section>
+
+<section>
+  <h2>A diff</h2>
+  <p class="muted">Paste the output of <code>git diff</code> or <code>git show</code>.</p>
+  <form method="post" action="{{ base }}/impact" class="diff-form">
+    <textarea name="diff" rows="10" spellcheck="false" aria-label="A diff" placeholder="diff --git a/app/service.py b/app/service.py&#10;--- a/app/service.py&#10;+++ b/app/service.py&#10;@@ -7,3 +7,4 @@"></textarea>
+    <button type="submit" class="button">See what it reaches</button>
+  </form>
+</section>
+
+<section>
+  <h2>One file or one symbol</h2>
+  <p class="muted">Open any file or symbol (from the map or the search box) and choose “What could a change here break?”.</p>
+</section>
+
+{% else %}
+<h1>{{ chosen.title }}</h1>
+<p class="meta"><a href="{{ base }}/impact">Choose another change</a></p>
+{% if chosen.note %}<p class="notice">{{ chosen.note }}</p>{% endif %}
+
+<div class="tiles">
+  <div class="tile"><span class="num">{{ changed_files | thousands }}</span><span class="lbl">file{{ "" if changed_files == 1 else "s" }} changed, {{ v.changed_total | thousands }} symbol{{ "" if v.changed_total == 1 else "s" }} on the map</span></div>
+  <div class="tile"><span class="num">{{ v.tests_run | thousands }} <span class="of">of {{ v.test_files | thousands }}</span></span><span class="lbl">test files to run{% if v.skipped_share is not none %}; {{ v.skipped_share | percent }} can be skipped{% endif %}</span></div>
+  <div class="tile"><span class="num">{{ v.files_total | thousands }}</span><span class="lbl">other file{{ "" if v.files_total == 1 else "s" }} reached ({{ v.targets_total | thousands }} symbols)</span></div>
+</div>
+
+{% if v.warnings %}
+<details class="notice" {% if v.warnings | length <= 3 %}open{% endif %}>
+  <summary>{{ v.warnings | length }} part{{ "" if v.warnings | length == 1 else "s" }} of the change could not be placed on the map</summary>
+  <ul class="gaps">{% for w in v.warnings[:50] %}<li>{{ w }}</li>{% endfor %}</ul>
+  {% if v.warnings | length > 50 %}<p>And {{ v.warnings | length - 50 }} more.</p>{% endif %}
+</details>
+{% endif %}
+
+<section>
+  <h2>What the change touches <span class="count">{{ v.changed_total }}</span></h2>
+  {% if v.changed %}
+  <ul class="chips">
+    {% for x in v.changed %}<li>{{ named(x) }}</li>{% endfor %}
+    {% if v.changed_total > v.changed | length %}<li class="muted">and {{ v.changed_total - v.changed | length }} more</li>{% endif %}
+  </ul>
+  {% else %}
+  <p class="callout">Nothing in this change is on the map, so there is nothing to follow. See the notes above.</p>
+  {% endif %}
+</section>
+
+<section>
+  <h2>Test files to run <span class="count">{{ v.tests_run }}</span></h2>
+  {% if v.tests %}
+  <p class="muted">
+    Score {{ "%.1f" | format(v.threshold) }} or more, strongest first.
+    {% if v.tests_weaker %}{{ v.tests_weaker | thousands }} more test file{{ "" if v.tests_weaker == 1 else "s" }} are reached more weakly and left out.{% endif %}
+    An arrow reads backwards: “A ← calls ← B” means B calls A.
+  </p>
+  <div class="table-wrap">
+  <table class="impact">
+    <thead><tr><th>Test file</th><th class="n">Score</th><th>Why</th></tr></thead>
+    <tbody>
+    {% for t in v.tests %}
+      <tr>
+        <td><a class="path" href="{{ parts.file_url(base, t.path) }}">{{ t.path }}</a></td>
+        <td class="n">{{ "%.2f" | format(t.score) }}</td>
+        <td>{{ why(t) }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <details>
+    <summary>As a list to copy</summary>
+    <pre>{% for t in v.tests %}{{ t.path }}
+{% endfor %}</pre>
+  </details>
+  {% elif v.test_files %}
+  <p class="callout">No test file reaches this change strongly enough{% if v.tests_weaker %} ({{ v.tests_weaker }} reach it weakly){% endif %}. Either nothing tests it, or the tests reach it in a way the map cannot see.</p>
+  {% else %}
+  <p class="callout">The map found no test files in this repository.</p>
+  {% endif %}
+</section>
+
+<section>
+  <h2>Other files it reaches <span class="count">{{ v.files_total }}</span></h2>
+  {% if v.files %}
+  <p class="muted">
+    Files with code that depends on what changed, strongest first; under each, the symbols reached.
+    {% if v.files_total > v.files | length %}Showing the strongest {{ v.files | length }}.{% endif %}
+  </p>
+  <div class="table-wrap">
+  <table class="impact">
+    <thead><tr><th>File and symbols</th><th class="n">Score</th><th>Why</th></tr></thead>
+    <tbody>
+    {% for f in v.files %}
+      <tr class="group">
+        <td colspan="3"><a class="path" href="{{ parts.file_url(base, f.path) }}"><strong>{{ f.path }}</strong></a>
+          <span class="muted">{{ f.count }} symbol{{ "" if f.count == 1 else "s" }}{% if f.count > f.symbols | length %}, strongest {{ f.symbols | length }} shown{% endif %}</span></td>
+      </tr>
+      {% for s in f.symbols %}
+      <tr>
+        <td class="indent">{{ named(s.name) }}</td>
+        <td class="n">{{ "%.2f" | format(s.score) }}</td>
+        <td>{{ why(s) }}</td>
+      </tr>
+      {% endfor %}
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="callout">Nothing else on the map depends on what changed.</p>
+  {% endif %}
+</section>
+
+<section>
+  <h2>How far to trust this</h2>
+  <ul class="notes">
+    <li>A score is not a probability. It is the confidence of each edge on the path multiplied together, times 0.8 for every step away from the change.</li>
+    <li><strong>Test selection is measured:</strong> on two small benchmarks where code was broken on purpose, files at {{ "%.1f" | format(v.threshold) }} or more matched the tests that really failed with an F1 of about 0.84.</li>
+    <li><strong>The ranking of other files is not proven:</strong> it does not yet predict which files change together better than plain git history does.</li>
+    <li>Calls the map could not resolve (see Coverage) are paths this page cannot follow, so a missing file here is not proof that it is safe.</li>
+  </ul>
+</section>
+{% endif %}
+{% endblock %}

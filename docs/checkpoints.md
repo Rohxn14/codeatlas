@@ -4,6 +4,57 @@ One entry per checkpoint of `docs/plans/app-v1.md`, newest first. Each says what
 built, how to see it, what was measured, the weakest points, and the choices the owner
 may want to reverse. Written for someone who was not watching the work.
 
+## Checkpoint 4: the impact page (Nov 16, 2026)
+
+**Built**
+
+- A third tab, **Impact**: choose a change and see what it touches, which test files
+  to run (and how many can be skipped), which other files it reaches, and the path
+  behind every row.
+- Four ways to choose a change: uncommitted edits, one of the last 15 commits, a
+  pasted diff, or "What could a change here break?" on any file or symbol page.
+- A bug fix found on the way (pull request #47): the app failed when several requests
+  arrived together. 62 of 64 concurrent requests returned an error; now none do.
+
+**How to see it**
+
+```powershell
+codeatlas serve        # pick PitwallOS, then the Impact tab
+```
+
+Try: click the commit "Qualifying replays from the lake" (7 of 52 test files). Then
+edit any line in PitwallOS without committing and click "Check my uncommitted changes".
+
+Then read "The impact page" in `docs/explainers/web-app.md`.
+
+**Measured**
+
+- 19 new tests (82 for the web app); the full suite and `ruff` pass.
+- A 20-file commit of PitwallOS answers in 0.44 s. The first impact request for a
+  repository also builds the graph: 1.4 s for PitwallOS, 3.7 s for logfire.
+
+**Weakest points**
+
+- Only the indexed commit and uncommitted edits are exact to the line. An older commit
+  counts each changed file whole, so its result is too wide.
+- The existing diff reader (`impact/diff.py`) counts the three unchanged lines round
+  each edit as changed. The page avoids this for git (it asks for no such lines), but
+  the command line (`codeatlas impact --git`) and pasted diffs still have it. Fixing
+  the reader changes what the measured engine is fed, so it is your decision.
+- The trust numbers at the bottom of the page are typed into the template.
+- Scores are shown as bare numbers. They are not probabilities, and the page says so,
+  but a number still looks more exact than it is.
+
+**Choices you may want to reverse**
+
+- D-35: older commits count whole files (the alternative: follow line numbers through
+  later commits).
+- Test files reached below 0.3 are counted but not listed.
+- Other files are grouped by file with the five strongest symbols each.
+
+**Next**: checkpoint 5, indexing from the app: paste a GitHub address or a folder,
+watch progress, and manage the list of repositories.
+
 ## Checkpoint 3: files, symbols and search (Nov 16, 2026)
 
 **Built**

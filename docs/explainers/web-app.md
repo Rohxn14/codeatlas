@@ -348,3 +348,111 @@ first, because full-text search matches whole words: `gate` does not find `apply
     numbers can be off; the page does not detect that yet.
   - `checkout_root` repeats the rule in `agent/tools.py` (`ToolContext.repo_root`).
     Making the agent call this one is a separate, small refactor.
+
+## The impact page (checkpoint 4)
+
+Files: `web/changes.py` (reading a change), `web/impact_page.py` (the facts for the
+template), `templates/impact.html`, three routes in `web/app.py`.
+
+### What
+
+The third tab of a repository answers one question: **if this changes, what could
+break, and which tests should I run?** The change can be:
+
+- the uncommitted edits in the checkout;
+- one of the last 15 commits;
+- a diff pasted into a box;
+- one file or one symbol (a link on every file and symbol page).
+
+The page then shows what the change touches, the test files to run with the share that
+can be skipped, the other files it reaches, and for every row the path that led there:
+`helper ← calls 1.00 ← Service.save` reads "Service.save calls helper". It ends with a
+plain statement of what is measured and what is not.
+
+Terms:
+
+- **Diff**: the text git prints for a change. Lines starting with `-` were removed and
+  lines starting with `+` were added.
+- **Hunk**: one block of a diff. Its header `@@ -7,3 +7,4 @@` says: 3 lines from line 7
+  of the old file became 4 lines from line 7 of the new file.
+- **Working tree**: the files in the folder as they are now, including edits that are
+  not committed.
+
+### Why
+
+- **The engine is not changed.** `impact/engine.py` already ranks targets and tests and
+  is measured. The page only chooses the change and arranges the answer. Rejected: a
+  second, simpler ranking for the page (two answers to one question).
+- **Line numbers must be the snapshot's** (D-35). The engine finds the changed symbol by
+  asking which symbol holds line N *in the indexed commit*. A diff gives line numbers of
+  its new side. So:
+  - the indexed commit itself is exact: its new side is the snapshot;
+  - uncommitted edits are read with `git diff -R HEAD`. `-R` swaps the sides, so the
+    indexed commit becomes the new side. Without it, three lines added at the top of a
+    file would shift every later edit onto the wrong symbol. A test does exactly that;
+  - an older commit's line numbers have moved since, and following them through later
+    commits is more work than it is worth yet. Each file it changed counts whole, and
+    the page says the result is wider than the change.
+- **Zero context lines (`-U0`).** Git prints three unchanged lines round each edit, and
+  `parse_diff` takes a hunk's whole span as changed. In the first run of the tests a
+  one-line edit to `helper` also marked `apply_gate`, three lines below. Asking git for
+  no context makes git-sourced changes exact. A pasted diff still has its context
+  lines; the page says a neighbouring symbol may be included. Fixing that in
+  `parse_diff` would change what the measured engine is fed, so it is the owner's call.
+- **git may not fetch.** A clone made by CodeAtlas holds file contents only for the
+  indexed commit. Showing a commit's diff needs older contents, and git would quietly
+  download them. `GIT_NO_LAZY_FETCH=1` forbids that, because opening a page must not
+  reach the network. When the diff cannot be made, the commit's file names are used
+  (they need no contents) and the files count whole.
+- **A commit id from the address is checked** against `^[0-9a-f]{7,40}$` before git sees
+  it, so `--help` never reaches the command line as an option. git is always run as a
+  list of arguments, never through a shell.
+- **The posted form is read by hand.** FastAPI's form reader needs the package
+  `python-multipart`. `urllib.parse.parse_qs` from the standard library does the same
+  for one text field. A diff over 2 MB is refused with a 413.
+- **Other files are grouped by file.** The engine ranks symbols; 300 rows of symbols are
+  unreadable. A file with its five strongest symbols under it is closer to the question
+  "what do I need to look at".
+
+### How
+
+One request, `/s/demo@abc/impact?commit=c128126`:
+
+1. `impact_page` loads the snapshot and finds the checkout (`checkout_root`).
+2. `commit_changes` checks the id, asks git for the full id and subject, then for the
+   diff (the indexed commit) or the file names (an older one), and returns a
+   `ChangeSet`: a title, the `Change`s, whether it is exact, and a note for the page.
+3. `impact_response` opens the store and builds the engine. The engine's graph is built
+   on the first impact request for a snapshot and kept on `Loaded.graph`.
+4. `engine.impact(changes)` returns ranked targets and tests; `all_test_files(engine)`
+   is every test file, for the skipped share.
+5. `impact_view` splits the result: test files at or over the engine's cut-off (0.3),
+   the count of weaker ones, and the other targets grouped by file. `_why` turns the
+   best evidence of each row into hops, and `_named` looks every key up so the template
+   can link it.
+6. `impact.html` draws tiles, the warnings, the chips of changed symbols and two tables.
+
+Worked example, the repository in `tests/web/test_web_impact.py`. The indexed commit
+changes one line inside `helper` in `lib/util.py`:
+
+- changed: `lib/util.py::helper`;
+- `tests/test_util.py` calls `helper`: selected. `tests/test_other.py` does not: left
+  out, so "1 of 2 test files, 50% can be skipped";
+- `app/service.py` is reached because `Service.save` calls `helper`.
+
+### Where
+
+- Tests: `tests/web/test_web_impact.py` (19 tests): each way of choosing a change,
+  commit ids that are not ids, the reversed diff, a checkout that moved on, the facts
+  of the page, a pasted diff, the size limit, text from a diff shown as text.
+- Measured on Nov 16, 2026, on the owner's machine: a commit of PitwallOS (20 files)
+  0.44 s; the first impact request also builds the graph (PitwallOS 1.4 s, logfire
+  3.7 s).
+- Known limits:
+  - An older commit counts whole files, so its result is too wide.
+  - A pasted diff is taken to end at the indexed commit; the page cannot check that.
+  - The engine is rebuilt on every request (about 0.1 to 0.5 s); only its graph is kept.
+  - The numbers under "How far to trust this" are written in the template. They come
+    from `docs/explainers/impact.md` and must be changed by hand when re-measured.
+  - Untracked files (new files never added to git) are not in `git diff`, so they are
+    not part of "uncommitted changes".
