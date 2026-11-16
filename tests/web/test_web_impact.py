@@ -1,6 +1,5 @@
 """The impact page: reading a change from git or a pasted diff, and showing what it reaches."""
 
-import subprocess
 from collections.abc import Callable
 from pathlib import Path
 
@@ -26,6 +25,7 @@ from codeatlas.web.changes import (
 )
 from codeatlas.web.data import load_snapshot
 from codeatlas.web.impact_page import impact_view
+from tests.conftest import git
 
 UTIL = "def helper():\n    pass\n\n\ndef apply_gate():\n    return 1\n"
 REPO = {
@@ -52,12 +52,6 @@ DIFF = (
 Site = tuple[Path, Config, Snapshot, Path]
 
 
-def run_git(root: Path, *args: str) -> str:
-    done = subprocess.run(["git", "-C", str(root), *args], capture_output=True, text=True,
-                          check=True)
-    return done.stdout.strip()
-
-
 @pytest.fixture
 def site(make_repo: Callable[..., Path], tmp_path: Path) -> Site:
     """A repository with two commits, indexed at the second: (database, config, snapshot,
@@ -66,7 +60,7 @@ def site(make_repo: Callable[..., Path], tmp_path: Path) -> Site:
     db_path = tmp_path / "data" / "codeatlas.db"
     repo = make_repo(REPO, name="demo")
     (repo / "lib" / "util.py").write_text(UTIL.replace("pass", "return 2"), encoding="utf-8")
-    run_git(repo, "commit", "-q", "-am", "helper returns 2")
+    git(repo, "commit", "-q", "-am", "helper returns 2")
     report = index_repository(str(repo), config, db_path)
     with GraphStore(db_path) as store:
         snapshot = store.get_snapshot(report.snapshot["id"])
@@ -133,8 +127,8 @@ def test_uncommitted_changes_use_the_snapshots_line_numbers(site: Site) -> None:
 def test_uncommitted_changes_are_refused_once_the_checkout_moves_on(site: Site) -> None:
     assert at_snapshot(site[3], site[2])
     (site[3] / "new.py").write_text("x = 1\n", encoding="utf-8")
-    run_git(site[3], "add", "new.py")
-    run_git(site[3], "commit", "-q", "-m", "later")
+    git(site[3], "add", "new.py")
+    git(site[3], "commit", "-q", "-m", "later")
     assert not at_snapshot(site[3], site[2])
     with pytest.raises(ChangeError):
         worktree_changes(site[3], site[2])
