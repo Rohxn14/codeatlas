@@ -1,29 +1,35 @@
 """The local web app: FastAPI routes over one CodeAtlas database.
 
-The app only reads the database. It never clones, installs or runs anything from an
-indexed repository, and every value from a repository reaches the page through Jinja's
-autoescape, because names, paths and docstrings there are untrusted text.
+The pages read the database. Two actions change it: indexing a repository (the same
+`index_repository` the command line calls, on a background thread) and removing a
+snapshot. Both can be switched off with `read_only`, and both refuse a form posted
+from another website. The app never installs or runs anything from a repository, and
+every value from a repository reaches the page through Jinja's autoescape, because
+names, paths and docstrings there are untrusted text.
 """
 
 from __future__ import annotations
 
 import threading
+from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any
-from urllib.parse import parse_qs
+from urllib.parse import parse_qs, urlsplit
 
 from fastapi import Depends, FastAPI, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.exceptions import HTTPException
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from codeatlas import __version__
 from codeatlas.config import Config
 from codeatlas.impact.engine import LOAD_KINDS, ImpactEngine
 from codeatlas.impact.evaluate import all_test_files
 from codeatlas.impact.models import Change
-from codeatlas.indexer.pipeline.index import load_report
+from codeatlas.indexer.intake import IntakeError, looks_like_url, parse_repo_url
+from codeatlas.indexer.pipeline.index import index_repository, load_report, report_path
 from codeatlas.models import Snapshot
 from codeatlas.store import GraphStore
 from codeatlas.web.changes import (
@@ -40,6 +46,7 @@ from codeatlas.web.confidence import MEANING
 from codeatlas.web.data import Loaded, load_snapshot
 from codeatlas.web.diagram import arrow_edges, build_diagram, crumbs
 from codeatlas.web.impact_page import impact_view
+from codeatlas.web.jobs import Job, Jobs, TooManyJobs
 from codeatlas.web.overview import build_overview
 from codeatlas.web.pages import MAX_HITS, file_page, search, symbol_page
 from codeatlas.web.source import MAX_LINES, checkout_root, read_lines
@@ -67,8 +74,8 @@ def thousands(value: int) -> str:
     return f"{value:,}"
 
 
-async def posted_diff(request: Request) -> str:
-    """The `diff` field of a posted form.
+async def posted_form(request: Request) -> dict[str, str]:
+    """The fields of a posted form, each with its first value.
 
     Read by hand because FastAPI's own form reader needs one more package. This is a
     dependency, not part of the handler, because reading a request body must be awaited
@@ -76,22 +83,100 @@ async def posted_diff(request: Request) -> str:
     """
     body = await request.body()
     if len(body) > MAX_DIFF_BYTES:
-        raise HTTPException(413, f"the diff is larger than {MAX_DIFF_BYTES:,} bytes")
+        raise HTTPException(413, f"the form is larger than {MAX_DIFF_BYTES:,} bytes")
     fields = parse_qs(body.decode("utf-8", errors="replace"), keep_blank_values=True)
-    return fields.get("diff", [""])[0]
+    return {name: values[0] for name, values in fields.items()}
 
 
-def create_app(db_path: Path, config: Config) -> FastAPI:
-    """The app for one database. Each request opens its own connection (see `open_store`)."""
+# Made once here: a `Depends(...)` call may not sit in a parameter default (ruff B008).
+POSTED_FORM = Depends(posted_form)
+
+
+def posted_diff(form: dict[str, str] = POSTED_FORM) -> str:
+    return form.get("diff", "")
+
+
+def from_this_app(request: Request) -> None:
+    """Refuse a form that another website posted.
+
+    Any page open in the same browser can post a form to `http://127.0.0.1:8765/index`.
+    A browser adds an `Origin` header to such a post, naming the site the form is on;
+    when that is not this app's own address the request is refused.
+    """
+    origin = request.headers.get("origin")
+    if origin and urlsplit(origin).netloc != request.headers.get("host"):
+        raise HTTPException(403, "this form was posted from another website")
+    if request.headers.get("sec-fetch-site", "same-origin") not in ("same-origin", "none"):
+        raise HTTPException(403, "this form was posted from another website")
+
+
+def checked_source(text: str) -> str:
+    """What someone typed into the index form, refused early when it cannot work.
+
+    The job would fail on the same input a moment later; checking here puts the
+    message next to the form instead of on a progress page.
+    """
+    source = text.strip().strip('"').strip("'").strip()
+    if not source:
+        raise IntakeError("type a repository address or a folder on this machine")
+    if looks_like_url(source):
+        parse_repo_url(source)
+    elif not Path(source).expanduser().is_dir():
+        raise IntakeError(f"not a folder on this machine: {source}")
+    return source
+
+
+def create_app(
+    db_path: Path,
+    config: Config,
+    read_only: bool = False,
+    hosts: Sequence[str] | None = None,
+) -> FastAPI:
+    """The app for one database. Each request opens its own connection (see `open_store`).
+
+    `read_only` leaves out indexing and removing: what a public demo must run with.
+    `hosts` are the names the app may be reached by; a request for any other name is
+    refused, which stops another website from reaching the app through a DNS name
+    that points at this machine. None means no check (tests).
+    """
     app = FastAPI(title="CodeAtlas", version=__version__, docs_url=None, redoc_url=None)
+    if hosts is not None:
+        app.add_middleware(TrustedHostMiddleware, allowed_hosts=list(hosts))
     app.mount("/static", StaticFiles(directory=_HERE / "static"), name="static")
     templates = Jinja2Templates(directory=_HERE / "templates")
     templates.env.filters.update(percent=percent, thousands=thousands, slug=snapshot_slug)
     templates.env.globals.update(version=__version__, level_meaning=MEANING)
-    # Snapshots already read, by slug. A snapshot never changes once written, so it is read
-    # once and kept for the life of the server; re-indexing with --force needs a restart.
+    templates.env.globals.update(read_only=read_only)
+    # Snapshots already read, by slug. A snapshot only changes when it is indexed again or
+    # removed; both happen through this app and take it out of the cache (`forget`). An
+    # index run from the command line while the server is up still needs a restart.
     cache: dict[str, Loaded] = {}
     cache_lock = threading.Lock()
+
+    def forget(snapshot_id: str) -> None:
+        with cache_lock:
+            cache.pop(snapshot_slug(snapshot_id), None)
+
+    def run_index(source: str, force: bool, progress: Callable[[str, str], None]) -> dict:
+        """One index job. `reused` says the commit was already stored and nothing ran."""
+        seen: set[str] = set()
+
+        def tell(step: str, detail: str) -> None:
+            seen.add(step)
+            progress(step, detail)
+
+        report = index_repository(source, config, db_path, force=force, progress=tell)
+        return {**report.to_dict(), "reused": "save" not in seen}
+
+    def index_done(job: Job) -> None:
+        if job.report is not None:
+            forget(job.report["snapshot"]["id"])
+
+    jobs = Jobs(run_index, index_done)
+
+    def can_change() -> None:
+        if read_only:
+            raise HTTPException(403, "this copy of CodeAtlas is read-only")
 
     def open_store() -> GraphStore:
         """A connection for the request that asks, to be used in a `with` block.
@@ -127,20 +212,85 @@ def create_app(db_path: Path, config: Config) -> FastAPI:
              "base": f"/s/{snapshot_slug(loaded.snapshot.id)}", **values},
         )
 
+    def home_response(request: Request, error: str = "", typed: str = "") -> Any:
+        """The start page: the index form, jobs under way, and every stored snapshot.
+
+        It works with no database yet, so a first index can be started from the page.
+        """
+        rows = []
+        if db_path.exists():
+            with open_store() as store:
+                snapshots = store.snapshots()
+            for snapshot in snapshots:
+                saved = load_report(config, snapshot.id)
+                rows.append({"s": snapshot, "files": saved.files["total"] if saved else None})
+        shown = [job for job in jobs.recent() if job.state != "done"][:5]
+        return templates.TemplateResponse(
+            request, "snapshots.html",
+            {"rows": rows, "jobs": shown, "error": error, "typed": typed},
+            status_code=400 if error else 200,
+        )
+
     @app.get("/", response_class=HTMLResponse)
     def home(request: Request) -> Any:
-        """With one snapshot, go straight to it; otherwise list them."""
-        with open_store() as store:
-            snapshots = store.snapshots()
-        if len(snapshots) == 1:
-            return RedirectResponse(f"/s/{snapshot_slug(snapshots[0].id)}/")
-        return templates.TemplateResponse(request, "snapshots.html", {"snapshots": snapshots})
+        return home_response(request)
 
     @app.get("/snapshots", response_class=HTMLResponse)
     def snapshot_list(request: Request) -> Any:
+        return home_response(request)
+
+    @app.post("/index", response_class=HTMLResponse,
+              dependencies=[Depends(from_this_app)])
+    def start_index(request: Request, form: dict[str, str] = POSTED_FORM) -> Any:
+        """Start indexing what was typed, then show its progress page."""
+        can_change()
+        typed = form.get("source", "")
+        try:
+            job = jobs.start(checked_source(typed), force=form.get("force") == "1")
+        except (IntakeError, TooManyJobs) as exc:
+            return home_response(request, str(exc), typed)
+        return RedirectResponse(f"/jobs/{job.id}", status_code=303)
+
+    @app.get("/jobs/{job_id}", response_class=HTMLResponse)
+    def job_page(request: Request, job_id: str) -> Any:
+        """Where one index has got to. The page reloads itself while the job is active."""
+        job = jobs.get(job_id)
+        if job is None:
+            raise HTTPException(404, "no such index job: jobs are forgotten when the "
+                                     "server stops. The list of repositories shows what "
+                                     "was stored")
+        waiting = [j for j in jobs.recent() if j.state == "running" and j is not job]
+        return templates.TemplateResponse(
+            request, "job.html", {"job": job, "ahead": waiting[0] if waiting else None})
+
+    @app.get("/s/{slug}/remove", response_class=HTMLResponse)
+    def remove_ask(request: Request, slug: str) -> Any:
+        """Ask before removing: there is no undo short of indexing again."""
+        can_change()
         with open_store() as store:
-            snapshots = store.snapshots()
-        return templates.TemplateResponse(request, "snapshots.html", {"snapshots": snapshots})
+            snapshot = find_snapshot(store, slug)
+        if snapshot is None:
+            raise HTTPException(404, f"no snapshot {slug!r} in {db_path}")
+        return templates.TemplateResponse(
+            request, "remove.html",
+            {"s": snapshot, "is_url": looks_like_url(snapshot.source)})
+
+    @app.post("/s/{slug}/remove", response_class=HTMLResponse,
+              dependencies=[Depends(from_this_app)])
+    def remove(slug: str) -> Any:
+        """Remove one snapshot from the database. The checkout on disk is not touched."""
+        can_change()
+        if jobs.busy():
+            raise HTTPException(409, "a repository is being indexed: remove this one "
+                                     "when that has finished")
+        with open_store() as store:
+            snapshot = find_snapshot(store, slug)
+            if snapshot is None:
+                raise HTTPException(404, f"no snapshot {slug!r} in {db_path}")
+            store.delete_snapshot(snapshot.id)
+        report_path(config, snapshot.id).unlink(missing_ok=True)
+        forget(snapshot.id)
+        return RedirectResponse("/", status_code=303)
 
     @app.get("/s/{slug}/", response_class=HTMLResponse)
     def map_page(

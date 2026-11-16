@@ -600,6 +600,9 @@ def _run_mcp(args: argparse.Namespace, config: Config) -> int:
     return 0
 
 
+_THIS_MACHINE = frozenset({"127.0.0.1", "localhost"})
+
+
 def _run_serve(args: argparse.Namespace, config: Config) -> int:
     """Start the local web app. The web packages are optional, so they are imported here."""
     try:
@@ -611,13 +614,21 @@ def _run_serve(args: argparse.Namespace, config: Config) -> int:
             f'the web app needs extra packages ({exc.name}): run `pip install -e ".[web]"`'
         ) from exc
     db_path = Path(args.db) if args.db else default_db_path(config)
-    if not db_path.exists():
-        raise ValueError(f"no database at {db_path}: run `codeatlas index <path-or-url>` first")
+    local = args.host in _THIS_MACHINE
+    # Indexing reads any folder its user names. That is fine for the person at this
+    # machine and not for anyone else who can reach the port.
+    read_only = args.read_only or not local
     url = f"http://{args.host}:{args.port}/"
-    print(f"codeatlas: serving {db_path} at {url} (Ctrl+C to stop)")
+    mode = " read-only" if read_only else ""
+    print(f"codeatlas: serving {db_path}{mode} at {url} (Ctrl+C to stop)")
+    if not db_path.exists():
+        print("codeatlas: no database yet; index a repository from the page"
+              if not read_only else "codeatlas: no database yet; run `codeatlas index` first")
     if not args.no_open:
         webbrowser.open(url)
-    uvicorn.run(create_app(db_path, config), host=args.host, port=args.port, log_level="warning")
+    app = create_app(db_path, config, read_only=read_only,
+                     hosts=sorted(_THIS_MACHINE) if local else None)
+    uvicorn.run(app, host=args.host, port=args.port, log_level="warning")
     return 0
 
 
@@ -671,12 +682,15 @@ def build_parser() -> argparse.ArgumentParser:
                             ("tests", "rank the tests a change should run")):
         _change_inputs(_query_command(add, name, help_text))
 
-    serve_cmd = add("serve", "open the local web app on an indexed database")
+    serve_cmd = add("serve", "open the local web app")
     serve_cmd.add_argument("--db", type=Path, help="database file")
     # 127.0.0.1 is this machine only. Another host would let other machines read the index.
     serve_cmd.add_argument("--host", default="127.0.0.1", help="address to listen on")
     serve_cmd.add_argument("--port", type=int, default=8765, help="port to listen on")
     serve_cmd.add_argument("--no-open", action="store_true", help="do not open a browser")
+    serve_cmd.add_argument("--read-only", action="store_true",
+                           help="no indexing or removing from the page (always on when "
+                                "--host is not this machine)")
 
     mcp_cmd = add("mcp", "serve the agent's tools over MCP on stdio")
     mcp_cmd.add_argument("--db", type=Path, help="database file")

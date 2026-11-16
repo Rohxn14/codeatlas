@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Remove · CodeAtlas{% endblock %}
+{% block main %}
+<section class="empty">
+  <p class="eyebrow">Remove</p>
+  <h1>Remove {{ s.repo }} from CodeAtlas?</h1>
+  <p>This removes the map of commit <code>{{ s.commit_sha[:12] }}</code> from the database.
+    To get it back, index it again.</p>
+  <p class="muted">
+    {% if is_url %}The clone CodeAtlas made stays on disk, under its data folder.
+    {% else %}Your folder <code>{{ s.source }}</code> is not touched.{% endif %}
+  </p>
+  <form method="post" action="/s/{{ s.id | slug }}/remove">
+    <button class="button danger" type="submit">Remove</button>
+    <a href="/" style="margin-left: 12px">Keep it</a>
+  </form>
+</section>
+{% endblock %}

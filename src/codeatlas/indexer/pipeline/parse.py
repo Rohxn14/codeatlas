@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import time
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
@@ -17,6 +17,14 @@ from codeatlas.indexer.registry import Registry
 from codeatlas.models import FileRecord, ParseResult, Snapshot, Tier, make_snapshot_id
 
 UNKNOWN_TYPE_REASON = "unknown file type: no language matches this file name or extension"
+# Called as `progress(step, detail)` when a step starts, so a caller that waits (the web
+# app) can show where an index is. The step names are those of the report's `seconds`.
+Progress = Callable[[str, str], None]
+PARSE_REPORT_EVERY = 25
+
+
+def no_progress(step: str, detail: str) -> None:
+    """The default: nobody is watching."""
 
 
 @dataclass(slots=True)
@@ -30,7 +38,12 @@ class Parsed:
     seconds: dict[str, float] = field(default_factory=dict)  # intake, discover, parse
 
 
-def parse_source(source: str, config: Config, registry: Registry | None = None) -> Parsed:
+def parse_source(
+    source: str,
+    config: Config,
+    registry: Registry | None = None,
+    progress: Progress = no_progress,
+) -> Parsed:
     """Intake, discovery and parsing of one source, stopping at the configured limits.
 
     A file the deadline cuts off still gets a module node carrying the reason, so no
@@ -38,8 +51,10 @@ def parse_source(source: str, config: Config, registry: Registry | None = None) 
     """
     registry = registry or Registry()
     started = time.perf_counter()
+    progress("intake", "")
     intake = open_source(source, config)
     intake_done = time.perf_counter()
+    progress("discover", "")
     # The limit covers indexing only: a slow clone must not use up the parse budget.
     deadline = Deadline(config.max_seconds)
     discovery = discover(intake.root, config, registry.tier_for, deadline)
@@ -48,7 +63,10 @@ def parse_source(source: str, config: Config, registry: Registry | None = None) 
     snapshot_id = make_snapshot_id(intake.repo, sha)
     results: dict[str, ParseResult] = {}
     limits = set(discovery.limits_hit)
-    for record in discovery.files:
+    total = len(discovery.files)
+    for done, record in enumerate(discovery.files):
+        if done % PARSE_REPORT_EVERY == 0:
+            progress("parse", f"{done:,} of {total:,} files")
         reason = discovery.skip_reasons.get(record.path)
         if reason is None and deadline.expired():
             limits.add("max_seconds")

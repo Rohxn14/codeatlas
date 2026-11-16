@@ -44,7 +44,7 @@ points, and the choices he may want to reverse. `docs/checkpoints.md` keeps that
 | 2 | The architecture diagram: packages and folders as boxes, arrows from real imports, calls and HTTP links, line style by confidence, click an arrow to see the edges behind it | G5, G6 | see how a repository is put together and check any arrow |
 | 3 | Source and symbols: a file page with highlighted code, a symbol page with callers and callees, a search box, links that can be shared | G7, G8, G13, B5 | go from the diagram to the code and back |
 | 4 | Impact playground: paste a diff or pick a recent commit, see what it reaches and which tests to run | G10 | try the impact engine without the command line |
-| 5 | Index from the app: paste a GitHub URL, watch the stages, land on the overview. A list of indexed repositories | G2, G3, B7, B8 | use the app without the command line at all |
+| 5 | Index from the app: paste a repository URL, watch the stages, land on the overview. A list of indexed repositories | G2, G3, B7, B8 | use the app without the command line at all |
 | 6 | Ask: the agent in the app, steps shown, citations open the source. First real runs with the Groq and Gemini keys, and the token cuts they need | D1, D2, D4, D7, G9 | ask a question and check the answer's citations |
 | 7 | Review round: the owner's changes, the suite re-run with current numbers, docs brought up to date | A1, I9 | read the whole thing and decide what is next |
 

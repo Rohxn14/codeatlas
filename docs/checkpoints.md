@@ -4,6 +4,62 @@ One entry per checkpoint of `docs/plans/app-v1.md`, newest first. Each says what
 built, how to see it, what was measured, the weakest points, and the choices the owner
 may want to reverse. Written for someone who was not watching the work.
 
+## Checkpoint 5: indexing from the app (Nov 16, 2026)
+
+**Built**
+
+- The start page has a box: type a repository address or a folder, press Index, and
+  watch the eight steps of the pipeline tick off. When it is done, one button opens
+  the map.
+- The list of repositories has "Index again" and "Remove" on each row.
+- Addresses on gitlab.com, bitbucket.org and codeberg.org are accepted as well as
+  github.com (pull request #49, decision D-36, your choice).
+- `codeatlas serve` now starts with no database, and has `--read-only`.
+
+**How to see it**
+
+```powershell
+codeatlas serve
+```
+
+Try: paste `https://github.com/pallets/click` and press Index. While it runs, open
+PitwallOS in another tab: it still answers. Then press "Index again" on PitwallOS
+after editing a file, and "Remove" on a repository you do not need.
+
+Then read "Indexing from the app" in `docs/explainers/web-app.md`.
+
+**Measured**
+
+- 14 new tests (96 for the web app); the full suite and `ruff` pass.
+- Through the running app: GitLab's `cli` (1,853 files) in 46.1 s, itsdangerous (50
+  files) in 1.8 s. The map page of another repository stayed under 0.03 s while the
+  large index was writing.
+
+**Weakest points**
+
+- Jobs are kept in memory: stopping the server loses a running index, and there is
+  no cancel button.
+- Progress has numbers only while files are read. The clone and the resolve step can
+  sit for many seconds with nothing moving but the clock.
+- A snapshot being indexed again can show an error page until the job ends.
+- Old snapshots pile up: indexing a repository whose remote has moved adds a second
+  row beside the first.
+- A clone is never deleted, so `.codeatlas/repos/` only grows.
+
+**Choices you may want to reverse**
+
+- D-37: one index at a time, in a thread inside the server (the alternative: a
+  separate worker program, which survives a restart but is a second thing to run).
+- D-38: the home page is always the list, even with one repository (before, one
+  repository opened straight away).
+- D-39: on any host other than this machine the app is read-only.
+- The pipeline functions gained an optional `progress` argument (a shared interface,
+  added without changing what existing callers do).
+
+**Next**: checkpoint 6, Ask: the agent in the app, with the first real runs on your
+Groq and Gemini keys. Before it, two small changes you approved: the diff reader
+counts only lines that really changed, and the text of docs becomes searchable.
+
 ## Checkpoint 4: the impact page (Nov 16, 2026)
 
 **Built**

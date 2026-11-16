@@ -27,7 +27,7 @@ from pathlib import Path
 from codeatlas.config import Config
 from codeatlas.indexer.pipeline import plugins
 from codeatlas.indexer.pipeline.contains import contains_edges
-from codeatlas.indexer.pipeline.parse import Parsed, parse_source
+from codeatlas.indexer.pipeline.parse import Parsed, Progress, no_progress, parse_source
 from codeatlas.indexer.registry import Registry
 from codeatlas.models import (
     Edge,
@@ -78,15 +78,16 @@ def build_graph(
     config: Config | None = None,
     registry: Registry | None = None,
     replace_existing: bool = False,
+    progress: Progress = no_progress,
 ) -> BuildResult:
     """Index `source` (a folder or a repository URL) into `store`; returns what happened.
 
     An existing snapshot of the same commit raises `ValueError` unless
-    `replace_existing`, which deletes it first.
+    `replace_existing`, which deletes it first. `progress` is told when each step starts.
     """
     config = config or Config()
     started = time.perf_counter()
-    parsed = parse_source(source, config, registry)
+    parsed = parse_source(source, config, registry, progress)
     result = BuildResult(parsed)
     result.seconds.update(parsed.seconds)
     snapshot_id = parsed.snapshot.id
@@ -97,12 +98,14 @@ def build_graph(
 
     results = [_record_problems(r) for r in parsed.results.values()]
     mark = time.perf_counter()
+    progress("repo_layer", "")
     repo_nodes, repo_edges = _repository_layer(parsed, config, result)
     results = _with_package_keys(results, repo_edges)
     file_nodes = [n for r in results for n in r.nodes]
     result.seconds["repo_layer"] = time.perf_counter() - mark
     mark = time.perf_counter()
 
+    progress("write", f"{len(file_nodes) + len(repo_nodes):,} nodes")
     store.create_snapshot(parsed.snapshot)
     store.write_files(snapshot_id, parsed.discovery.files)
     result.nodes_written = store.write_nodes([*file_nodes, *repo_nodes])
@@ -110,13 +113,16 @@ def build_graph(
 
     result.seconds["write"] = time.perf_counter() - mark
     mark = time.perf_counter()
+    progress("resolve", "")
     index = store.symbol_index(snapshot_id)
     resolved = _run_resolvers(results, index, result, parsed.intake.root)
     result.seconds["resolve"] = time.perf_counter() - mark
     mark = time.perf_counter()
+    progress("link", "")
     link_nodes, linked = _run_linkers(results, index, snapshot_id, result)
     result.seconds["link"] = time.perf_counter() - mark
     mark = time.perf_counter()
+    progress("save", "")
     if link_nodes:
         result.nodes_written += store.write_nodes(link_nodes)
 

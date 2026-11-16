@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Indexing · CodeAtlas{% endblock %}
+{% block head %}{% if job.active %}<meta http-equiv="refresh" content="2">{% endif %}{% endblock %}
+{% block main %}
+<p class="eyebrow">Index</p>
+<h1 class="path">{{ job.source }}</h1>
+
+{% if job.state == "waiting" %}
+<p class="meta">Waiting: one repository is indexed at a time{% if ahead %}, and
+  <a href="/jobs/{{ ahead.id }}">{{ ahead.source }}</a> is running now{% endif %}.
+  This page reloads by itself.</p>
+{% elif job.state == "running" %}
+<p class="meta">Running for {{ "%.0f" | format(job.seconds) }} s. This page reloads by itself every two seconds.</p>
+{% elif job.state == "failed" %}
+<p class="notice"><strong>This could not be indexed.</strong> {{ job.error }}</p>
+{% else %}
+{% set r = job.report %}
+{% set sid = r.snapshot.id %}
+<p class="meta">
+  {% if r.reused %}This commit was already indexed, so nothing was done.
+  {% else %}Done in {{ "%.1f" | format(job.seconds) }} s.{% endif %}
+  Commit <code>{{ r.snapshot.commit_sha[:12] }}</code>.
+</p>
+<p><a class="button" href="/s/{{ sid | slug }}/">Open the map</a></p>
+<div class="tiles">
+  <div class="tile"><span class="num">{{ r.files.total | thousands }}</span><span class="lbl">files</span></div>
+  <div class="tile"><span class="num">{{ r.nodes.total | thousands }}</span><span class="lbl">symbols and files on the map</span></div>
+  <div class="tile"><span class="num">{{ r.edges.total | thousands }}</span><span class="lbl">connections</span></div>
+  <div class="tile"><span class="num">{{ r.raw_calls.unresolved | thousands }}</span><span class="lbl">calls with no connection</span></div>
+</div>
+{% if r.snapshot.limits_hit %}
+<p class="notice">A limit was reached: {{ r.snapshot.limits_hit | join(", ") }}.
+  Every file is still on the map, but some by name only. The Coverage tab lists them.</p>
+{% endif %}
+{% if r.problems.plugin_and_resolver_failures %}
+<p class="notice">{{ r.problems.plugin_and_resolver_failures | length }} part(s) of the indexer reported a problem. The Coverage tab lists them.</p>
+{% endif %}
+{% endif %}
+
+{% if not (job.state == "done" and job.report.reused) %}
+<ol class="steps">
+  {% for step in job.steps() %}
+  <li class="{{ step.status }}">
+    <span class="mark" aria-hidden="true">{% if step.status == "done" %}✓{% elif step.status == "now" %}…{% elif step.status == "failed" %}✗{% endif %}</span>
+    {{ step.label }}
+    {% if step.detail %}<span class="muted">{{ step.detail }}</span>{% endif %}
+    {% if step.status == "failed" %}<span class="muted">stopped here</span>{% endif %}
+  </li>
+  {% endfor %}
+</ol>
+{% endif %}
+
+<p><a href="/">All repositories</a></p>
+{% endblock %}
