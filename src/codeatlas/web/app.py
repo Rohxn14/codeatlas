@@ -10,8 +10,9 @@ from __future__ import annotations
 import threading
 from pathlib import Path
 from typing import Any
+from urllib.parse import parse_qs
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -19,12 +20,26 @@ from starlette.exceptions import HTTPException
 
 from codeatlas import __version__
 from codeatlas.config import Config
+from codeatlas.impact.engine import LOAD_KINDS, ImpactEngine
+from codeatlas.impact.evaluate import all_test_files
+from codeatlas.impact.models import Change
 from codeatlas.indexer.pipeline.index import load_report
 from codeatlas.models import Snapshot
 from codeatlas.store import GraphStore
+from codeatlas.web.changes import (
+    MAX_DIFF_BYTES,
+    ChangeError,
+    ChangeSet,
+    at_snapshot,
+    commit_changes,
+    pasted_changes,
+    recent_commits,
+    worktree_changes,
+)
 from codeatlas.web.confidence import MEANING
 from codeatlas.web.data import Loaded, load_snapshot
 from codeatlas.web.diagram import arrow_edges, build_diagram, crumbs
+from codeatlas.web.impact_page import impact_view
 from codeatlas.web.overview import build_overview
 from codeatlas.web.pages import MAX_HITS, file_page, search, symbol_page
 from codeatlas.web.source import MAX_LINES, checkout_root, read_lines
@@ -50,6 +65,20 @@ def percent(value: float | None) -> str:
 
 def thousands(value: int) -> str:
     return f"{value:,}"
+
+
+async def posted_diff(request: Request) -> str:
+    """The `diff` field of a posted form.
+
+    Read by hand because FastAPI's own form reader needs one more package. This is a
+    dependency, not part of the handler, because reading a request body must be awaited
+    and the handlers are plain functions.
+    """
+    body = await request.body()
+    if len(body) > MAX_DIFF_BYTES:
+        raise HTTPException(413, f"the diff is larger than {MAX_DIFF_BYTES:,} bytes")
+    fields = parse_qs(body.decode("utf-8", errors="replace"), keep_blank_values=True)
+    return fields.get("diff", [""])[0]
 
 
 def create_app(db_path: Path, config: Config) -> FastAPI:
@@ -176,6 +205,64 @@ def create_app(db_path: Path, config: Config) -> FastAPI:
             ranked = [node for node, _ in store.search_text(loaded.snapshot.id, q, k=MAX_HITS)]
         hits = search(loaded, ranked, q) if q.strip() else []
         return page(request, "search.html", loaded, "search", q=q, hits=hits)
+
+    def impact_response(request: Request, loaded: Loaded, chosen: ChangeSet | None,
+                        error: str = "") -> Any:
+        """The impact page: the ways to choose a change, or the result for one."""
+        root = checkout_root(loaded.snapshot, config)
+        values: dict[str, Any] = {"chosen": chosen, "error": error, "v": None}
+        if chosen is None:
+            values.update(commits=recent_commits(root, loaded.snapshot),
+                          worktree=at_snapshot(root, loaded.snapshot),
+                          has_checkout=root is not None)
+        else:
+            with open_store() as store:
+                if loaded.graph is None:
+                    loaded.graph = store.graph(loaded.snapshot.id, LOAD_KINDS)
+                engine = ImpactEngine(store, loaded.snapshot.id, graph=loaded.graph)
+                result = engine.impact(chosen.changes)
+                tests = all_test_files(engine)
+            values["v"] = impact_view(loaded, result, engine.config.test_threshold, tests)
+            values["changed_files"] = len({c.path for c in chosen.changes})
+        response = page(request, "impact.html", loaded, "impact", **values)
+        response.status_code = 400 if error else 200
+        return response
+
+    @app.get("/s/{slug}/impact", response_class=HTMLResponse)
+    def impact_page(request: Request, slug: str, commit: str = "", change: str = "",
+                    file: str = "", symbol: str = "") -> Any:
+        """What a change could break. The change is a commit, the uncommitted edits, one
+        file or one symbol; with none of them the page offers the choices."""
+        loaded = get_loaded(slug)
+        root = checkout_root(loaded.snapshot, config)
+        try:
+            chosen = None
+            if commit:
+                chosen = commit_changes(root, loaded.snapshot, commit)
+            elif change == "worktree":
+                chosen = worktree_changes(root, loaded.snapshot)
+            elif symbol:
+                node = loaded.by_key.get(symbol)
+                if node is None:
+                    raise HTTPException(404, f"no symbol {symbol!r} in {loaded.snapshot.id}")
+                chosen = ChangeSet(f"A change to {node.qualname or node.name}",
+                                   (Change(node.path, symbol_keys=(symbol,)),), exact=True)
+            elif file:
+                if file_page(loaded, file) is None:
+                    raise HTTPException(404, f"no file {file!r} in {loaded.snapshot.id}")
+                chosen = ChangeSet(f"A change anywhere in {file}", (Change(file),), exact=True)
+        except ChangeError as exc:
+            return impact_response(request, loaded, None, str(exc))
+        return impact_response(request, loaded, chosen)
+
+    @app.post("/s/{slug}/impact", response_class=HTMLResponse)
+    def impact_of_diff(request: Request, slug: str, diff: str = Depends(posted_diff)) -> Any:
+        """What a pasted diff could break."""
+        loaded = get_loaded(slug)
+        try:
+            return impact_response(request, loaded, pasted_changes(diff))
+        except ChangeError as exc:
+            return impact_response(request, loaded, None, str(exc))
 
     @app.exception_handler(HTTPException)
     def http_error(request: Request, exc: HTTPException) -> Any:

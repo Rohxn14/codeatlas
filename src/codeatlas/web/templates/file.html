@@ -25,6 +25,7 @@
   {{ f.record.language }} · <span class="tag tag-{{ f.record.tier }}">{{ f.record.tier }}</span>
   · {{ f.record.size_bytes | thousands }} bytes
   {% if f.calls.total %}· {{ f.calls.resolved | thousands }} of {{ f.calls.total | thousands }} calls in this file got an edge{% endif %}
+  · <a href="{{ base }}/impact?file={{ path | urlencode }}">What could a change here break?</a>
 </p>
 
 {% if f.record.tier == "text" %}

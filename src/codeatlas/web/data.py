@@ -30,6 +30,7 @@ class Loaded:
     out_edges: dict[str, list[Edge]] = field(default_factory=dict)
     in_edges: dict[str, list[Edge]] = field(default_factory=dict)
     overview: dict[str, Any] | None = None
+    graph: Any = None  # the impact engine's graph, built on the first impact request
 
 
 def load_snapshot(

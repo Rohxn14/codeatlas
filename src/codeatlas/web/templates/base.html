@@ -13,6 +13,7 @@
     <nav aria-label="Repository">
       <span class="repo">{{ snapshot.repo }}</span>
       <a href="/s/{{ snapshot.id | slug }}/"{% if tab == "map" %} aria-current="page"{% endif %}>Map</a>
+      <a href="/s/{{ snapshot.id | slug }}/impact"{% if tab == "impact" %} aria-current="page"{% endif %}>Impact</a>
       <a href="/s/{{ snapshot.id | slug }}/coverage"{% if tab == "coverage" %} aria-current="page"{% endif %}>Coverage</a>
     </nav>
     <form class="search" action="/s/{{ snapshot.id | slug }}/search" role="search">

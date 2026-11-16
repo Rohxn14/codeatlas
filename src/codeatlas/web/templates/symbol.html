@@ -37,6 +37,7 @@
 <p class="meta">
   <a href="{{ parts.file_url(base, node.path) }}#L{{ node.span.start_line }}">lines {{ node.span.start_line }} to {{ node.span.end_line }}</a>
   · {{ node.language }}
+  · <a href="{{ base }}/impact?symbol={{ node.key | urlencode }}">What could a change here break?</a>
 </p>
 {% if node.signature %}<pre class="signature">{{ node.signature }}</pre>{% endif %}
 {% if node.docstring %}<p class="doc">{{ node.docstring }}</p>{% endif %}
