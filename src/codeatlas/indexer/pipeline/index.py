@@ -14,6 +14,7 @@ from typing import Any
 
 from codeatlas.config import Config
 from codeatlas.indexer.pipeline.build import AlreadyIndexed, BuildResult, build_graph
+from codeatlas.indexer.pipeline.parse import Progress, no_progress
 from codeatlas.models import NodeKind, Snapshot
 from codeatlas.repo import summarize
 from codeatlas.store import GraphStore
@@ -61,7 +62,11 @@ def load_report(config: Config, snapshot_id: str) -> IndexReport | None:
 
 
 def index_repository(
-    source: str, config: Config, db_path: Path, force: bool = False
+    source: str,
+    config: Config,
+    db_path: Path,
+    force: bool = False,
+    progress: Progress = no_progress,
 ) -> IndexReport:
     """Index `source` into the database at `db_path`, or return the saved report.
 
@@ -71,13 +76,15 @@ def index_repository(
     db_path.parent.mkdir(parents=True, exist_ok=True)
     with GraphStore(db_path) as store:
         try:
-            built = build_graph(source, store, config, replace_existing=force)
+            built = build_graph(source, store, config, replace_existing=force,
+                                progress=progress)
         except AlreadyIndexed as exc:
             saved = load_report(config, exc.snapshot_id)
             if saved is not None:
                 return saved
             # The report file was deleted: the store is intact, so rebuild to recreate it.
-            built = build_graph(source, store, config, replace_existing=True)
+            built = build_graph(source, store, config, replace_existing=True,
+                                progress=progress)
         report = build_report(store, built)
     path = report_path(config, report.snapshot["id"])
     path.parent.mkdir(parents=True, exist_ok=True)

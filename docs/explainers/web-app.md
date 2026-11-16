@@ -79,8 +79,8 @@ One request for `/s/demo@abc123/coverage`, step by step:
    id in the database into its slug and compares. No match gives a 404 page.
 4. `load_snapshot` then reads the snapshot's nodes, edges, files and raw calls once,
    and the connection is closed. `coverage()` calls `build_overview` on them and keeps
-   the result. A snapshot never changes after it is written, so both are kept for the
-   life of the server.
+   the result. Both are kept in memory until the snapshot is indexed again or removed
+   through the app (checkpoint 5).
 5. Jinja2 fills `coverage.html`. Autoescape is on: a repository named `<img src=x>`
    reaches the page as the text `&lt;img src=x&gt;`, never as a tag. Names, paths and
    docstrings come from repositories nobody here wrote, so they are untrusted.
@@ -111,23 +111,24 @@ succeed. `test_many_requests_at_once_each_get_a_page` fails on the old code.
 
 The `serve` command (`_run_serve` in `cli.py`) imports the web packages only when it
 runs. They are an optional extra, so a missing package gives one clear line with the
-install command. It listens on `127.0.0.1`, which only this machine can reach.
+install command. It listens on `127.0.0.1`, which only this machine can reach, and it
+starts even when there is no database yet, so the first index can be made from the page.
 
 ## Where
 
 - Tests: `tests/web/test_web_app.py` (18 tests): the level boundaries, each counting
   function, the routes, the 404 and 503 pages, escaping of repository text, and the
-  command's error when there is no database.
+  `serve` command.
 - Measured on Nov 15, 2026, on this repository's own index (619 files, 12,493 edges):
   first overview 0.55 s, repeat visits under 0.01 s (cached).
 - Not measured: a large repository. `build_overview` reads every node and edge of the
   snapshot into memory once; on django or TypeScript that will take seconds and
   hundreds of megabytes (product plan B4).
 - Known limits:
-  - The cache is never cleared. After `codeatlas index --force` on the same commit,
-    restart the server.
-  - There is no sign-in. `--host 0.0.0.0` would let anyone on the network read the
-    index; the default is this machine only.
+  - The cache is cleared only by the app's own indexing and removing. After
+    `codeatlas index --force` in a terminal on the same commit, restart the server.
+  - There is no sign-in. `--host 0.0.0.0` lets anyone on the network read the index
+    (the app is then read-only); the default is this machine only.
   - The "calls without an edge" count mixes harmless calls (built-ins, outside
     libraries) with real gaps (product plan A3).
 - Run it:
@@ -456,3 +457,120 @@ changes one line inside `helper` in `lib/util.py`:
     from `docs/explainers/impact.md` and must be changed by hand when re-measured.
   - Untracked files (new files never added to git) are not in `git diff`, so they are
     not part of "uncommitted changes".
+
+## Indexing from the app (checkpoint 5)
+
+Files: `web/jobs.py` (the background jobs), `templates/snapshots.html` (the start
+page), `templates/job.html` (progress), `templates/remove.html`, five routes in
+`web/app.py`, and a `progress` argument through `indexer/pipeline/`.
+
+### What
+
+The start page (`/`) now does three things without the command line:
+
+- **Index a repository.** Type an address (github.com, gitlab.com, bitbucket.org or
+  codeberg.org) or a folder on this machine and press Index.
+- **Watch it.** A progress page lists the eight steps of the pipeline, marks the one
+  running now, and reloads itself every two seconds. When the index is done it shows
+  the counts and a button to open the map.
+- **Manage the list.** Each stored snapshot has "Index again" and "Remove".
+
+Terms:
+
+- **Job**: one request to index one source. It has a state: waiting, running, done or
+  failed.
+- **Background thread**: a second line of work inside the same program. The request
+  that starts a job returns at once; the indexing carries on in the thread.
+- **Read-only**: the app with indexing and removing switched off. A public demo must
+  run this way.
+
+### Why
+
+- **A job, not a long request.** Indexing takes from one second (itsdangerous, 50
+  files) to most of a minute (GitLab's `cli`, 1,853 files: 46 s). A browser would show
+  a blank, spinning page for that long and give up after a while. So `POST /index`
+  only creates the job and answers with the address of its progress page.
+- **One index at a time.** Indexing writes to the database, and SQLite allows one
+  writer. Two jobs at once would also compete for the processor. A second job waits
+  for the first (`Jobs._turn` is a lock the running job holds). Reading is not
+  blocked: the store uses SQLite's write-ahead log, so pages keep answering while an
+  index writes. Measured: the map page stayed under 0.03 s during the 46 s index.
+- **The same source is not queued twice.** Pressing Index twice returns the job that
+  is already working on that source.
+- **Progress by a callback.** `index_repository`, `build_graph` and `parse_source`
+  take an optional `progress(step, detail)` function and call it when a step starts.
+  The command line passes nothing, so it behaves as before. The alternative was for
+  the web app to guess progress from the clock, which would be a lie.
+- **Reloading with a `<meta>` tag, not a script.** The progress page carries
+  `<meta http-equiv="refresh" content="2">` while the job is active, and the browser
+  asks again by itself. The app still has no JavaScript (D-32).
+- **The cache is cleared when a snapshot changes.** Checkpoint 1 kept a snapshot in
+  memory for the life of the server. Now a finished job and a removal both call
+  `forget(snapshot_id)`, so the next page reads the new data.
+  `test_index_again_shows_the_changed_files` fails without that line.
+- **Remove asks first, and only touches the database.** `GET .../remove` shows a
+  confirmation page; only the `POST` deletes. It removes the snapshot's rows and its
+  saved report. It never deletes a folder: not yours, and not the clone CodeAtlas
+  made.
+- **Three guards on who may change things.** Indexing reads any folder its user
+  names, so it must only ever be this machine's user asking.
+  1. *A form from another website is refused.* Any web page open in the same browser
+     can post a form to `http://127.0.0.1:8765/index`. The browser adds an `Origin`
+     header naming the site the form is on; `from_this_app` refuses the post when
+     that is not the app's own address.
+  2. *A request for another host name is refused.* A website can point its own name
+     at `127.0.0.1` to get round guard 1. `serve` therefore only answers to
+     `127.0.0.1` and `localhost` (Starlette's `TrustedHostMiddleware`).
+  3. *Read-only when it is not this machine.* `codeatlas serve --host 0.0.0.0` lets
+     other machines reach the app, so it switches to read-only by itself.
+     `--read-only` does the same on purpose.
+
+### How
+
+Indexing `C:\code\demo` from the page:
+
+1. The form posts `source=C:\code\demo` to `/index`. `from_this_app` checks the
+   `Origin` header, `posted_form` reads the fields, `can_change` refuses in read-only.
+2. `checked_source` strips spaces and quotes, then checks what can be checked without
+   doing the work: a URL must parse (`parse_repo_url`), a folder must exist. A bad
+   value comes back to the form with the reason and the text still in the box.
+3. `jobs.start(source)` makes a `Job` with a random id, starts a thread on
+   `Jobs._run`, and returns. The handler answers `303 See Other` to `/jobs/<id>`.
+4. In the thread, `_run` takes its turn, sets the state to running and calls
+   `run_index`, which calls `index_repository(..., progress=tell)`. Each time the
+   pipeline starts a step it calls `tell("parse", "50 of 120 files")`, and the job
+   stores the step and the detail.
+5. Meanwhile the browser asks for `/jobs/<id>` every two seconds. `Job.steps()` turns
+   the stored step into eight rows: done, now or next.
+6. When `index_repository` returns, `index_done` calls `forget` for the snapshot and
+   the state becomes done. The next reload shows the counts and has no refresh tag.
+   If the pipeline never reached its last step (`save`), the commit was already
+   stored and nothing ran; the page says "already indexed".
+7. A failure anywhere (a clone that fails, a folder that vanished) is caught in
+   `_run`: the state becomes failed, the message is kept, and the step it stopped at
+   is marked.
+
+### Where
+
+- Tests: `tests/web/test_web_index.py` (12 tests): a job's states and steps, one at
+  a time, no double queue, the checks on the form, a whole index through the page,
+  "already indexed", index again after an edit, a failed index, removal, read-only,
+  and a form posted from another website. Two more in `test_web_app.py` cover
+  `serve`: the host check, and read-only on another host. No test uses the network.
+- Tried by hand on Nov 16, 2026, on the owner's machine, through the running app:
+  `https://gitlab.com/gitlab-org/cli` (1,853 files, 46.1 s) and
+  `https://github.com/pallets/itsdangerous` (50 files, 1.8 s), started together; the
+  second waited for the first.
+- Known limits:
+  - Jobs live in memory. Stopping the server forgets them, and an index that was
+    running is lost. There is no cancel button.
+  - While a snapshot is being indexed again, its pages can show an error or a
+    half-written map until the job ends.
+  - An index run from the command line while the server is up is not noticed for a
+    snapshot already opened: restart the server.
+  - Progress inside a step is only shown for "Read each file". The clone and "Connect
+    calls and imports" can each take many seconds with no number to show.
+  - "Index again" on a URL fetches the newest commit, which makes a second snapshot
+    beside the old one. Nothing removes old snapshots for you.
+  - Removing a snapshot leaves the clone on disk.
+  - There is still no sign-in. The guards above assume one person at one machine.

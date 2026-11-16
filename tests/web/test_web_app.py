@@ -102,12 +102,11 @@ def test_slug_round_trip_for_an_id_with_a_slash(tmp_path: Path) -> None:
 # Routes
 
 
-def test_home_redirects_to_the_only_snapshot(indexed: tuple[Path, Config, str]) -> None:
+def test_home_lists_the_snapshot_with_a_link(indexed: tuple[Path, Config, str]) -> None:
     db_path, config, snapshot_id = indexed
-    client = TestClient(create_app(db_path, config), follow_redirects=False)
-    response = client.get("/")
-    assert response.status_code == 307
-    assert response.headers["location"] == f"/s/{snapshot_slug(snapshot_id)}/"
+    page = TestClient(create_app(db_path, config)).get("/")
+    assert page.status_code == 200
+    assert f'href="/s/{snapshot_slug(snapshot_id)}/"' in page.text
 
 
 def test_coverage_page_shows_counts_and_gaps(indexed: tuple[Path, Config, str]) -> None:
@@ -142,9 +141,12 @@ def test_unknown_snapshot_and_unknown_address_are_404_pages(
 
 def test_missing_database_is_a_503_page(tmp_path: Path) -> None:
     client = TestClient(create_app(tmp_path / "absent.db", Config()))
-    page = client.get("/")
+    page = client.get("/s/x@abc/")
     assert page.status_code == 503
     assert "codeatlas index" in page.text
+    # The start page works without a database, so the first index can start there.
+    start = client.get("/")
+    assert start.status_code == 200 and "Nothing is indexed yet" in start.text
     assert not (tmp_path / "absent.db").exists()  # asking must not create a database
 
 
@@ -168,13 +170,34 @@ def test_repository_text_is_escaped(tmp_path: Path) -> None:
 # The command
 
 
-def test_serve_without_a_database_says_what_to_run(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+def test_serve_without_a_database_starts_and_says_so(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     toml = tmp_path / "ct.toml"
     toml.write_text(f'[paths]\ndata_dir = "{(tmp_path / "data").as_posix()}"\n', encoding="utf-8")
-    assert main(["serve", "--config", str(toml), "--no-open"]) == 2
-    assert "codeatlas index" in capsys.readouterr().err
+    started: dict[str, object] = {}
+    monkeypatch.setattr("uvicorn.run", lambda app, **options: started.update(options, app=app))
+    assert main(["serve", "--config", str(toml), "--no-open"]) == 0
+    assert started["host"] == "127.0.0.1"
+    assert "index a repository from the page" in capsys.readouterr().out
+    # The app was made with the host check on: another name is refused.
+    client = TestClient(started["app"], base_url="http://127.0.0.1:8765")
+    assert client.get("/").status_code == 200
+    assert client.get("/", headers={"host": "evil.example"}).status_code == 400
+
+
+def test_serve_on_another_host_is_read_only(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    toml = tmp_path / "ct.toml"
+    toml.write_text(f'[paths]\ndata_dir = "{(tmp_path / "data").as_posix()}"\n', encoding="utf-8")
+    started: dict[str, object] = {}
+    monkeypatch.setattr("uvicorn.run", lambda app, **options: started.update(app=app))
+    assert main(["serve", "--config", str(toml), "--no-open", "--host", "0.0.0.0"]) == 0
+    assert "read-only" in capsys.readouterr().out
+    client = TestClient(started["app"])
+    assert "Index a repository" not in client.get("/").text
+    assert client.post("/index", data={"source": str(tmp_path)}).status_code == 403
 
 
 def test_many_requests_at_once_each_get_a_page(tmp_path: Path) -> None:
