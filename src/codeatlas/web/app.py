@@ -25,10 +25,13 @@ from codeatlas.models import Snapshot
 from codeatlas.store import GraphStore
 from codeatlas.web.confidence import MEANING
 from codeatlas.web.data import Loaded, load_snapshot
-from codeatlas.web.diagram import arrow_edges, build_diagram
+from codeatlas.web.diagram import arrow_edges, build_diagram, crumbs
 from codeatlas.web.overview import build_overview
+from codeatlas.web.pages import MAX_HITS, file_page, search, symbol_page
+from codeatlas.web.source import MAX_LINES, checkout_root, read_lines
 
 _HERE = Path(__file__).parent
+MAX_SYMBOL_LINES = 400
 
 
 def snapshot_slug(snapshot_id: str) -> str:
@@ -86,7 +89,9 @@ def create_app(db_path: Path, config: Config) -> FastAPI:
 
     def page(request: Request, name: str, loaded: Loaded, tab: str, **values: Any) -> Any:
         return templates.TemplateResponse(
-            request, name, {"snapshot": loaded.snapshot, "tab": tab, **values}
+            request, name,
+            {"snapshot": loaded.snapshot, "tab": tab,
+             "base": f"/s/{snapshot_slug(loaded.snapshot.id)}", **values},
         )
 
     @app.get("/", response_class=HTMLResponse)
@@ -126,6 +131,53 @@ def create_app(db_path: Path, config: Config) -> FastAPI:
         if loaded.overview is None:
             loaded.overview = build_overview(loaded)
         return page(request, "coverage.html", loaded, "coverage", o=loaded.overview)
+
+    @app.get("/s/{slug}/file", response_class=HTMLResponse)
+    def file_view(
+        request: Request,
+        path: str,
+        loaded: Loaded = Depends(get_loaded),  # noqa: B008
+    ) -> Any:
+        """One file: what it uses, what uses it, its symbols and its source."""
+        facts = file_page(loaded, path)
+        if facts is None:
+            raise HTTPException(404, f"no file {path!r} in {loaded.snapshot.id}")
+        lines, why_not = read_lines(checkout_root(loaded.snapshot, config), path)
+        cut = lines is not None and len(lines) > MAX_LINES
+        return page(request, "file.html", loaded, "map", f=facts, path=path,
+                    crumbs=crumbs(path), lines=(lines or [])[:MAX_LINES], cut=cut,
+                    total_lines=len(lines or []), why_not=why_not)
+
+    @app.get("/s/{slug}/symbol", response_class=HTMLResponse)
+    def symbol_view(
+        request: Request,
+        key: str,
+        loaded: Loaded = Depends(get_loaded),  # noqa: B008
+    ) -> Any:
+        """One symbol: its source, what it uses, what uses it, calls that got no edge."""
+        facts = symbol_page(loaded, key)
+        if facts is None:
+            raise HTTPException(404, f"no symbol {key!r} in {loaded.snapshot.id}")
+        node = facts["node"]
+        lines, why_not = read_lines(checkout_root(loaded.snapshot, config), node.path)
+        start = node.span.start_line
+        end = min(node.span.end_line, start + MAX_SYMBOL_LINES - 1)
+        body = (lines or [])[start - 1:end]
+        return page(request, "symbol.html", loaded, "map", y=facts, node=node,
+                    crumbs=crumbs(node.path), body=body, start=start,
+                    cut=node.span.end_line > end, why_not=why_not)
+
+    @app.get("/s/{slug}/search", response_class=HTMLResponse)
+    def search_view(
+        request: Request,
+        q: str = "",
+        loaded: Loaded = Depends(get_loaded),  # noqa: B008
+        store: GraphStore = Depends(get_store),  # noqa: B008
+    ) -> Any:
+        """Symbols and files by name, docstring or path."""
+        ranked = [node for node, _ in store.search_text(loaded.snapshot.id, q, k=MAX_HITS)]
+        hits = search(loaded, ranked, q) if q.strip() else []
+        return page(request, "search.html", loaded, "search", q=q, hits=hits)
 
     @app.exception_handler(HTTPException)
     def http_error(request: Request, exc: HTTPException) -> Any:

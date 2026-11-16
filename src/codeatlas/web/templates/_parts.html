@@ -1,0 +1,47 @@
+{# Pieces shared by the map, file, symbol and search pages. #}
+
+{% macro file_url(base, path) %}{{ base }}/file?path={{ path | urlencode }}{% endmacro %}
+{% macro symbol_url(base, key) %}{{ base }}/symbol?key={{ key | urlencode }}{% endmacro %}
+{% macro folder_url(base, focus) %}{{ base }}/{% if focus %}?focus={{ focus | urlencode }}{% endif %}{% endmacro %}
+
+{# A node as a link: a symbol to its page, a file to its page, an outside name as text. #}
+{% macro node_link(base, node) %}
+{%- if node.kind == "external" -%}
+<span class="muted">{{ node.qualname or node.name }}</span> <span class="tag">outside the repository</span>
+{%- elif node.kind == "module" -%}
+<a class="path" href="{{ file_url(base, node.path) }}">{{ node.path }}</a>
+{%- elif node.kind == "package" -%}
+<span>{{ node.name }}</span> <span class="tag">package</span>
+{%- else -%}
+<a href="{{ symbol_url(base, node.key) }}"><strong>{{ node.qualname or node.name }}</strong></a>
+<span class="tag">{{ node.kind }}</span><br>
+<a class="path muted" href="{{ file_url(base, node.path) }}">{{ node.path }}</a>
+{%- endif -%}
+{% endmacro %}
+
+{% macro conf(row) %}<span class="conf conf-{{ row.level }}"><span class="dash dash-{{ row.level }}"></span>{{ "%.2f" | format(row.confidence) }} {{ row.level }}</span>{% endmacro %}
+
+{# The page heading for a file or symbol: repository / folder / folder / file. #}
+{% macro path_heading(base, repo, crumbs) %}
+<h1 class="path-heading">
+  <a class="crumb" href="{{ base }}/">{{ repo }}</a>
+  {%- for c in crumbs %}<span class="sep">/</span>
+  {%- if c.focus %}<a class="crumb" href="{{ folder_url(base, c.focus) }}">{{ c.name }}</a>
+  {%- else %}<span>{{ c.name }}</span>{% endif %}{% endfor %}
+</h1>
+{% endmacro %}
+
+{# Numbered source lines. `starts` maps a line number to the symbol that begins there. #}
+{% macro code(lines, first, starts, base) %}
+<div class="code" tabindex="0">
+<table>
+  {% for text in lines %}
+  {% set n = first + loop.index0 %}
+  <tr id="L{{ n }}"{% if starts and n in starts %} class="def"{% endif %}>
+    <td class="ln"><a href="#L{{ n }}">{{ n }}</a></td>
+    <td class="src">{% if starts and n in starts %}<a class="def-link" href="{{ symbol_url(base, starts[n].key) }}" title="Open {{ starts[n].qualname }}">{{ text }}</a>{% else %}{{ text }}{% endif %}</td>
+  </tr>
+  {% endfor %}
+</table>
+</div>
+{% endmacro %}

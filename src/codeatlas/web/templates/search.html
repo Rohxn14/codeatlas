@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% import "_parts.html" as parts %}
+{% block title %}{{ q or "Search" }} · {{ snapshot.repo }} · CodeAtlas{% endblock %}
+{% block main %}
+<p class="eyebrow">Search</p>
+<h1>{% if q %}Results for “{{ q }}”{% else %}Search {{ snapshot.repo }}{% endif %}</h1>
+<form class="search big" action="{{ base }}/search" role="search">
+  <input type="search" name="q" value="{{ q }}" placeholder="A name, a word from a docstring, or a path" aria-label="Search" autofocus>
+  <button type="submit">Search</button>
+</form>
+
+{% if hits %}
+<p class="muted">{{ hits | length }} result{{ "" if hits | length == 1 else "s" }}. Exact names first, then whole-word matches in names, docstrings and paths, then names that contain the text.</p>
+<ul class="results">
+  {% for n in hits %}
+  <li>
+    {{ parts.node_link(base, n) }}
+    {% if n.kind == "module" %}<span class="tag">file</span>{% endif %}
+    {% if n.signature %}<pre class="signature">{{ n.signature | truncate(160, True, "…", 0) }}</pre>{% endif %}
+    {% if n.docstring %}<p class="muted">{{ n.docstring | truncate(200, False, "…", 0) }}</p>{% endif %}
+  </li>
+  {% endfor %}
+</ul>
+{% elif q.strip() %}
+<p class="callout">Nothing matches “{{ q }}”. Search looks at symbol names, signatures, docstrings and file paths, not at the body of the code.</p>
+{% else %}
+<p class="muted">Search looks at symbol names, signatures, docstrings and file paths.</p>
+{% endif %}
+{% endblock %}

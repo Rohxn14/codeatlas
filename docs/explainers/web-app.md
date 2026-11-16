@@ -6,7 +6,8 @@ stylesheet `src/codeatlas/web/static/app.css`. Command: `codeatlas serve` in `cl
 
 Built in checkpoints (`docs/plans/app-v1.md`). This explainer covers checkpoint 1 (the
 server and the coverage page, first called the overview) and checkpoint 2 (the
-architecture diagram, in its own section at the end).
+architecture diagram) and checkpoint 3 (files, symbols and search), each in its own
+section further down.
 
 ## What
 
@@ -242,4 +243,99 @@ stops two requests that arrive together from both reading it.
     a tall drawing.
   - Not measured on a very large repository (django, TypeScript): every snapshot
     opened stays in memory.
-  - A file box cannot be opened yet; the source page is checkpoint 3.
+
+## Files, symbols and search (checkpoint 3)
+
+Modules: `web/pages.py` (the facts on each page), `web/source.py` (reading source
+lines), `web/data.py` (lookups added to `Loaded`), the pages `file.html`,
+`symbol.html`, `search.html` and the shared pieces in `_parts.html`.
+
+### What
+
+| Address | Shows |
+| --- | --- |
+| `/s/{slug}/file?path=app/gate.py` | One file: the files it uses and is used by, the symbols defined in it, its source with line numbers |
+| `/s/{slug}/symbol?key=app/gate.py::evaluate` | One symbol: signature, docstring, what uses it, what it uses, the calls that got no edge, its source |
+| `/s/{slug}/search?q=gate` | Symbols and files matching a name, a word of a docstring, or a path |
+
+Every page links to the others. On the map, a picked file has "Open this file", and
+the edges behind an arrow link to their symbols. On a file page, a highlighted source
+line starts a symbol and opens it. On a symbol page, every caller and callee is a link.
+The search box is in the top bar of every page of a repository.
+
+Each relation row shows the confidence level as the same solid, dashed or dotted line
+the diagram uses, with the number and how the edge was found.
+
+### Why
+
+- **A map that stops at file boxes is not a tool.** The point of the diagram is to get
+  to the code; these pages are where the path ends.
+- **"Used by" is first on a symbol page.** The question asked most often about a
+  function is "who calls this"; "what does it call" can be read from its source.
+- **Calls with no edge are listed on the symbol page.** The coverage page gives one
+  number for the whole repository; here the reader sees the actual calls and can judge
+  each one (a built-in, an outside library, or a real gap).
+- **The store holds no source**, so lines are read from the folder that was indexed.
+  If that folder is gone or the file changed, the page still shows everything the map
+  knows and says why there is no source.
+
+Rejected:
+
+- **Syntax colouring.** It needs a highlighting package (a new dependency) or a
+  hand-written tokenizer per language. Left out for now; the lines that start a symbol
+  are marked instead, which the map can do for every language.
+- **Vector search in the search box.** It needs the embedding model loaded in the
+  server (slow start, more memory). Full-text search plus a name-contains pass is
+  instant and covers looking something up by name. Search by meaning stays in
+  `codeatlas search` and the agent.
+- **Reading a path as typed.** The path comes from the address bar. `file_page` only
+  accepts a path that is a file of the snapshot, and `read_lines` resolves the path and
+  refuses anything outside the checkout, so `../../secret.txt` is a 404.
+
+### How
+
+`load_snapshot` now also builds three lookups, once: `by_key` (key to node),
+`out_edges` and `in_edges` (node id to its edges). Without them every symbol page
+would scan all edges.
+
+**A file page**, for `app/service.py` in a repository where `Service.save` calls
+`helper` in `lib/util.py` and one undefined function:
+
+1. `file_page` finds the file's record. No record means a 404.
+2. Symbols are the nodes with that path, sorted by line. `depth` is the number of dots
+   in the qualname: `Service` is 0, `Service.save` is 1, which indents the outline.
+3. `_neighbours` walks the snapshot's file links (the same ones the diagram uses) and
+   counts, per other file, the edges and the best confidence: uses `lib/util.py`,
+   1 edge, certain.
+4. Raw calls whose caller is in this file are counted: 2 calls, 1 got an edge.
+5. `read_lines` returns the lines, or `None` and a sentence saying why not.
+6. `starts` maps a line number to the symbol that begins there, so the template can
+   mark that line and link it.
+
+**A symbol page**: `symbol_page` looks the key up in `by_key`, takes its edges from
+`in_edges` and `out_edges`, keeps the relation kinds (`calls`, `calls_http`, `handles`,
+`inherits`, `imports`, `tests`), sorts surest first and cuts at 200 rows with the total
+kept. Calls with no edge are the raw calls whose caller is this key and that are not
+resolved.
+
+**Search**: the route asks the store for full-text hits (`GraphStore.search_text`:
+exact name first, then BM25 over names, signatures, docstrings and paths). `search`
+then adds nodes whose name (or path, for a file) merely contains the text, shortest
+first, because full-text search matches whole words: `gate` does not find `apply_gate`.
+
+### Where
+
+- Tests: `tests/web/test_web_pages.py` (17 tests): the facts of each page, search
+  order, the path guard, a checkout that is gone, a file deleted after indexing, text
+  from a repository shown as text.
+- Measured on Nov 16, 2026: file page of Antidote's `app/gate.py` (340 lines) 0.22 s
+  on first load of the snapshot, 0.02 s after; search on pydantic/logfire (1,091
+  files) 0.02 s once the snapshot is loaded.
+- Known limits:
+  - No syntax colouring.
+  - Search does not look inside code bodies and has no filters by kind or folder.
+  - A file is cut at 5,000 lines and a symbol at 400, each with a note.
+  - The source shown is the checkout as it is now. If it changed since indexing, line
+    numbers can be off; the page does not detect that yet.
+  - `checkout_root` repeats the rule in `agent/tools.py` (`ToolContext.repo_root`).
+    Making the agent call this one is a separate, small refactor.

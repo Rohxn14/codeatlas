@@ -15,6 +15,9 @@
       <a href="/s/{{ snapshot.id | slug }}/"{% if tab == "map" %} aria-current="page"{% endif %}>Map</a>
       <a href="/s/{{ snapshot.id | slug }}/coverage"{% if tab == "coverage" %} aria-current="page"{% endif %}>Coverage</a>
     </nav>
+    <form class="search" action="/s/{{ snapshot.id | slug }}/search" role="search">
+      <input type="search" name="q" value="{{ q | default("") }}" placeholder="Search symbols and files" aria-label="Search symbols and files">
+    </form>
     {% endif %}
     <a class="topbar-end" href="/snapshots">All repositories</a>
   </header>

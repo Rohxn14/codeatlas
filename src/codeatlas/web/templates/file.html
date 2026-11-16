@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% import "_parts.html" as parts %}
+{% block title %}{{ path }} · {{ snapshot.repo }} · CodeAtlas{% endblock %}
+
+{% macro neighbours(rows, empty) %}
+{% if rows %}
+<ul class="plain">
+  {% for r in rows %}
+  <li>
+    <span class="dash dash-{{ r.level }}" title="{{ r.level }}"></span>
+    <a class="path" href="{{ parts.file_url(base, r.path) }}">{{ r.path }}</a>
+    <span class="muted">{{ r.count | thousands }} edge{{ "" if r.count == 1 else "s" }}</span>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="muted">{{ empty }}</p>
+{% endif %}
+{% endmacro %}
+
+{% block main %}
+<p class="eyebrow">File</p>
+{{ parts.path_heading(base, snapshot.repo, crumbs) }}
+<p class="meta">
+  {{ f.record.language }} · <span class="tag tag-{{ f.record.tier }}">{{ f.record.tier }}</span>
+  · {{ f.record.size_bytes | thousands }} bytes
+  {% if f.calls.total %}· {{ f.calls.resolved | thousands }} of {{ f.calls.total | thousands }} calls in this file got an edge{% endif %}
+</p>
+
+{% if f.record.tier == "text" %}
+<p class="notice">This file is in the text tier: it can be searched by name, but nothing inside it is on the map.</p>
+{% endif %}
+{% if f.skipped_reason %}<p class="notice">Skipped while indexing: {{ f.skipped_reason }}.</p>{% endif %}
+{% if f.errors %}
+<p class="notice">Parse errors; what could be read is on the map: {{ f.errors | join("; ") }}.</p>
+{% endif %}
+
+<div class="columns">
+  <section>
+    <h2>Uses <span class="count">{{ f.uses | length }}</span></h2>
+    {{ neighbours(f.uses, "This file uses no other file of the repository that the map can see.") }}
+  </section>
+  <section>
+    <h2>Used by <span class="count">{{ f.used_by | length }}</span></h2>
+    {{ neighbours(f.used_by, "No other file of the repository uses this one, as far as the map can see.") }}
+  </section>
+</div>
+
+{% if f.symbols %}
+<section>
+  <h2>Defined here <span class="count">{{ f.symbols | length }}</span></h2>
+  <ul class="outline">
+    {% for s in f.symbols %}
+    <li style="--depth: {{ s.depth }}">
+      <a href="{{ parts.symbol_url(base, s.node.key) }}">{{ s.node.name }}</a>
+      <span class="tag">{{ s.node.kind }}</span>
+      <a class="muted" href="#L{{ s.node.span.start_line }}">line {{ s.node.span.start_line }}</a>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+<section>
+  <h2>Source</h2>
+  {% if why_not %}
+  <p class="callout">{{ why_not }}</p>
+  {% else %}
+  <p class="muted">Read from the indexed checkout. A highlighted line starts a symbol; click it to open the symbol.</p>
+  {{ parts.code(lines, 1, f.starts, base) }}
+  {% if cut %}<p class="muted">Showing the first {{ lines | length | thousands }} of {{ total_lines | thousands }} lines.</p>{% endif %}
+  {% endif %}
+</section>
+{% endblock %}
