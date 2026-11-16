@@ -33,8 +33,7 @@ _TIMEOUT_SECONDS = 30
 _SEP = "\x1f"
 # What every diff here is asked for with: plain text, no program of the repository run.
 # `-U0` leaves out the three unchanged lines git prints round each edit. The diff reader
-# takes a hunk's whole span as changed, so with them a one-line edit would also mark a
-# neighbouring function that starts within three lines of it.
+# does not count them, so this only makes the text git hands over shorter.
 _PLAIN = ("--no-color", "--no-ext-diff", "--no-textconv", "--relative", "-U0")
 _WHOLE_FILES = ("Line numbers in this change may not match the indexed commit, so each "
                 "changed file counts whole. The result is wider than the change really is.")
@@ -136,7 +135,6 @@ def pasted_changes(text: str) -> ChangeSet:
         raise ChangeError("No file headers were found in that text. Paste the output of "
                           "`git diff` or `git show`.")
     note = ("Line numbers are read from the new side of the diff, so they are right when "
-            "the diff ends at the indexed commit. The unchanged lines a diff prints round "
-            "each edit count as changed too, so a symbol next to an edit may be included.")
+            "the diff ends at the indexed commit.")
     return ChangeSet(f"A pasted diff of {len({c.path for c in changes})} files",
                      tuple(changes), exact=False, note=note)

@@ -395,11 +395,11 @@ Terms:
     commits is more work than it is worth yet. Each file it changed counts whole, and
     the page says the result is wider than the change.
 - **Zero context lines (`-U0`).** Git prints three unchanged lines round each edit, and
-  `parse_diff` takes a hunk's whole span as changed. In the first run of the tests a
-  one-line edit to `helper` also marked `apply_gate`, three lines below. Asking git for
-  no context makes git-sourced changes exact. A pasted diff still has its context
-  lines; the page says a neighbouring symbol may be included. Fixing that in
-  `parse_diff` would change what the measured engine is fed, so it is the owner's call.
+  `parse_diff` at first took a hunk's whole span as changed. In the first run of the
+  tests a one-line edit to `helper` also marked `apply_gate`, three lines below. The
+  page worked round it by asking git for no context. Since D-40 `parse_diff` itself
+  marks only the lines that changed, so pasted diffs and `codeatlas impact --git` are
+  exact too; `-U0` stays because it makes the text shorter.
 - **git may not fetch.** A clone made by CodeAtlas holds file contents only for the
   indexed commit. Showing a commit's diff needs older contents, and git would quietly
   download them. `GIT_NO_LAZY_FETCH=1` forbids that, because opening a page must not
