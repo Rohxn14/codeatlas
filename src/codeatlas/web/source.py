@@ -10,7 +10,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from codeatlas.config import Config
-from codeatlas.indexer.intake import IntakeError, looks_like_url, parse_github_url
+from codeatlas.indexer.intake import IntakeError, looks_like_url, parse_repo_url
 from codeatlas.models import Snapshot
 
 MAX_LINES = 5000
@@ -26,7 +26,7 @@ def checkout_root(snapshot: Snapshot, config: Config) -> Path | None:
         return local
     if looks_like_url(snapshot.source):
         try:
-            clone = config.repos_dir / parse_github_url(snapshot.source).dirname
+            clone = config.repos_dir / parse_repo_url(snapshot.source).dirname
         except IntakeError:
             return None
         return clone if clone.is_dir() else None

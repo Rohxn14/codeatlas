@@ -9,12 +9,12 @@ from codeatlas.config import Config
 from codeatlas.indexer import intake
 from codeatlas.indexer.discover import discover
 from codeatlas.indexer.intake import (
-    GitHubSource,
     IntakeError,
+    RepoSource,
     clone_or_reuse,
     head_sha,
     open_source,
-    parse_github_url,
+    parse_repo_url,
 )
 from codeatlas.models import Tier
 
@@ -22,25 +22,29 @@ from codeatlas.models import Tier
 @pytest.mark.parametrize(
     ("url", "expected"),
     [
-        ("https://github.com/pallets/click", GitHubSource("pallets", "click")),
-        ("https://github.com/pallets/click/", GitHubSource("pallets", "click")),
-        ("https://github.com/pallets/click.git", GitHubSource("pallets", "click")),
-        ("https://www.github.com/pallets/click", GitHubSource("pallets", "click")),
-        ("https://github.com/pallets/click@8.1.7", GitHubSource("pallets", "click", "8.1.7")),
+        ("https://github.com/pallets/click", RepoSource("pallets", "click")),
+        ("https://github.com/pallets/click/", RepoSource("pallets", "click")),
+        ("https://github.com/pallets/click.git", RepoSource("pallets", "click")),
+        ("https://www.github.com/pallets/click", RepoSource("pallets", "click")),
+        ("https://github.com/pallets/click@8.1.7", RepoSource("pallets", "click", "8.1.7")),
         (
             "https://github.com/owner/repo@feature/new-thing",
-            GitHubSource("owner", "repo", "feature/new-thing"),
+            RepoSource("owner", "repo", "feature/new-thing"),
         ),
+        ("https://gitlab.com/owner/repo", RepoSource("owner", "repo", host="gitlab.com")),
+        ("https://bitbucket.org/owner/repo.git", RepoSource("owner", "repo", host="bitbucket.org")),
+        ("https://Codeberg.org/owner/repo@v1", RepoSource("owner", "repo", "v1", "codeberg.org")),
     ],
 )
-def test_parse_valid_urls(url: str, expected: GitHubSource) -> None:
-    assert parse_github_url(url) == expected
+def test_parse_valid_urls(url: str, expected: RepoSource) -> None:
+    assert parse_repo_url(url) == expected
 
 
 @pytest.mark.parametrize(
     "url",
     [
-        "https://gitlab.com/owner/repo",
+        "https://example.com/owner/repo",
+        "https://gitlab.com/group/subgroup/repo",
         "https://github.com.evil.example/owner/repo",
         "https://user@github.com/owner/repo",
         "http://github.com/owner/repo",
@@ -53,11 +57,17 @@ def test_parse_valid_urls(url: str, expected: GitHubSource) -> None:
 )
 def test_parse_rejects_bad_urls(url: str) -> None:
     with pytest.raises(IntakeError):
-        parse_github_url(url)
+        parse_repo_url(url)
 
 
 def test_clone_folder_name() -> None:
-    assert GitHubSource("pallets", "click").dirname == "pallets__click"
+    assert RepoSource("pallets", "click").dirname == "pallets__click"
+
+
+def test_other_hosts_get_their_own_clone_url_and_folder() -> None:
+    source = parse_repo_url("https://gitlab.com/owner/repo")
+    assert source.clone_url == "https://gitlab.com/owner/repo.git"
+    assert source.dirname == "gitlab.com__owner__repo"
 
 
 def test_clone_then_reuse_then_reclone(

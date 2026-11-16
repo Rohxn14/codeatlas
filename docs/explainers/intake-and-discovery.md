@@ -6,9 +6,13 @@ Modules: `src/codeatlas/indexer/intake.py`, `src/codeatlas/indexer/discover.py`,
 ## What
 
 **Intake** turns what the user typed into a folder on disk and a commit SHA. A local
-path is used as it is. A public GitHub URL (`https://github.com/owner/repo`, optionally
+path is used as it is. A public repository URL (`https://github.com/owner/repo`, optionally
 `@ref`) is cloned into `.codeatlas/repos/<owner>__<repo>/` and reused while the remote
-still points at the same commit.
+still points at the same commit. Four hosts are accepted: github.com, gitlab.com,
+bitbucket.org and codeberg.org (the tuple `HOSTS` in `intake.py`). A clone from a host
+other than GitHub goes into `<host>__<owner>__<repo>/`. Any other address is refused
+with a message that names the four hosts; so is a GitLab subgroup address
+(`group/subgroup/repo`), because only `owner/repo` is read.
 
 **Discovery** lists every file in that folder and returns a `FileRecord` for each one:
 repo-relative forward-slash path, language, tier, SHA-256 and size. A file that cannot be

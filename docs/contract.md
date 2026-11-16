@@ -147,7 +147,7 @@ Unresolved calls never become edges; they stay as raw calls, so the evaluation c
 | `commit_sha` | `str` | | Full SHA |
 | `indexed_at` | `str` | | ISO 8601 UTC, e.g. `2026-10-30T09:15:00Z` |
 | `indexer_version` | `str` | | Package version, so old indexes can be detected |
-| `source` | `str` | | Where it came from: a local path or a GitHub URL |
+| `source` | `str` | | Where it came from: a local path or a repository URL (GitHub, GitLab, Bitbucket, Codeberg) |
 | `limits_hit` | `tuple[str, ...]` | `()` | Limits reached while indexing, e.g. `("max_files",)`; empty means the index is complete |
 
 ### `Node`
