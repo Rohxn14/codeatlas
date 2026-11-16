@@ -10,9 +10,10 @@ import numpy as np
 from codeatlas.models import Node, NodeKind
 from codeatlas.store import GraphStore
 
-EMBEDDED_KINDS = frozenset(
-    {NodeKind.FUNCTION, NodeKind.CLASS, NodeKind.INTERFACE, NodeKind.TEST, NodeKind.MODULE}
-)
+EMBEDDED_KINDS = frozenset({
+    NodeKind.FUNCTION, NodeKind.CLASS, NodeKind.INTERFACE, NodeKind.TEST, NodeKind.MODULE,
+    NodeKind.SECTION,
+})
 BODY_LINES = 15
 BATCH = 64
 
@@ -35,7 +36,8 @@ def node_text(node: Node, repo_root: Path | None = None) -> str:
         parts.append(node.signature)
     if node.docstring:
         parts.append(node.docstring)
-    if repo_root is not None:
+    # A section's docstring already is its text; the body would repeat it.
+    if repo_root is not None and node.kind is not NodeKind.SECTION:
         body = _body(node, repo_root)
         if body:
             parts.append(body)

@@ -12,6 +12,35 @@ grammar and query. The **registry** decides which adapter each language gets: a 
 adapter if one is registered, otherwise the tags adapter (tier `STRUCTURAL`), otherwise
 `TextAdapter` (tier `TEXT`), which emits only the file's module node and the reason.
 
+**Documentation files are the one exception (D-41).** For Markdown and reStructuredText
+the text adapter also emits one `SECTION` node per heading, so search can find what a
+README says. `generic/sections.py` cuts the text (`split_sections`): a section is a
+heading and every line up to the next heading of any level, so no line is in two
+sections. `section_nodes` in `generic/adapter.py` turns each piece into a node.
+
+Worked example, `README.md`:
+
+```
+Intro line.            <- lines 1-2:   "(top of file)", level 0
+# Demo                 <- lines 3-6:   "Demo", level 1
+About the demo.
+## Install             <- lines 7-13:  "Install", level 2
+(a code block with a `# comment` line: not a heading)
+## Use                 <- lines 14-15: "Use", level 2
+```
+
+gives four nodes with keys `README.md::section:(top of file)`, `README.md::section:Demo`,
+`README.md::section:Install`, `README.md::section:Use`. The text under each heading is
+the node's `docstring` (cut at 4,000 characters, with `attrs["truncated"]`). A second
+`## Use` in the same file would get the key `README.md::section:Use#2`.
+
+What it reads: Markdown `#` headings and headings underlined with `===` or `---`;
+reStructuredText headings underlined (and optionally overlined) with a row of one
+punctuation character, levelled by the order the characters first appear. Known
+limits: a `.txt` file has no headings and stays one file node; a heading inside an
+HTML block or an indented code block of Markdown is still read as a heading; setext
+headings are only found when the title is a single line.
+
 ## Why
 
 - **Tags queries already exist.** GitHub's code navigation uses a `tags.scm` file per

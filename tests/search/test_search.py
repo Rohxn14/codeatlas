@@ -173,3 +173,23 @@ def test_graph_neighbours_compete_for_the_k_places(store):
     assert len(hits) == 1  # a neighbour may win a place, but never adds one
     scores = [h.score for h in HybridSearch(store, SID, None).search("persist", k=3)]
     assert scores == sorted(scores, reverse=True)
+
+
+def test_code_and_documentation_are_two_searches(store):
+    """A section never enters the code list, and the docs search returns only sections."""
+    save, *_ = seed(store)
+    readme = mk("README.md", "", NodeKind.MODULE)
+    section = mk("README.md", "section:Saving", NodeKind.SECTION, doc="persist rows to disk")
+    store.write_nodes([readme, section])
+    store.write_edges(SID, [edge(readme, section, EdgeKind.CONTAINS)])
+    embedder = FakeEmbedder()
+    build_embeddings(store, SID, embedder)
+    search = HybridSearch(store, SID, embedder)
+
+    code = search.search("persist rows to disk README", k=10)
+    assert save.id in [h.node.id for h in code]
+    assert all(h.node.kind is not NodeKind.SECTION for h in code)
+
+    docs = search.search("persist rows to disk", k=10, docs=True)
+    assert [h.node.id for h in docs] == [section.id]
+    assert set(docs[0].sources) == {"bm25", "vector"}

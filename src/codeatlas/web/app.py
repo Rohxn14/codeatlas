@@ -48,7 +48,7 @@ from codeatlas.web.diagram import arrow_edges, build_diagram, crumbs
 from codeatlas.web.impact_page import impact_view
 from codeatlas.web.jobs import Job, Jobs, TooManyJobs
 from codeatlas.web.overview import build_overview
-from codeatlas.web.pages import MAX_HITS, file_page, search, symbol_page
+from codeatlas.web.pages import MAX_DOC_HITS, MAX_HITS, file_page, search, symbol_page
 from codeatlas.web.source import MAX_LINES, checkout_root, read_lines
 
 _HERE = Path(__file__).parent
@@ -349,12 +349,14 @@ def create_app(
 
     @app.get("/s/{slug}/search", response_class=HTMLResponse)
     def search_view(request: Request, slug: str, q: str = "") -> Any:
-        """Symbols and files by name, docstring or path."""
+        """Symbols and files by name, docstring or path; documentation sections apart."""
         loaded = get_loaded(slug)
+        sid = loaded.snapshot.id
         with open_store() as store:
-            ranked = [node for node, _ in store.search_text(loaded.snapshot.id, q, k=MAX_HITS)]
+            ranked = [node for node, _ in store.search_text(sid, q, k=MAX_HITS)]
+            docs = [node for node, _ in store.search_text(sid, q, k=MAX_DOC_HITS, docs=True)]
         hits = search(loaded, ranked, q) if q.strip() else []
-        return page(request, "search.html", loaded, "search", q=q, hits=hits)
+        return page(request, "search.html", loaded, "search", q=q, hits=hits, docs=docs)
 
     def impact_response(request: Request, loaded: Loaded, chosen: ChangeSet | None,
                         error: str = "") -> Any:

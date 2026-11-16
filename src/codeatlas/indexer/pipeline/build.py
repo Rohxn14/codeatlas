@@ -36,6 +36,7 @@ from codeatlas.models import (
     NodeKind,
     ParseResult,
     Span,
+    Tier,
     make_node_id,
 )
 from codeatlas.repo import default_analyzers
@@ -220,7 +221,11 @@ def _run_resolvers(
         except Exception as exc:
             result.problems.append(f"resolver {name} failed: {type(exc).__name__}: {exc}")
         result.problems += [f"resolver {name}: {p}" for p in getattr(resolver, "problems", [])]
-    parsed_languages = {r.language for r in results if r.nodes and len(r.nodes) > 1}
+    # Text-tier files have no calls or imports to resolve, even when a documentation
+    # file has section nodes.
+    parsed_languages = {
+        r.language for r in results if len(r.nodes) > 1 and r.tier is not Tier.TEXT
+    }
     result.languages_without_resolver = sorted(parsed_languages - covered)
     return edges
 

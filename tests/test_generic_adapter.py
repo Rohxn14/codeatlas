@@ -181,10 +181,21 @@ def test_ruby_locals_are_not_calls() -> None:
 
 
 def test_text_adapter_emits_only_module_with_reason() -> None:
-    adapter = Registry().adapter_for("markdown")
+    adapter = Registry().adapter_for("json")
     assert adapter.tier is Tier.TEXT
-    result = adapter.parse("README.md", b"# hi\nthere\n", SNAPSHOT)
+    result = adapter.parse("data.json", b'{"a": 1,\n "# b": 2}\n', SNAPSHOT)
     assert len(result.nodes) == 1
     module = result.nodes[0]
     assert module.kind is NodeKind.MODULE and module.span.end_line == 2
-    assert "markdown" in str(module.attrs["tier_reason"])
+    assert "json" in str(module.attrs["tier_reason"])
+
+
+def test_text_adapter_adds_a_section_per_heading_of_a_documentation_file() -> None:
+    adapter = Registry().adapter_for("markdown")
+    assert adapter.tier is Tier.TEXT
+    result = adapter.parse("README.md", b"# hi\nthere\n", SNAPSHOT)
+    module, section = result.nodes
+    assert module.kind is NodeKind.MODULE and "markdown" in str(module.attrs["tier_reason"])
+    assert (section.kind, section.key, section.name) == (
+        NodeKind.SECTION, "README.md::section:hi", "hi")
+    assert (section.docstring, section.span.start_line, section.span.end_line) == ("there", 1, 2)

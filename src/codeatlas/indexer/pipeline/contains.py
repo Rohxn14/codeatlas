@@ -32,12 +32,15 @@ def _parent(node: Node, by_qualname: dict[str, Node], by_key: dict[str, Node]) -
     before the last `.` (Function -> nested function, Class -> nested class). A `#`
     straight after a `.` is part of a name (`A.#secret`, D-16), and a trailing `#hash`
     is the duplicate-name suffix, not a level, so neither changes the split. TypeScript
-    test names (`A > b`) have no `.` and belong to the module.
+    test names (`A > b`) have no `.` and belong to the module, and so does every
+    section of a documentation file.
     """
     if node.owner_key is not None and node.owner_key in by_key:
         return by_key[node.owner_key]
     if node.kind is NodeKind.TEST and " > " in node.qualname:
         return None
+    if node.kind is NodeKind.SECTION:
+        return None  # a heading may hold dots ("v1.2"), which are not levels
     head, dot, _ = _strip_suffix(node.qualname).rpartition(".")
     if not dot or not head:
         return None

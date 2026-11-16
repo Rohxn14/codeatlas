@@ -371,8 +371,14 @@ class GraphStore:
 
     # Search
 
-    def search_text(self, snapshot_id: str, query: str, k: int = 10) -> list[tuple[Node, float]]:
+    def search_text(
+        self, snapshot_id: str, query: str, k: int = 10, *, docs: bool = False
+    ) -> list[tuple[Node, float]]:
         """BM25 search over names, signatures, docstrings and paths; higher score is better.
+
+        Code and documentation are two searches, never one mixed list (D-42): by default
+        section nodes are left out, and `docs=True` searches only them. Mixed, a README's
+        prose outranks the code it describes.
 
         Each word of the query is quoted, so FTS5 syntax characters in user input are
         harmless, and the words are OR-ed so a partial match still ranks. A node whose
@@ -387,11 +393,11 @@ class GraphStore:
             SELECT {", ".join("n." + c for c in _NODE_COLUMNS.split(", "))},
                    bm25(nodes_fts, {_BM25_WEIGHTS}) AS rank
             FROM nodes_fts JOIN nodes n ON n.pk = nodes_fts.rowid
-            WHERE nodes_fts MATCH ? AND n.snapshot_id = ?
+            WHERE nodes_fts MATCH ? AND n.snapshot_id = ? AND n.kind {"=" if docs else "!="} ?
             ORDER BY rank
             LIMIT ?
             """,
-            (match, snapshot_id, max(k * 5, 50)),
+            (match, snapshot_id, str(NodeKind.SECTION), max(k * 5, 50)),
         ).fetchall()
         wanted = query.strip().lower()
         hits = [(_node(r), -r["rank"]) for r in rows]

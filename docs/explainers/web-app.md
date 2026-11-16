@@ -333,6 +333,13 @@ exact name first, then BM25 over names, signatures, docstrings and paths). `sear
 then adds nodes whose name (or path, for a file) merely contains the text, shortest
 first, because full-text search matches whole words: `gate` does not find `apply_gate`.
 
+**Documentation (D-41, D-42)**: the route asks the store a second time with
+`docs=True` and shows those hits as their own group, "In the documentation", under the
+code results. Each is a heading of a Markdown or reStructuredText file; it opens on the
+symbol page, which for a section shows only its text. A documentation file's page
+lists its headings in the outline, indented by heading level (`_depth`). The two groups
+are never mixed, because a README's prose would outrank the code it describes.
+
 ### Where
 
 - Tests: `tests/web/test_web_pages.py` (17 tests): the facts of each page, search

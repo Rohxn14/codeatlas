@@ -49,6 +49,7 @@ Define one constant:
 | package key | `{manifest_path}::package:{name}` | `frontend/package.json::package:web-app` | a package declared by a manifest; the prefix keeps it apart from the manifest file's own module node |
 | node id | `{snapshot_id}/{key}` | `polyglot_app@3f2a9c1e5b7d/backend/users.py::UserService.save` | a symbol in one snapshot |
 | route key | `{path}::route:{METHOD} {path_pattern}` | `backend/routes.py::route:GET /api/users/{id}` | a ROUTE node; the path is the handler's file (D-15) |
+| section key | `{path}::section:{title}` | `README.md::section:Install` | a SECTION node: one heading of a documentation file. A heading used again in the same file gets `#2`, `#3` (`README.md::section:Usage#2`); text before the first heading is `section:(top of file)` (D-41) |
 | external key | `::external:{name}` | `::external:requests.get` | something outside the repository; resolvers point edges at it and the pipeline creates its EXTERNAL node (D-19) |
 | citation | `{repo}@{sha[:12]}:{path}:{line}` | `polyglot_app@3f2a9c1e5b7d:backend/users.py:42` | answers the agent gives |
 
@@ -72,7 +73,7 @@ Three helper functions, the only logic in `models.py`:
 | --- | --- | --- |
 | `DEEP` | `"deep"` | Hand-written adapter and resolver |
 | `STRUCTURAL` | `"structural"` | Tags query for definitions and calls, plus, where written, an imports query and a resolution profile for import-scoped calls |
-| `TEXT` | `"text"` | File node only, no symbols (config, SQL, docs) |
+| `TEXT` | `"text"` | File node only, no symbols (config, SQL, docs). A documentation file (Markdown, reStructuredText) also gets one SECTION node per heading (D-41) |
 
 **`NodeKind`**
 
@@ -86,6 +87,7 @@ Three helper functions, the only logic in `models.py`:
 | `TEST` | `"test"` | A test function or test case |
 | `ROUTE` | `"route"` | An HTTP endpoint a server defines (created by the linker) |
 | `EXTERNAL` | `"external"` | A symbol imported from outside the repo |
+| `SECTION` | `"section"` | One heading of a documentation file and the text under it. `name` is the heading, `docstring` the text (at most 4,000 characters; `attrs["truncated"]` when cut), `span` the heading's line to the last line before the next heading, `attrs["level"]` the heading level (1 is the top; 0 is text before the first heading). Its only edge is CONTAINS from its file (D-41) |
 
 **`EdgeKind`**
 
