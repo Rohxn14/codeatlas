@@ -12,6 +12,56 @@ _BODY = (" ", "-", "+", "\\")  # context, removed, added, "\ No newline at end o
 
 
 @dataclass
+class _Hunk:
+    """One hunk while its body is read: which lines of the new file really changed.
+
+    A hunk also prints unchanged lines round each edit (context). Those are counted
+    to keep the line number right and are not marked. A run of removed lines with no
+    added line beside it leaves nothing new to mark, so it marks the line just above
+    where the text was: that line is usually in the same function. Text removed from
+    the very top of a file marks line 0, which no symbol covers: the file still counts
+    as changed, and nothing below is blamed.
+    """
+
+    header: tuple[int, int]  # what the `@@` line claims; used when there is no body
+    line: int  # the number of the next line of the new file
+    ranges: list[tuple[int, int]] = field(default_factory=list)
+    has_body: bool = False
+    removed: bool = False  # the run of changed lines being read has removed lines
+    added: bool = False  # ... and added lines
+
+    def take(self, first: str) -> None:
+        """Read one body line by its first character."""
+        self.has_body = True
+        if first == "+":
+            self._mark(self.line)
+            self.added = True
+            self.line += 1
+        elif first == "-":
+            self.removed = True
+        elif first != "\\":  # context ends a run; "\ No newline" is not a line at all
+            self._end_run()
+            self.line += 1
+
+    def result(self) -> list[tuple[int, int]]:
+        self._end_run()
+        return self.ranges if self.has_body else [self.header]
+
+    def _end_run(self) -> None:
+        if self.removed and not self.added:
+            self._mark(self.line - 1)
+        self.removed = self.added = False
+
+    def _mark(self, number: int) -> None:
+        """Add one line, growing the last range when the line touches it."""
+        if self.ranges and number <= self.ranges[-1][1] + 1:
+            start, end = self.ranges[-1]
+            self.ranges[-1] = (start, max(end, number))
+        else:
+            self.ranges.append((number, number))
+
+
+@dataclass
 class _Section:
     """One file's part of the diff, filled in as its header and hunks are read."""
 
@@ -47,20 +97,27 @@ def parse_diff(text: str) -> list[Change]:
     """Changed files and line ranges from `git diff` (or plain `diff -u`) output.
 
     Ranges are in the new file's numbering, because the snapshot is the commit being
-    changed *to*. A pure deletion has no new lines, so it marks the line where the
-    removed text used to be. Added, deleted, binary, mode-only and renamed-without-edits
-    files have no ranges (the whole file); a rename also reports its old path.
+    changed *to*. Only added lines are marked, not the unchanged lines a hunk prints
+    round them. A pure deletion has no new lines, so it marks the line just above where
+    the removed text was. A hunk given as a header with no body marks the span the header
+    names. Added, deleted, binary, mode-only and renamed-without-edits files have no
+    ranges (the whole file); a rename also reports its old path.
 
     Hunk bodies are read by their line counts, so a removed SQL comment `-- x` or an
     added `++ y` is never taken for a file header.
     """
     sections: list[_Section] = []
     current: _Section | None = None
+    hunk: _Hunk | None = None
     old_left = new_left = 0  # lines still owed to the open hunk
     for line in text.splitlines():
-        if (old_left > 0 or new_left > 0) and line[:1] in _BODY + ("",):
+        if hunk is not None and (old_left > 0 or new_left > 0) and line[:1] in _BODY + ("",):
+            hunk.take(line[:1])
             old_left, new_left = _consume(line, old_left, new_left)
             continue
+        if hunk is not None and current is not None:
+            current.ranges += hunk.result()
+        hunk = None
         old_left = new_left = 0
         if line.startswith("diff --git "):
             current = _Section(git_path=_git_line_path(line[len("diff --git "):]))
@@ -93,7 +150,11 @@ def parse_diff(text: str) -> list[Change]:
                 old_left = int(match.group(2)) if match.group(2) is not None else 1
                 new_left = int(match.group(4)) if match.group(4) is not None else 1
                 start = int(match.group(3))
-                current.ranges.append((start, start + max(new_left, 1) - 1))
+                # With no new lines the header names the line above the removed text.
+                hunk = _Hunk((start, start + max(new_left, 1) - 1),
+                             start if new_left else start + 1)
+    if hunk is not None and current is not None:
+        current.ranges += hunk.result()
     return [change for section in sections for change in section.changes()]
 
 

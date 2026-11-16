@@ -64,7 +64,37 @@ def test_a_deleted_binary_file_without_headers_keeps_its_path():
 def test_hunk_lines_that_look_like_headers_stay_in_the_hunk():
     diff = ("diff --git a/q.sql b/q.sql\n--- a/q.sql\n+++ b/q.sql\n"
             "@@ -1,2 +1,2 @@\n select 1;\n--- old\n+++ new\n")
-    assert parse_diff(diff) == [Change("q.sql", ((1, 2),))]
+    assert parse_diff(diff) == [Change("q.sql", ((2, 2),))]
+
+
+def body(*lines: str, header: str = "@@ -10,7 +10,7 @@") -> str:
+    return "\n".join(["--- a/m.py", "+++ b/m.py", header, *lines]) + "\n"
+
+
+def test_unchanged_lines_round_an_edit_are_not_marked():
+    """Three lines of context each side, one line edited: only line 13 changed."""
+    diff = body(" a", " b", " c", "-old", "+new", " d", " e", " f")
+    assert parse_diff(diff) == [Change("m.py", ((13, 13),))]
+
+
+def test_two_edits_in_one_hunk_give_two_ranges():
+    diff = body(" a", "+x", "+y", " b", " c", "-gone", "+here", " d",
+                header="@@ -10,5 +10,7 @@")
+    assert parse_diff(diff) == [Change("m.py", ((11, 12), (15, 15)))]
+
+
+def test_a_removal_marks_the_line_above_it():
+    diff = body(" a", " b", "-gone", "-gone too", " c", header="@@ -10,5 +10,3 @@")
+    assert parse_diff(diff) == [Change("m.py", ((11, 11),))]
+    # The form git prints with no context lines: the header already names that line.
+    assert parse_diff(body("-gone", header="@@ -12 +11,0 @@")) == [Change("m.py", ((11, 11),))]
+    # At the top of a file there is no line above: line 0, which no symbol covers.
+    assert parse_diff(body("-gone", " a", header="@@ -1,2 +1 @@")) == [Change("m.py", ((0, 0),))]
+
+
+def test_no_newline_marker_is_not_counted_as_a_line():
+    diff = body(" a", "-old", "\\ No newline at end of file", "+new", header="@@ -1,2 +1,2 @@")
+    assert parse_diff(diff) == [Change("m.py", ((2, 2),))]
 
 
 def test_a_diff_without_git_headers_is_read_pair_by_pair():
