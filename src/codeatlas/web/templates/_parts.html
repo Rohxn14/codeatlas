@@ -12,6 +12,10 @@
 <a class="path" href="{{ file_url(base, node.path) }}">{{ node.path }}</a>
 {%- elif node.kind == "package" -%}
 <span>{{ node.name }}</span> <span class="tag">package</span>
+{%- elif node.kind == "section" -%}
+<a href="{{ symbol_url(base, node.key) }}"><strong>{{ node.name }}</strong></a>
+<span class="tag">section</span><br>
+<a class="path muted" href="{{ file_url(base, node.path) }}#L{{ node.span.start_line }}">{{ node.path }}</a>
 {%- else -%}
 <a href="{{ symbol_url(base, node.key) }}"><strong>{{ node.qualname or node.name }}</strong></a>
 <span class="tag">{{ node.kind }}</span><br>

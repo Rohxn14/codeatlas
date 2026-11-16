@@ -17,6 +17,7 @@ from pathlib import Path, PurePosixPath
 from tree_sitter import Language, Parser, Query, QueryCursor
 from tree_sitter import Node as TSNode
 
+from codeatlas.indexer.generic.sections import DOC_LANGUAGES, Section, split_sections
 from codeatlas.models import (
     Node,
     NodeKind,
@@ -305,8 +306,16 @@ def _vendored_imports_query(language: str) -> str | None:
     return path.read_text(encoding="utf-8") if path.is_file() else None
 
 
+# The most text one section node keeps. A longer section is cut and says so.
+MAX_SECTION_CHARS = 4000
+
+
 class TextAdapter:
-    """Text tier: the file is still a node, with the reason it was not parsed."""
+    """Text tier: the file is still a node, with the reason it was not parsed.
+
+    A documentation file (Markdown, reStructuredText) also gets one SECTION node per
+    heading, holding the text under it, so search can find what a README says (D-41).
+    """
 
     tier: Tier = Tier.TEXT
 
@@ -318,7 +327,45 @@ class TextAdapter:
     def parse(self, path: str, source: bytes, snapshot_id: str) -> ParseResult:
         attrs: dict[str, object] = {"tier_reason": self.reason} if self.reason else {}
         module = module_node(path, self.language, source, snapshot_id, attrs)
-        return ParseResult(path, self.language, self.tier, (module,))
+        sections: list[Node] = []
+        if self.language in DOC_LANGUAGES:
+            text = source.decode("utf-8", errors="replace")
+            sections = section_nodes(path, self.language, text, snapshot_id)
+        return ParseResult(path, self.language, self.tier, (module, *sections))
+
+
+def section_nodes(path: str, language: str, text: str, snapshot_id: str) -> list[Node]:
+    """One SECTION node per heading of a documentation file, in file order."""
+    nodes: list[Node] = []
+    seen: dict[str, int] = {}
+    for section in split_sections(text, language):
+        seen[section.title] = seen.get(section.title, 0) + 1
+        nodes.append(_section_node(path, language, section, seen[section.title], snapshot_id))
+    return nodes
+
+
+def _section_node(
+    path: str, language: str, section: Section, nth: int, snapshot_id: str
+) -> Node:
+    # A heading used twice in one file ("Usage", "Usage") gets `#2` on the second key.
+    qualname = f"section:{section.title}" + (f"#{nth}" if nth > 1 else "")
+    key = make_key(path, qualname)
+    attrs: dict[str, object] = {"level": section.level}
+    if len(section.text) > MAX_SECTION_CHARS:
+        attrs["truncated"] = True
+    return Node(
+        id=make_node_id(snapshot_id, key),
+        key=key,
+        snapshot_id=snapshot_id,
+        kind=NodeKind.SECTION,
+        language=language,
+        name=section.title,
+        qualname=qualname,
+        path=path,
+        span=Span(section.start_line, section.end_line),
+        docstring=section.text[:MAX_SECTION_CHARS] or None,
+        attrs=attrs,
+    )
 
 
 # Helpers shared by both adapters

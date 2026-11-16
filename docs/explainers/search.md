@@ -14,6 +14,7 @@ Takes a question in plain words ("what hands out the next free number for a new 
 
 ## How
 
+0. **Code or documentation, never both (D-42).** `search(query)` searches code; `search(query, docs=True)` searches only the `SECTION` nodes of documentation files (their text is the node's docstring). Both lists below are filtered the same way, and a documentation search skips step 4, because a section's only neighbour is its own file.
 1. **BM25**: `store.search_text(snapshot, query, 50)`, an FTS5 query over name, qualname, signature, docstring, path.
 2. **Vectors**: embed the query, divide by norms, one matrix product against the snapshot matrix, take the top 50 (ties broken by node id so output is deterministic). With no embeddings, a note says so and BM25 alone is used.
 3. **Fusion**: `score = sum of 1/(60+rank)` over each list containing the node (rank starts at 1).
@@ -37,10 +38,12 @@ Reads `GraphStore` (`search_text`, `node`, `nodes`, `edges_from/edges_to`, the n
 
 | configuration | recall@5 | MRR |
 | --- | --- | --- |
-| BM25 only | 0.267 | 0.144 |
+| BM25 only | 0.267 | 0.164 |
 | vectors only | 0.733 | 0.579 |
-| fused | 0.600 | 0.390 |
-| fused + graph | 0.600 | 0.398 |
+| fused | 0.600 | 0.356 |
+| fused + graph | 0.500 | 0.363 |
+
+Re-measured on Nov 16, 2026, after documentation sections were added (D-41, D-42). Just before that change the same script gave BM25 0.267 / 0.144, vectors 0.733 / 0.579, fused 0.600 / 0.390, fused + graph 0.500 / 0.397, so the "fused + graph" row of the first write-up (0.600 / 0.398) had already drifted. With sections mixed into one list the numbers were BM25 0.200 / 0.110 and fused 0.400 / 0.261, which is why the two searches are kept apart. The small MRR moves that remain come from BM25: its word statistics are counted over one index that now also holds the sections. The documentation search itself is not measured yet: there are no questions with a section as the right answer.
 
 Every configuration misses (top 5): "where is a new account checked for a missing name?", "which component shows one person in the page list?", "where does the browser ask the server for all people?", "what is the generic storage base that keeps things by number?".
 

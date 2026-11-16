@@ -24,6 +24,7 @@ ENUMS = {
         "TEST": "test",
         "ROUTE": "route",
         "EXTERNAL": "external",
+        "SECTION": "section",
     },
     "EdgeKind": {
         "CONTAINS": "contains",

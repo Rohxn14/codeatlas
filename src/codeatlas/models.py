@@ -48,6 +48,7 @@ class NodeKind(StrEnum):
     TEST = "test"
     ROUTE = "route"
     EXTERNAL = "external"
+    SECTION = "section"
 
 
 class EdgeKind(StrEnum):

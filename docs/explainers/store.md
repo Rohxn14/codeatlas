@@ -13,7 +13,7 @@ symbol names and docs, and (from T08) embeddings. On top of the tables it offers
 - bulk writes (`write_files`, `write_nodes`, `write_edges`, `write_raw_calls`);
 - lookups (`node`, `nodes_by_key`, `nodes_by_name`, `nodes_in_file`, `edges_from`,
   `edges_to`);
-- `search_text`, BM25 ranking over the full-text index;
+- `search_text`, BM25 ranking over the full-text index; code by default, documentation sections only with `docs=True` (D-42);
 - `symbol_index(snapshot_id)`, the contract's `SymbolIndex` for resolvers and linkers;
 - `graph(snapshot_id)`, a NetworkX `MultiDiGraph` view, plus traversal helpers in
   `store/graph.py` (`callers`, `callees`, `reverse_reach`);

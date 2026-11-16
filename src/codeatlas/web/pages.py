@@ -13,9 +13,12 @@ from codeatlas.models import Edge, EdgeKind, Node, NodeKind
 from codeatlas.web.confidence import LEVELS, level
 from codeatlas.web.data import Loaded
 
-# Kinds listed on a file's outline and found by search.
+# Kinds found by search and listed as a symbol's members.
 SYMBOL_KINDS = (NodeKind.CLASS, NodeKind.INTERFACE, NodeKind.FUNCTION, NodeKind.TEST,
                 NodeKind.ROUTE)
+# A file's outline also lists the headings of a documentation file.
+OUTLINE_KINDS = (*SYMBOL_KINDS, NodeKind.SECTION)
+MAX_DOC_HITS = 20
 # Relations shown on a symbol page. Containment is the outline; co-change is per file.
 RELATION_KINDS = (EdgeKind.CALLS, EdgeKind.CALLS_HTTP, EdgeKind.HANDLES, EdgeKind.INHERITS,
                   EdgeKind.IMPORTS, EdgeKind.TESTS)
@@ -30,19 +33,27 @@ def file_page(loaded: Loaded, path: str) -> dict[str, Any] | None:
         return None
     inside = [n for n in loaded.nodes.values() if n.path == path]
     module = next((n for n in inside if n.kind is NodeKind.MODULE), None)
-    symbols = sorted((n for n in inside if n.kind in SYMBOL_KINDS),
+    symbols = sorted((n for n in inside if n.kind in OUTLINE_KINDS),
                      key=lambda n: (n.span.start_line, n.qualname))
     calls = [done for call, done in loaded.calls if call.caller_key.split("::", 1)[0] == path]
     return {
         "record": record,
         "errors": list(module.attrs.get("errors") or []) if module else [],  # type: ignore[call-overload]
         "skipped_reason": module.attrs.get("skipped_reason") if module else None,
-        "symbols": [{"node": n, "depth": n.qualname.count(".")} for n in symbols],
+        "symbols": [{"node": n, "depth": _depth(n)} for n in symbols],
         "starts": {n.span.start_line: n for n in reversed(symbols)},  # outermost wins a tie
         "uses": _neighbours(loaded, path, outgoing=True),
         "used_by": _neighbours(loaded, path, outgoing=False),
         "calls": {"total": len(calls), "resolved": sum(calls)},
     }
+
+
+def _depth(node: Node) -> int:
+    """How far a symbol is indented in the outline: a method under its class, `##` under `#`."""
+    if node.kind is NodeKind.SECTION:
+        level = node.attrs.get("level")
+        return max(level - 1, 0) if isinstance(level, int) else 0
+    return node.qualname.count(".")
 
 
 def _neighbours(loaded: Loaded, path: str, outgoing: bool) -> list[dict[str, Any]]:
