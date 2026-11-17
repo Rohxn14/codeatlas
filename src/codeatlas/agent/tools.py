@@ -33,6 +33,7 @@ MAX_RESULT_CHARS = 4000
 MAX_SOURCE_LINES = 60
 DEFAULT_LIMIT = 10
 MAX_DEPTH = 3
+SECTION_TEXT_CHARS = 800  # of a documentation section, per search hit
 _NOT_SYMBOLS = frozenset({NodeKind.MODULE, NodeKind.PACKAGE, NodeKind.EXTERNAL})
 
 
@@ -196,6 +197,15 @@ def search_symbols(
 
 def semantic_search(ctx: ToolContext, query: str, k: int = DEFAULT_LIMIT) -> dict[str, Any]:
     """Hybrid search when `codeatlas.search.HybridSearch` exists, else BM25 text search."""
+    return _search(ctx, query, k, docs=False)
+
+
+def search_docs(ctx: ToolContext, query: str, k: int = DEFAULT_LIMIT) -> dict[str, Any]:
+    """The same search over documentation sections only (D-42): each hit carries its text."""
+    return _search(ctx, query, k, docs=True)
+
+
+def _search(ctx: ToolContext, query: str, k: int, docs: bool) -> dict[str, Any]:
     k = _clamp_limit(k)
     note = ""
     try:
@@ -209,7 +219,7 @@ def semantic_search(ctx: ToolContext, query: str, k: int = DEFAULT_LIMIT) -> dic
             # from_config: the configured model and cache, so embeddings built under
             # CODEATLAS_EMBEDDING_MODEL are found again.
             engine = HybridSearch(ctx.store, ctx.snapshot_id, EmbeddingClient.from_config())
-            found = [h for h in engine.search(query, k=k)
+            found = [h for h in engine.search(query, k=k, docs=docs)
                      if h.node.path and h.node.kind is not NodeKind.EXTERNAL]
             hits = [_hit(ctx, h.node, h.score, list(getattr(h, "sources", ())))
                     for h in found[:k]]
@@ -220,13 +230,19 @@ def semantic_search(ctx: ToolContext, query: str, k: int = DEFAULT_LIMIT) -> dic
             return _fit(result, "hits")
         except Exception as exc:  # search is best effort: text search still answers
             note = f"hybrid search failed ({type(exc).__name__}: {exc}); used text search only"
-    hits = [_hit(ctx, n, s, ["bm25"]) for n, s in ctx.store.search_text(ctx.snapshot_id, query, k)]
+    hits = [_hit(ctx, n, s, ["bm25"])
+            for n, s in ctx.store.search_text(ctx.snapshot_id, query, k, docs=docs)]
     return _fit({"query": query, "engine": "text", "note": note, "hits": hits}, "hits")
 
 
 def _hit(ctx: ToolContext, node: Node, score: float, sources: list[str]) -> dict[str, Any]:
     out = _symbol(ctx, node, score=round(float(score), 4), found_by=sources)
     out["end_line"] = node.span.end_line
+    if node.kind is NodeKind.SECTION and node.docstring:
+        # The heading's text, so the model can answer without a second call.
+        text = node.docstring
+        cut = len(text) > SECTION_TEXT_CHARS
+        out["text"] = text[:SECTION_TEXT_CHARS] + " ..." if cut else text
     return out
 
 
@@ -600,6 +616,15 @@ _TOOLS: tuple[Tool, ...] = (
         semantic_search,
     ),
     _tool(
+        "search_docs",
+        "Search the repository's documentation (headings of Markdown and reStructuredText "
+        "files, with their text). Use it for how to install, configure or use the project.",
+        _schema({"query": {"type": "string"},
+                 "k": {"type": "integer", "minimum": 1, "maximum": 50, "default": 10}},
+                ["query"]),
+        search_docs,
+    ),
+    _tool(
         "get_symbol_source",
         "Signature, docstring, span and numbered source lines of one symbol.",
         _schema({"key": _KEY}, ["key"]),
@@ -667,7 +692,7 @@ TOOL_NAMES: tuple[str, ...] = tuple(t.spec.name for t in _TOOLS)
 
 
 class ToolSet:
-    """The eleven tools bound to one store and snapshot."""
+    """The twelve tools bound to one store and snapshot."""
 
     def __init__(self, store: GraphStore, snapshot_id: str, config: Config | None = None) -> None:
         self.context = ToolContext(store, snapshot_id, config or Config())

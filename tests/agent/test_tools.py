@@ -28,8 +28,8 @@ def keys(items):
     return [i["key"] for i in items]
 
 
-def test_eleven_tools_and_no_run_tests(tools):
-    assert len(TOOL_NAMES) == 11 and "run_tests" not in TOOL_NAMES
+def test_twelve_tools_and_no_run_tests(tools):
+    assert len(TOOL_NAMES) == 12 and "run_tests" not in TOOL_NAMES
     assert [s.name for s in tools.specs] == list(TOOL_NAMES)
     assert all(s.parameters["type"] == "object" for s in tools.specs)
 
@@ -249,7 +249,7 @@ def test_semantic_search_uses_hybrid_when_present(tools, store, monkeypatch):
         def __init__(self, st, sid, embedder):
             self.st, self.sid = st, sid
 
-        def search(self, query, k=10):
+        def search(self, query, k=10, docs=False):
             return [Hit(self.st.nodes_by_key("app/service.py::create", self.sid)[0])]
 
     import codeatlas.llm as llm
@@ -277,3 +277,26 @@ def test_get_imports_counts_importers_of_symbols_in_the_file(tmp_path):
     built = build_graph(str(tmp_path), st)
     out = ToolSet(st, built.snapshot_id).call("get_imports", {"path": "repo.py"})
     assert [row["path"] for row in out["imported_by"]] == ["user_repo.py"]
+
+
+def test_search_docs_finds_only_sections_and_carries_their_text(tmp_path):
+    from codeatlas.agent.tools import SECTION_TEXT_CHARS
+    from codeatlas.indexer.pipeline.build import build_graph
+    from codeatlas.store import GraphStore
+
+    (tmp_path / "app.py").write_text("def install():\n    pass\n", encoding="utf-8")
+    long_text = "Run the zeppelin installer. " + "more " * 400
+    (tmp_path / "README.md").write_text(f"# Demo\n\n## Install\n{long_text}\n", encoding="utf-8")
+    with GraphStore(":memory:") as store:
+        built = build_graph(str(tmp_path), store)
+        tools = ToolSet(store, built.snapshot_id)
+        docs = tools.call("search_docs", {"query": "install"})
+        (hit,) = docs["hits"]
+        assert (hit["kind"], hit["name"], hit["path"], hit["line"]) == (
+            "section", "Install", "README.md", 3)
+        assert hit["text"].startswith("Run the zeppelin installer.")
+        assert len(hit["text"]) == SECTION_TEXT_CHARS + len(" ...")
+        assert hit["citation"].endswith(":README.md:3")
+        code = tools.call("semantic_search", {"query": "install"})
+        kinds = [h["kind"] for h in code["hits"]]
+        assert "function" in kinds and "section" not in kinds
