@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Ask · {{ snapshot.repo }} · CodeAtlas{% endblock %}
+{% block main %}
+<p class="eyebrow">Ask</p>
+<h1>Ask about {{ snapshot.repo }}</h1>
+<p class="meta">
+  A language model answers by calling CodeAtlas's tools: search, callers and callees,
+  imports, impact and the documentation. Each claim should cite a file and a line; every
+  citation is checked against the map and links to the source. The code is read, never run.
+</p>
+
+{% if keys_missing %}
+<div class="notice">
+  <p><strong>No language model key is set.</strong> Stop the app (Ctrl+C), set a key in
+  the same terminal, and start it again. The key stays in that terminal: CodeAtlas never
+  shows it or writes it down.</p>
+<pre class="signature">$env:GROQ_API_KEY = "your Groq key"
+$env:GEMINI_API_KEY = "your Gemini key"   # optional: used when Groq fails
+codeatlas serve</pre>
+</div>
+{% else %}
+<form method="post" action="{{ base }}/ask" class="ask-form">
+  <label for="question">Your question</label>
+  <textarea id="question" name="question" rows="3" maxlength="{{ max_chars }}" required
+    placeholder="What calls this function? How do I install this? What would break if I changed that file?">{{ typed }}</textarea>
+  {% if error %}<p class="notice">{{ error }}</p>{% endif %}
+  <button class="button" type="submit">Ask</button>
+</form>
+<p class="muted">The question, and the names, paths and code lines the agent looks up,
+  are sent to Groq (or to Gemini when Groq fails). Questions are listed here until the app
+  stops; each one's full record is kept in the <code>trajectories</code> folder.</p>
+{% endif %}
+{% if keys_missing and error %}<p class="notice">{{ error }}</p>{% endif %}
+
+{% if asked %}
+<section>
+  <h2>Asked here <span class="count">{{ asked | length }}</span></h2>
+  <ul class="results">
+    {% for q in asked %}
+    <li><a href="{{ base }}/ask/{{ q.id }}">{{ q.text | truncate(160, True, "…", 0) }}</a>
+      <span class="tag">{{ q.state }}</span></li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+{% endblock %}

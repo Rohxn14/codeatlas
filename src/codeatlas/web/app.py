@@ -2,7 +2,8 @@
 
 The pages read the database. Two actions change it: indexing a repository (the same
 `index_repository` the command line calls, on a background thread) and removing a
-snapshot. Both can be switched off with `read_only`, and both refuse a form posted
+snapshot. A third, asking a question, calls a language model with the keys set in the
+shell. All three are switched off with `read_only`, and all three refuse a form posted
 from another website. The app never installs or runs anything from a repository, and
 every value from a repository reaches the page through Jinja's autoescape, because
 names, paths and docstrings there are untrusted text.
@@ -10,6 +11,7 @@ names, paths and docstrings there are untrusted text.
 
 from __future__ import annotations
 
+import os
 import threading
 from collections.abc import Callable, Sequence
 from pathlib import Path
@@ -24,6 +26,7 @@ from starlette.exceptions import HTTPException
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from codeatlas import __version__
+from codeatlas.agent.loop import Answer, OnStep
 from codeatlas.config import Config
 from codeatlas.impact.engine import LOAD_KINDS, ImpactEngine
 from codeatlas.impact.evaluate import all_test_files
@@ -32,6 +35,13 @@ from codeatlas.indexer.intake import IntakeError, looks_like_url, parse_repo_url
 from codeatlas.indexer.pipeline.index import index_repository, load_report, report_path
 from codeatlas.models import Snapshot
 from codeatlas.store import GraphStore
+from codeatlas.web.asks import (
+    MAX_QUESTION_CHARS,
+    Questions,
+    TooManyQuestions,
+    answer_parts,
+    step_rows,
+)
 from codeatlas.web.changes import (
     MAX_DIFF_BYTES,
     ChangeError,
@@ -53,6 +63,7 @@ from codeatlas.web.source import MAX_LINES, checkout_root, read_lines
 
 _HERE = Path(__file__).parent
 MAX_SYMBOL_LINES = 400
+LLM_KEYS = ("GROQ_API_KEY", "GEMINI_API_KEY")
 
 
 def snapshot_slug(snapshot_id: str) -> str:
@@ -131,10 +142,14 @@ def create_app(
     config: Config,
     read_only: bool = False,
     hosts: Sequence[str] | None = None,
+    llm: Callable[[], Any] | None = None,
 ) -> FastAPI:
     """The app for one database. Each request opens its own connection (see `open_store`).
 
-    `read_only` leaves out indexing and removing: what a public demo must run with.
+    `read_only` leaves out indexing, removing and asking: what a public demo must run
+    with, because a visitor must never cause a call to a language model.
+    `llm` makes the client a question is answered with; None means `LLMClient` from the
+    configuration and the environment's keys (tests pass a scripted one).
     `hosts` are the names the app may be reached by; a request for any other name is
     refused, which stops another website from reaching the app through a DNS name
     that points at this machine. None means no check (tests).
@@ -173,6 +188,31 @@ def create_app(
             forget(job.report["snapshot"]["id"])
 
     jobs = Jobs(run_index, index_done)
+
+    def make_client() -> Any:
+        if llm is not None:
+            return llm()
+        from codeatlas.llm import LLMClient
+
+        return LLMClient.from_config()
+
+    def run_question(snapshot_id: str, text: str, on_step: OnStep) -> Answer:
+        """One question, on its own thread and so with its own connection."""
+        from codeatlas.agent.loop import ask
+        from codeatlas.llm import LLMError
+
+        with GraphStore(db_path) as store:
+            try:
+                return ask(text, store, snapshot_id, make_client(), config=config,
+                           on_step=on_step)
+            except LLMError as exc:  # the trajectory so far is already on disk
+                raise RuntimeError(f"the language model could not be reached: {exc}") from exc
+
+    questions = Questions(run_question)
+
+    def keys_missing() -> bool:
+        """True when no question could reach a model. Never reads a key's value."""
+        return llm is None and not any(os.environ.get(name) for name in LLM_KEYS)
 
     def can_change() -> None:
         if read_only:
@@ -415,6 +455,56 @@ def create_app(
             return impact_response(request, loaded, pasted_changes(diff))
         except ChangeError as exc:
             return impact_response(request, loaded, None, str(exc))
+
+    def ask_response(request: Request, loaded: Loaded, error: str = "",
+                     typed: str = "") -> Any:
+        response = page(request, "ask.html", loaded, "ask", error=error, typed=typed,
+                        keys_missing=keys_missing(), max_chars=MAX_QUESTION_CHARS,
+                        asked=questions.recent(loaded.snapshot.id))
+        response.status_code = 400 if error else 200
+        return response
+
+    @app.get("/s/{slug}/ask", response_class=HTMLResponse)
+    def ask_page(request: Request, slug: str) -> Any:
+        """The question box and the questions already asked about this snapshot."""
+        loaded = get_loaded(slug)
+        can_change()
+        return ask_response(request, loaded)
+
+    @app.post("/s/{slug}/ask", response_class=HTMLResponse,
+              dependencies=[Depends(from_this_app)])
+    def ask_question(request: Request, slug: str, form: dict[str, str] = POSTED_FORM) -> Any:
+        """Start answering a question, then show its answer page."""
+        loaded = get_loaded(slug)
+        can_change()
+        text = form.get("question", "").strip()
+        if keys_missing():
+            return ask_response(request, loaded, "No language model key is set.", text)
+        if not text:
+            return ask_response(request, loaded, "Type a question first.", text)
+        if len(text) > MAX_QUESTION_CHARS:
+            return ask_response(request, loaded, f"A question can be at most "
+                                f"{MAX_QUESTION_CHARS:,} characters long.", text)
+        try:
+            question = questions.start(loaded.snapshot.id, text)
+        except TooManyQuestions as exc:
+            return ask_response(request, loaded, str(exc), text)
+        return RedirectResponse(f"/s/{slug}/ask/{question.id}", status_code=303)
+
+    @app.get("/s/{slug}/ask/{question_id}", response_class=HTMLResponse)
+    def answer_page(request: Request, slug: str, question_id: str) -> Any:
+        """One question: its steps so far, then its answer. Reloads while it is active."""
+        loaded = get_loaded(slug)
+        question = questions.get(question_id)
+        if question is None or question.snapshot_id != loaded.snapshot.id:
+            raise HTTPException(404, "no such question: questions are forgotten when the "
+                                     "server stops. Each one's record stays in the "
+                                     "trajectories folder")
+        last = question.steps[-1] if question.steps else {}
+        return page(request, "answer.html", loaded, "ask", qn=question,
+                    rows=step_rows(question), model=last.get("model", ""),
+                    provider=last.get("provider", ""),
+                    pieces=answer_parts(question.answer) if question.answer else [])
 
     @app.exception_handler(HTTPException)
     def http_error(request: Request, exc: HTTPException) -> Any:

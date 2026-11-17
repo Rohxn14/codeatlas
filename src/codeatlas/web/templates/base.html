@@ -16,6 +16,7 @@
       <a href="/s/{{ snapshot.id | slug }}/"{% if tab == "map" %} aria-current="page"{% endif %}>Map</a>
       <a href="/s/{{ snapshot.id | slug }}/impact"{% if tab == "impact" %} aria-current="page"{% endif %}>Impact</a>
       <a href="/s/{{ snapshot.id | slug }}/coverage"{% if tab == "coverage" %} aria-current="page"{% endif %}>Coverage</a>
+      {% if not read_only %}<a href="/s/{{ snapshot.id | slug }}/ask"{% if tab == "ask" %} aria-current="page"{% endif %}>Ask</a>{% endif %}
     </nav>
     <form class="search" action="/s/{{ snapshot.id | slug }}/search" role="search">
       <input type="search" name="q" value="{{ q | default("") }}" placeholder="Search symbols and files" aria-label="Search symbols and files">
