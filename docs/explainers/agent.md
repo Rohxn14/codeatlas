@@ -8,7 +8,7 @@ Modules: `src/codeatlas/agent/tools.py`, `loop.py`, `prompts.py`, `mcp_server.py
 A question-answering agent over one indexed snapshot, and an MCP server that gives Claude
 Code (or any MCP client) the same tools.
 
-- **Tools** (`tools.py`): eleven plain functions over a `GraphStore` and a snapshot id.
+- **Tools** (`tools.py`): twelve plain functions over a `GraphStore` and a snapshot id.
   Each has a `ToolSpec` (name, description, JSON schema). Every result is a JSON dict of
   at most about 4,000 characters, says when it was cut short (`truncated`, `omitted`),
   and carries a `citation` (`repo@sha:path:line`) for each symbol it names.
@@ -20,10 +20,11 @@ Code (or any MCP client) the same tools.
 Ask from the command line (the `codeatlas ask` command is wired up later by T18):
 
 ```
-python -m codeatlas.agent ask "what calls UserService.create_user?" --db .codeatlas/codeatlas.sqlite
+python -m codeatlas.agent ask "what calls UserService.create_user?" --db .codeatlas/codeatlas.db
 ```
 
-`--db` defaults to `<data_dir>/codeatlas.sqlite`; `--snapshot` defaults to the most
+`--db` defaults to `<data_dir>/codeatlas.db`, the file `codeatlas index` writes (until
+Nov 17, 2026 it wrongly defaulted to `codeatlas.sqlite`); `--snapshot` defaults to the most
 recently indexed snapshot.
 
 ## Why
@@ -58,6 +59,7 @@ recently indexed snapshot.
 | --- | --- |
 | `search_symbols(name, kind?, limit?)` | Scans the snapshot's nodes (modules, packages and externals excluded unless `kind` asks for them); exact name or qualname first, then prefix, then substring. |
 | `semantic_search(query, k?)` | Uses `codeatlas.search.HybridSearch` with an `EmbeddingClient` when the module has it. If the import fails, or the engine raises (for example no embedding model), it falls back to `store.search_text` (BM25) and says so in `note`/`engine`. |
+| `search_docs(query, k?)` | The same search over documentation sections only (D-41, D-42): headings of Markdown and reStructuredText files. Each hit carries the section's `text`, cut at 800 characters, so the model can answer from it without a second call. Added at checkpoint 6. |
 | `get_symbol_source(key)` | Signature, docstring, span and numbered source lines (at most 60, and fewer if the JSON would pass the budget). The checkout is the snapshot's `source` when it is a local folder, otherwise `<data_dir>/repos/<owner>__<repo>`; the path is checked to stay inside it. A missing checkout gives `source: null` and a note. |
 | `get_file_symbols(path)` | Everything in a file except the module node, in source order, with the file's line count. |
 | `find_callers` / `find_callees(key, depth?, min_confidence?)` | `store.graph` filtered to CALLS, then `graph.callers` / `callees`: best product of confidences over paths of up to `depth` (max 3) hops, ranked by confidence. |
@@ -85,8 +87,9 @@ recently indexed snapshot.
    `line outside the file (1-N)`, `not from snapshot ...`). Duplicates are checked once.
 6. Write `<data_dir>/trajectories/<UTC time>.jsonl` in a `finally`, so a run that dies on
    an LLM error still leaves its steps behind. One JSON line per model call: step number,
-   seconds, tokens, provider and model, the text, and each tool call with its arguments and
-   the **size** of its result. Step 1 also holds the question; the last line holds
+   seconds, tokens, provider and model, the text, and each tool call with its arguments,
+   the size of its result and, since checkpoint 6, the **result itself** (at most 4,000
+   characters), so a recorded answer can be replayed step by step (plan D7). Step 1 also holds the question; the last line holds
    `final` and, once the citations are checked, `invalid_citations`.
 
 A real trajectory, from the polyglot fixture while this task was built (the run stopped at
@@ -131,7 +134,7 @@ claude mcp add codeatlas -- python -m codeatlas.agent mcp --db /absolute/path/to
 claude mcp list          # codeatlas should be listed and connected
 ```
 
-Inside Claude Code, `/mcp` shows the server and its eleven tools. Use the Python of the
+Inside Claude Code, `/mcp` shows the server and its twelve tools. Use the Python of the
 environment where CodeAtlas is installed, and an absolute `--db`; add `--snapshot ID` to
 pin a commit. The server writes only protocol messages to stdout; its one status line goes
 to stderr. It reads the store and, for `get_symbol_source`, the checkout; it never runs

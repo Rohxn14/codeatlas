@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 from codeatlas.config import load_config
+from codeatlas.indexer.pipeline.build import default_db_path
 from codeatlas.store import GraphStore
 
 
@@ -21,7 +22,7 @@ def _parser() -> argparse.ArgumentParser:
             p.add_argument("question")
             p.add_argument("--max-steps", type=int, default=20)
         p.add_argument("--db", type=Path, default=None,
-                       help="store file (default: <data_dir>/codeatlas.sqlite)")
+                       help="store file (default: <data_dir>/codeatlas.db)")
         p.add_argument("--snapshot", default=None,
                        help="snapshot id (default: the most recently indexed)")
     return parser
@@ -30,7 +31,8 @@ def _parser() -> argparse.ArgumentParser:
 def _open(db: Path | None, snapshot: str | None) -> tuple[GraphStore, str]:
     """Open the store and pick a snapshot, with a clear message when there is none."""
     config = load_config()
-    path = db or Path(config.data_dir) / "codeatlas.sqlite"
+    # The same file `codeatlas index` writes; this said codeatlas.sqlite before Nov 17.
+    path = db or default_db_path(config)
     if not path.is_file():
         raise SystemExit(f"no store at {path}; index a repository first or pass --db")
     store = GraphStore(path)

@@ -54,6 +54,8 @@ def test_trajectory_has_one_line_per_step(store, tmp_path):
     assert lines[0]["question"] == "q" and lines[0]["step"] == 1
     tool = lines[0]["tool_calls"][0]
     assert tool["name"] == "get_file_symbols" and tool["result_chars"] > 0
+    # The result itself is kept, so the step can be replayed and checked later.
+    assert len(tool["result"]) == tool["result_chars"] and "app/repo.py" in tool["result"]
     assert lines[0]["input_tokens"] == 10 and "seconds" in lines[0]
     assert lines[1]["final"] is True and lines[1]["text"] == "done"
 

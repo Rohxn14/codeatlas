@@ -136,8 +136,10 @@ def _run(messages: list[Message], tools: ToolSet, client: LLMClient, max_steps: 
         for call in response.tool_calls:
             result = tools.call_json(call.name, call.arguments)
             messages.append(Message("tool", result, tool_call_id=call.id))
+            # The result itself is kept (at most MAX_RESULT_CHARS), so a recorded answer
+            # can be replayed step by step and a wrong answer traced to what it was shown.
             record["tool_calls"].append({"name": call.name, "arguments": call.arguments,
-                                         "result_chars": len(result)})
+                                         "result_chars": len(result), "result": result})
     _finish_at_limit(messages, client, max_steps, answer, log)
 
 

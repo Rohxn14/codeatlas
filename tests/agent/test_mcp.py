@@ -1,4 +1,4 @@
-"""The MCP server lists all eleven tools with their schemas and runs them, in memory."""
+"""The MCP server lists all twelve tools with their schemas and runs them, in memory."""
 
 import asyncio
 import json
@@ -22,14 +22,14 @@ def run(tools, action):
     return asyncio.run(_with_client(tools, action))
 
 
-def test_lists_all_eleven_tools_with_the_agents_schemas(store):
+def test_lists_all_twelve_tools_with_the_agents_schemas(store):
     tools = ToolSet(store, SNAP)
 
     async def action(client):
         return (await client.list_tools()).tools
 
     listed = run(tools, action)
-    assert [t.name for t in listed] == list(TOOL_NAMES) and len(listed) == 11
+    assert [t.name for t in listed] == list(TOOL_NAMES) and len(listed) == 12
     by_name = {s.name: s for s in tools.specs}
     for tool in listed:
         assert tool.description == by_name[tool.name].description
