@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import re
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -17,7 +18,10 @@ from codeatlas.llm import LLMClient, Message
 
 # repo@sha12:path:line. The path may not contain a colon or whitespace; trailing
 # punctuation such as `)` or `.` is not part of a citation.
-_CITATION = re.compile(r"[\w.\-]+@[0-9a-f]{12}:[^\s:`'\"()\[\]<>,;]+:\d+")
+_PLACE = r":[^\s:`'\"()\[\]<>,;]+:\d+"
+# Called with each step's trajectory record once its tool calls have run, so a page
+# can show the steps while the answer is still being made.
+OnStep = Callable[[dict[str, Any]], None]
 LIMIT_NOTE = "(Step limit of {n} reached: this answer uses only what was found so far.)"
 LIMIT_PROMPT = (
     "The step limit is reached. Answer now with what you know, without calling tools, and "
@@ -62,7 +66,7 @@ def check_citations(text: str, tools: ToolSet) -> list[CitationCheck]:
     store, snapshot_id = tools.context.store, tools.context.snapshot_id
     checks: list[CitationCheck] = []
     seen: set[str] = set()
-    for match in _CITATION.finditer(text):
+    for match in citation_pattern(snapshot_id).finditer(text):
         citation = match.group(0)
         if citation in seen:
             continue
@@ -87,6 +91,16 @@ def check_citations(text: str, tools: ToolSet) -> list[CitationCheck]:
     return checks
 
 
+def citation_pattern(snapshot_id: str) -> re.Pattern[str]:
+    """Citations in an answer: this snapshot's, and anything else shaped like one.
+
+    A repository name can hold a space ("Antidote graph-hacks"), which the general shape
+    does not allow, so this snapshot's own id is matched as written. A citation of
+    another snapshot is still found, and then reported as not from this one.
+    """
+    return re.compile(f"(?:{re.escape(snapshot_id)}|" + r"[\w.\-]+@[0-9a-f]{12})" + _PLACE)
+
+
 def ask(
     question: str,
     store: Any,
@@ -95,6 +109,7 @@ def ask(
     max_steps: int = 20,
     data_dir: str | Path | None = None,
     config: Config | None = None,
+    on_step: OnStep | None = None,
 ) -> Answer:
     """Answer `question` about one snapshot; write a trajectory file; check citations."""
     config = config or Config()
@@ -107,7 +122,7 @@ def ask(
     answer = Answer(text="")
     log: list[dict[str, Any]] = []
     try:
-        _run(messages, tools, client, max_steps, answer, log)
+        _run(messages, tools, client, max_steps, answer, log, on_step or _no_step)
         answer.citations = check_citations(answer.text, tools)
         if log:
             log[-1]["invalid_citations"] = [c.text for c in answer.invalid_citations]
@@ -117,8 +132,12 @@ def ask(
     return answer
 
 
+def _no_step(record: dict[str, Any]) -> None:
+    """The default: nobody is watching."""
+
+
 def _run(messages: list[Message], tools: ToolSet, client: LLMClient, max_steps: int,
-         answer: Answer, log: list[dict[str, Any]]) -> None:
+         answer: Answer, log: list[dict[str, Any]], on_step: OnStep) -> None:
     for step in range(1, max_steps + 1):
         response, seconds = _timed_chat(client, messages, tools.specs)
         answer.steps = step
@@ -132,6 +151,7 @@ def _run(messages: list[Message], tools: ToolSet, client: LLMClient, max_steps: 
         if not response.tool_calls:
             answer.text = response.text
             record["final"] = True
+            on_step(record)
             return
         for call in response.tool_calls:
             result = tools.call_json(call.name, call.arguments)
@@ -140,7 +160,9 @@ def _run(messages: list[Message], tools: ToolSet, client: LLMClient, max_steps: 
             # can be replayed step by step and a wrong answer traced to what it was shown.
             record["tool_calls"].append({"name": call.name, "arguments": call.arguments,
                                          "result_chars": len(result), "result": result})
+        on_step(record)
     _finish_at_limit(messages, client, max_steps, answer, log)
+    on_step(log[-1])
 
 
 def _finish_at_limit(messages: list[Message], client: LLMClient, max_steps: int,

@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% import "_parts.html" as parts %}
+{% block title %}{{ qn.text | truncate(60, True, "…", 0) }} · Ask · CodeAtlas{% endblock %}
+{% block head %}{% if qn.active %}<meta http-equiv="refresh" content="2">{% endif %}{% endblock %}
+{% block main %}
+<p class="eyebrow">Ask</p>
+<h1 class="question">{{ qn.text }}</h1>
+
+{% if qn.state == "waiting" %}
+<p class="meta">Waiting: one question is answered at a time. This page reloads by itself.</p>
+{% elif qn.state == "running" %}
+<p class="meta">Working for {{ "%.0f" | format(qn.seconds) }} s, {{ qn.steps | length }} step{{ "" if qn.steps | length == 1 else "s" }} done.
+  This page reloads by itself every two seconds.</p>
+{% elif qn.state == "failed" %}
+<p class="notice"><strong>No answer.</strong> {{ qn.error }}</p>
+{% else %}
+{% set a = qn.answer %}
+{% set bad = a.invalid_citations | length %}
+<div class="answer">{% for p in pieces %}{% if p.cite %}{% set c = p.cite %}{% if c.valid %}<a class="cite" href="{{ parts.file_url(base, c.path) }}#L{{ c.line }}" title="{{ c.text }}">{{ c.path }}:{{ c.line }}</a>{% else %}<span class="cite invalid" title="{{ c.reason }}">{{ c.text }} (not a real place: {{ c.reason }})</span>{% endif %}{% else %}{{ p.text }}{% endif %}{% endfor %}</div>
+{% if a.limit_hit %}
+<p class="notice">The agent reached its step limit, so this answer uses only what it had found by then.</p>
+{% endif %}
+{% if not a.citations %}
+<p class="notice">This answer cites nothing, so none of it was checked against the code.</p>
+{% elif bad %}
+<p class="notice">{{ bad }} of {{ a.citations | length }} citations point at no real place in this snapshot. They are marked above.</p>
+{% else %}
+<p class="meta">All {{ a.citations | length }} citation{{ "" if a.citations | length == 1 else "s" }} point at a real file and line. That checks the place exists, not that it says what the answer claims: open them.</p>
+{% endif %}
+<p class="meta">{{ a.steps }} model call{{ "" if a.steps == 1 else "s" }}, {{ a.input_tokens | thousands }} tokens in, {{ a.output_tokens | thousands }} out,
+  {{ "%.1f" | format(qn.seconds) }} s{% if model %}, {{ provider }} <code>{{ model }}</code>{% endif %}.</p>
+{% endif %}
+
+<section>
+  <h2>Steps <span class="count">{{ rows | length }}</span></h2>
+  {% if rows %}
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th class="n">Step</th><th>Tool</th><th>Asked with</th><th class="n">Result</th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr><td class="n">{{ r.step }}</td><td><code>{{ r.tool }}</code></td>
+        <td><code>{{ r.arguments | truncate(120, True, "…", 0) }}</code></td>
+        <td class="n">{{ r.chars | thousands }} characters</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% elif qn.state == "done" %}
+  <p class="muted">The model answered without looking anything up.</p>
+  {% else %}
+  <p class="muted">No tool called yet.</p>
+  {% endif %}
+</section>
+
+<p><a href="{{ base }}/ask">Ask another question</a></p>
+{% endblock %}

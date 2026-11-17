@@ -108,3 +108,25 @@ def test_unknown_tool_call_gets_an_error_result(store, tmp_path):
     client, provider = make_client(reply(calls=[call("1", "run_tests", path="x")]), reply("ok"))
     ask("q", store, SNAP, client, data_dir=tmp_path)
     assert "unknown tool" in provider.requests[1][-1].content
+
+
+def test_each_step_is_reported_as_it_finishes(store, tmp_path):
+    client, _ = make_client(
+        reply(calls=[call("1", "get_file_symbols", path="app/repo.py")]),
+        reply("done"),
+    )
+    seen = []
+    answer = ask("q", store, SNAP, client, data_dir=tmp_path,
+                 on_step=lambda record: seen.append(dict(record)))
+    assert [r["step"] for r in seen] == [1, 2] and answer.steps == 2
+    assert seen[0]["tool_calls"][0]["name"] == "get_file_symbols"
+    assert seen[1]["final"] is True
+
+
+def test_a_snapshot_id_with_a_space_is_cited_whole():
+    from codeatlas.agent.loop import citation_pattern
+
+    sid = "Antidote graph-hacks@0ba557abfca8"
+    text = f"See ({sid}:src/a.py:3), and other@0ba557abfca8:b.py:9."
+    found = [m.group(0) for m in citation_pattern(sid).finditer(text)]
+    assert found == [f"{sid}:src/a.py:3", "other@0ba557abfca8:b.py:9"]

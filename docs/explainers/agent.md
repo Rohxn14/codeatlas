@@ -85,6 +85,10 @@ recently indexed snapshot.
    names this snapshot, the path is a file of the snapshot, and the line is between 1 and
    the module node's last line. Invalid ones come back with a reason (`no such file`,
    `line outside the file (1-N)`, `not from snapshot ...`). Duplicates are checked once.
+   Since checkpoint 6, `ask(..., on_step=...)` calls `on_step(record)` as each step's
+   record is complete, so the web app can show steps while the answer is made.
+   Citations are found with `citation_pattern(snapshot_id)`, which matches the
+   snapshot's own id as written (an id can hold a space).
 6. Write `<data_dir>/trajectories/<UTC time>.jsonl` in a `finally`, so a run that dies on
    an LLM error still leaves its steps behind. One JSON line per model call: step number,
    seconds, tokens, provider and model, the text, and each tool call with its arguments,

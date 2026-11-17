@@ -581,3 +581,84 @@ Indexing `C:\code\demo` from the page:
     beside the old one. Nothing removes old snapshots for you.
   - Removing a snapshot leaves the clone on disk.
   - There is still no sign-in. The guards above assume one person at one machine.
+
+## Ask (checkpoint 6)
+
+Files: `web/asks.py` (questions on a background thread, the answer cut at its
+citations), `templates/ask.html` (the question box), `templates/answer.html` (one
+answer), the routes `/s/{slug}/ask` and `/s/{slug}/ask/{id}` in `web/app.py`, and an
+`on_step` callback added to the agent loop (`agent/loop.py`).
+
+### What
+
+A fourth tab, **Ask**. Type a question about the repository; the answer page shows
+each tool the agent calls while it works, then the answer. Each citation in the answer
+(`repo@sha:path:line`) becomes a link to the file page at that line, showing
+`path:line`. A citation that points at no real file or line stays in the text, marked,
+with the reason. Under the answer: whether every citation was real, how many model
+calls and tokens it took, how long, and which provider and model answered.
+
+### Why
+
+- **Whole steps, not streamed words** (the owner's choice, Nov 17). The page reloads
+  every two seconds like the indexing page. It needs no JavaScript, and the steps
+  (which tool, asked with what, how much came back) are what show how the answer was
+  made. Rejected: a script that streams the answer word by word.
+- **Only the local app may ask** (the owner's choice). Every question calls Groq or
+  Gemini with the keys set in the shell. A read-only app (another host, or
+  `--read-only`) has no Ask tab and refuses the route with 403, so a public copy can
+  never spend tokens. Rejected: a separate `--allow-ask` switch.
+- **In memory, plus the trajectory file** (the owner's choice). The page lists the
+  questions asked since the app started. Each question's full record (every step,
+  every tool result) is the agent's trajectory file in `<data_dir>/trajectories/`,
+  which outlives the server. Rejected for now: a table in the database.
+- **One question at a time.** The free tiers limit tokens per minute; two answers made
+  together would both run into the limit. At most three wait.
+- **No key, no form.** Without `GROQ_API_KEY` or `GEMINI_API_KEY` in the environment,
+  the page says how to set one in PowerShell instead of offering a box that would
+  fail. The app only checks that a key is present; it never reads its value.
+- **"All citations are real" is not "the answer is right".** The check proves the file
+  and line exist in this snapshot, and the page says exactly that.
+
+### How
+
+Worked example, with a scripted model (from `tests/web/test_web_ask.py`):
+
+1. The form posts `question=How do I install this?` to `/s/demo@.../ask`. The handler
+   checks the app is not read-only, a key exists, and the question is 1 to 2,000
+   characters; then `Questions.start` makes an id and starts a thread. The browser is
+   sent to `/s/demo@.../ask/{id}` (303).
+2. The thread opens its own store connection (SQLite connections belong to one thread)
+   and calls `ask(..., on_step=question.steps.append)`.
+3. Step 1: the model calls `search_docs(query="install")`. The loop runs it, adds the
+   record (tool, arguments, result size, result) and calls `on_step`. The next reload
+   shows "1 step done" and a row: `search_docs`, `query='install'`, 371 characters.
+4. Step 2: the model answers with three citations. The loop checks them:
+   `README.md:3` and `lib/util.py:1` exist; `lib/gone.py:4` has no file.
+5. The state becomes done. `answer_parts` cuts the text at each citation (longest
+   first, so `a.py:12` is not cut at `a.py:1`). The template escapes every piece of
+   text, because model output is untrusted, and turns valid citations into links.
+
+A snapshot id can hold a space (`Antidote graph-hacks@0ba557abfca8`). The citation
+pattern did not allow that, so every citation for such a repository was reported
+invalid. `citation_pattern(snapshot_id)` now matches the snapshot's own id as written,
+and still finds citations of other snapshots so they can be reported.
+
+### Where
+
+- Tests: `tests/web/test_web_ask.py` (8 tests): an answer with its steps and checked
+  citations, escaping, an answer with no citations, a model that cannot be reached, an
+  empty and a too-long question, no key, read-only, a form from another website, and
+  `answer_parts`. Two more in `tests/agent/test_loop.py`: `on_step` per step, and a
+  snapshot id with a space. No test calls a model or needs a key.
+- Not yet tried with a real model: the keys were not set on the machine this was built
+  on. That is step 6c.
+- Known limits:
+  - The answer is shown as plain text: Markdown the model writes (`**bold**`, lists,
+    code fences) appears as written.
+  - A citation whose path holds a space is not recognised.
+  - No follow-up questions yet: each question starts a new conversation (decided after
+    the real runs, step 6d).
+  - Questions are forgotten when the app stops; there is no cancel button.
+  - While a question runs, the model sees only this snapshot; there is no way to ask
+    across repositories.
