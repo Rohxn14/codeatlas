@@ -3,6 +3,7 @@
 import pytest
 
 from codeatlas.llm.errors import LLMEmptyResponseError, LLMRequestError, LLMTransientError
+from codeatlas.llm.providers.base import retry_after_seconds
 from codeatlas.llm.providers.groq import GroqProvider
 from codeatlas.llm.types import Message, ToolCall, ToolSpec
 
@@ -92,3 +93,23 @@ def test_length_cut_answer_raises_empty_response(script):
     s = script([(200, load("groq_max_tokens.json"))])
     with pytest.raises(LLMEmptyResponseError, match="length"):
         provider(s).chat([Message("user", "hi")], None, 0.0, 10)
+
+
+@pytest.mark.parametrize(("headers", "text", "seconds"), [
+    ({"retry-after": "12"}, "", 12.0),
+    (None, "Rate limit reached. Please try again in 7.66s. Need more tokens?", 7.66),
+    (None, "Please try again in 1m2.5s.", 62.5),
+    (None, "Please try again in 250ms.", 0.25),
+    ({"retry-after": "soon"}, "try again in 3s", 3.0),  # an unreadable header falls back
+    (None, "Rate limit reached", None),
+])
+def test_the_wait_a_provider_asks_for_is_read(headers, text, seconds):
+    assert retry_after_seconds(headers, text) == seconds
+
+
+def test_a_429_carries_the_retry_after_header(script):
+    s = script([(429, load("groq_rate_limit.json"), {"retry-after": "9"})])
+    provider = GroqProvider("openai/gpt-oss-20b", api_key="t", http_client=s.client())
+    with pytest.raises(LLMTransientError) as caught:
+        provider.chat([Message("user", "hi")], None, 0.0, None)
+    assert caught.value.retry_after == 9.0

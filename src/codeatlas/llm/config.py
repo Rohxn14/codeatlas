@@ -35,6 +35,8 @@ class LLMConfig:
     # About the network proxy's cutoff: a longer wait only delays the fallback.
     timeout_seconds: float = 30.0
     max_tries: int = 3
+    # The longest one request waits when every provider is rate limited (then it fails).
+    max_wait_seconds: float = 60.0
     cache: str = "read_write"
     cache_namespace: str = "default"
     embedding_model: str = "BAAI/bge-small-en-v1.5"
@@ -58,6 +60,7 @@ ENV_KEYS: dict[str, str] = {
     "gemini_thinking_level": "CODEATLAS_GEMINI_THINKING",
     "groq_reasoning_effort": "CODEATLAS_GROQ_REASONING",
     "timeout_seconds": "CODEATLAS_LLM_TIMEOUT",
+    "max_wait_seconds": "CODEATLAS_LLM_MAX_WAIT",
     "cache": "CODEATLAS_LLM_CACHE",
     "cache_namespace": "CODEATLAS_LLM_NAMESPACE",
     "embedding_model": "CODEATLAS_EMBEDDING_MODEL",

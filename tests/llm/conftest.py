@@ -17,9 +17,9 @@ def load(name: str) -> dict:
 
 
 class Script:
-    """Replies to chat requests with a queued list of (status, body); lists models too."""
+    """Replies to chat requests from a queue of (status, body[, headers]); lists models too."""
 
-    def __init__(self, replies: list[tuple[int, dict]], models: dict | None = None) -> None:
+    def __init__(self, replies: list[tuple], models: dict | None = None) -> None:
         self.replies = list(replies)
         self.models = models
         self.chat_requests: list[dict] = []
@@ -34,8 +34,8 @@ class Script:
         self.chat_requests.append(
             {"path": request.url.path, "body": json.loads(request.content or b"{}")}
         )
-        status, body = self.replies.pop(0)
-        return httpx.Response(status, json=body)
+        status, body, *headers = self.replies.pop(0)  # an optional third item: headers
+        return httpx.Response(status, json=body, headers=headers[0] if headers else None)
 
     def client(self) -> httpx.Client:
         return httpx.Client(transport=httpx.MockTransport(self))

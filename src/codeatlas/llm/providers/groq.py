@@ -11,7 +11,7 @@ import groq
 import httpx
 
 from codeatlas.llm.errors import LLMEmptyResponseError, LLMRequestError, LLMTransientError
-from codeatlas.llm.providers.base import PLACEHOLDER_KEY, ModelInfo
+from codeatlas.llm.providers.base import PLACEHOLDER_KEY, ModelInfo, retry_after_seconds
 from codeatlas.llm.types import LLMResponse, Message, ToolCall, ToolSpec
 
 
@@ -141,5 +141,8 @@ def _translate(exc: groq.APIError) -> Exception:
         return LLMTransientError("groq", None, str(exc))
     status = getattr(exc, "status_code", None)
     if status == 429 or (status is not None and status >= 500):
-        return LLMTransientError("groq", status, str(exc))
+        response = getattr(exc, "response", None)
+        headers = getattr(response, "headers", None)
+        return LLMTransientError("groq", status, str(exc),
+                                 retry_after=retry_after_seconds(headers, str(exc)))
     return LLMRequestError("groq", status, str(exc))

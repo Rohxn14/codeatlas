@@ -18,7 +18,7 @@ from google import genai
 from google.genai import errors, types
 
 from codeatlas.llm.errors import LLMEmptyResponseError, LLMRequestError, LLMTransientError
-from codeatlas.llm.providers.base import PLACEHOLDER_KEY, ModelInfo
+from codeatlas.llm.providers.base import PLACEHOLDER_KEY, ModelInfo, retry_after_seconds
 from codeatlas.llm.types import LLMResponse, Message, ToolCall, ToolSpec
 
 # Gemini 3 rejects a replayed function call without its thought signature. Calls that
@@ -196,5 +196,8 @@ def _translate(exc: Any) -> Exception:
         return LLMTransientError("gemini", None, f"{type(exc).__name__}: {exc}")
     status = getattr(exc, "code", None)
     if status == 429 or (isinstance(status, int) and status >= 500):
-        return LLMTransientError("gemini", status, str(exc))
+        headers = getattr(getattr(exc, "response", None), "headers", None)
+        text = f"{exc} {getattr(exc, 'details', '')}"
+        return LLMTransientError("gemini", status, str(exc),
+                                 retry_after=retry_after_seconds(headers, text))
     return LLMRequestError("gemini", status, str(exc))

@@ -17,12 +17,19 @@ class LLMRequestError(LLMError):
 
 
 class LLMTransientError(LLMError):
-    """A rate limit (429), server error (5xx) or timeout: worth retrying, then falling back."""
+    """A rate limit (429), server error (5xx) or timeout: worth retrying, then falling back.
 
-    def __init__(self, provider: str, status: int | None, message: str) -> None:
+    `retry_after` is how many seconds the provider asked us to wait, when it said so
+    (a `retry-after` header, or "try again in 7.66s" in the message).
+    """
+
+    def __init__(
+        self, provider: str, status: int | None, message: str, retry_after: float | None = None
+    ) -> None:
         super().__init__(f"{provider} failed ({status or 'no status'}): {message}")
         self.provider = provider
         self.status = status
+        self.retry_after = retry_after
 
 
 class LLMEmptyResponseError(LLMError):

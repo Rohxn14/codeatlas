@@ -128,3 +128,15 @@ def test_max_tokens_answer_raises_empty_response(script):
     s = script([(200, load("gemini_max_tokens.json"))])
     with pytest.raises(LLMEmptyResponseError, match="MAX_TOKENS"):
         provider(s).chat([Message("user", "hi")], None, 0.0, 10)
+
+
+def test_a_429_carries_the_retry_delay_from_its_details(script):
+    body = {"error": {"code": 429, "message": "You exceeded your current quota.",
+                      "status": "RESOURCE_EXHAUSTED",
+                      "details": [{"@type": "type.googleapis.com/google.rpc.RetryInfo",
+                                   "retryDelay": "21s"}]}}
+    s = script([(429, body)])
+    provider = GeminiProvider("gemini-3.8-flash", api_key="t", http_client=s.client())
+    with pytest.raises(LLMTransientError) as caught:
+        provider.chat([Message("user", "hi")], None, 0.0, None)
+    assert caught.value.status == 429 and caught.value.retry_after == 21.0
