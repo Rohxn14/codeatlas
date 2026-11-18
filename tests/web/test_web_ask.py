@@ -144,7 +144,7 @@ def test_without_a_key_the_page_says_how_to_set_one(
     client = TestClient(create_app(db_path, config), follow_redirects=False)
     base = f"/s/{snapshot_slug(sid)}"
     page = client.get(f"{base}/ask").text
-    assert "No language model key is set" in page and "Edit environment variables" in page
+    assert "No language model key is set" in page and "<code>.env</code>" in page
     assert "$env:" not in page  # never ask anyone to type a key into a terminal
     refused = client.post(f"{base}/ask", data={"question": "hello"})
     assert refused.status_code == 400 and "Asked here" not in refused.text

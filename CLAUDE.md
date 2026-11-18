@@ -51,7 +51,7 @@ An **indexer** walks one git commit (a snapshot). The **repository layer** works
 - CodeAtlas analyses code statically. The indexer, search, impact engine, agent and any server never install, import or run code from an indexed repository. Read-only `git` commands are the one exception.
 - Only the eval harness runs a repository's tests, and only for benchmark repositories pinned in `eval/` config, in a virtual environment made for that benchmark. Never on a repository a user supplied.
 - Fetch repositories with one blobless `git clone` (what `indexer/intake.py` does), never file by file through the GitHub REST API (60 requests per hour without a token).
-- API keys live in environment variables (`GROQ_API_KEY`, `GEMINI_API_KEY`). A local `.env` is gitignored, but the code does not load it: set the variables in the shell. Never print a key, write one to a file, or put one in a test, a recording or a commit.
+- API keys live in environment variables (`GROQ_API_KEY`, `GEMINI_API_KEY`). The owner keeps them in a gitignored `.env` in the project folder: a real `codeatlas` command line (`main()` with no arguments) copies only those names and `CODEATLAS_*` settings from `./.env` into the environment, and a variable already set wins (D-45). Library code and tests never read `.env`. Never open or print `.env`: check that a key is present by name only. Never print a key, write one to a file, or put one in a test, a recording or a commit.
 
 ## Git and pull requests
 

@@ -605,7 +605,7 @@ calls and tokens it took, how long, and which provider and model answered.
   (which tool, asked with what, how much came back) are what show how the answer was
   made. Rejected: a script that streams the answer word by word.
 - **Only the local app may ask** (the owner's choice). Every question calls Groq or
-  Gemini with the keys set in the shell. A read-only app (another host, or
+  Gemini with the keys from `.env` or the environment. A read-only app (another host, or
   `--read-only`) has no Ask tab and refuses the route with 403, so a public copy can
   never spend tokens. Rejected: a separate `--allow-ask` switch.
 - **In memory, plus the trajectory file** (the owner's choice). The page lists the
@@ -615,10 +615,9 @@ calls and tokens it took, how long, and which provider and model answered.
 - **One question at a time.** The free tiers limit tokens per minute; two answers made
   together would both run into the limit. At most three wait.
 - **No key, no form.** Without `GROQ_API_KEY` or `GEMINI_API_KEY` in the environment,
-  the page says how to set one as a Windows user environment variable instead of
-  offering a box that would fail. It never suggests typing a key into a terminal:
-  Windows PowerShell 5.1 (PSReadLine 2.0) saves every typed line in a plain-text history
-  file. The page's check only tests that a key is present; only the provider reads its
+  the page says to put one in `.env` (D-45) instead of offering a box that would
+  fail. It never suggests typing a key into a terminal: Windows PowerShell 5.1
+  (PSReadLine 2.0) saves every typed line in a plain-text history file. The page's check only tests that a key is present; only the provider reads its
   value, to send it to Groq or Gemini.
 - **"All citations are real" is not "the answer is right".** The check proves the file
   and line exist in this snapshot, and the page says exactly that.

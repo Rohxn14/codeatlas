@@ -22,8 +22,9 @@ of calling a live model. See [docs/roadmap.md](docs/roadmap.md).
 python -m pip install -e ".[dev]"
 ```
 
-Python 3.11 or newer, on Windows (PowerShell) or Linux. `ask` needs `GROQ_API_KEY` or
-`GEMINI_API_KEY`; everything else works offline.
+Python 3.11 or newer, on Windows (PowerShell) or Linux. `ask` and the Ask tab need `GROQ_API_KEY`
+or `GEMINI_API_KEY`: copy `.env.example` to `.env` (ignored by git) and fill it in.
+Everything else works offline.
 
 ## A five-command tour
 
@@ -124,7 +125,7 @@ tokens, and the path of the trajectory file. Without a key it exits with code 2:
 
 ```
 $ codeatlas ask "x"
-codeatlas: ask needs a language model: set GROQ_API_KEY or GEMINI_API_KEY
+codeatlas: ask needs a language model: set GROQ_API_KEY or GEMINI_API_KEY in .env or in the environment
 ```
 
 (The run for this README hit provider rate limits, so no answer is pasted here.)

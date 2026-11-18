@@ -22,6 +22,7 @@ from typing import Any
 
 from codeatlas import __version__
 from codeatlas.config import Config, load_config
+from codeatlas.envfile import load_env_file
 from codeatlas.impact.diff import parse_diff
 from codeatlas.impact.models import Change
 from codeatlas.indexer.discover import Discovery, SkippedPath
@@ -375,7 +376,8 @@ LLM_KEYS = ("GROQ_API_KEY", "GEMINI_API_KEY")
 
 def _run_ask(args: argparse.Namespace, config: Config) -> int:
     if not any(os.environ.get(name) for name in LLM_KEYS):
-        print("codeatlas: ask needs a language model: set GROQ_API_KEY or GEMINI_API_KEY",
+        print("codeatlas: ask needs a language model: set GROQ_API_KEY or GEMINI_API_KEY "
+              "in .env or in the environment",
               file=sys.stderr)
         return 2
     from codeatlas.agent.loop import ask
@@ -725,6 +727,8 @@ _RUNNERS = {
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    if argv is None:  # a real command line, not a test: read the keys from ./.env
+        load_env_file()
     args = build_parser().parse_args(argv)
     try:
         config = load_config(args.config)
