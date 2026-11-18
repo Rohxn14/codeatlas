@@ -52,6 +52,8 @@ Behind that call it:
 
 **Lazy model check.** "If the configured model is gone, pick the newest of its family" needs a network call. A size such as `20b` is part of the family (decision D-17), so `gpt-oss-20b` never silently becomes `gpt-oss-120b`, which has different limits and cost. A model retired *after* the first check shows up as a 404; the client then looks the model up once more and retries if a different one is found. Doing it in the constructor would make `LLMClient.from_config()` slow and network-bound even when everything is cached. So it runs once per provider, just before that provider's first real call. If the listing fails, the configured model is kept, and the chat call then reports the real error.
 
+**Where keys come from.** Providers read `GROQ_API_KEY` and `GEMINI_API_KEY` from the environment, nothing else. On the owner's machine the `codeatlas` command fills them from a gitignored `.env` first (`envfile.py`, D-45); see `cli.md`.
+
 **Missing keys are not an error.** In the cloud environment the proxy attaches keys, so the environment variables are often empty. Both SDKs refuse to start without a key, so a placeholder is passed. If nothing replaces it, the request fails with a 401, which surfaces as `LLMRequestError`.
 
 Rejected: writing raw `httpx` calls for Groq (smaller, but duplicates what the SDK does), and LiteLLM-style routing libraries (a new dependency, and much more than we need).

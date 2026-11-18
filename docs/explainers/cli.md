@@ -31,6 +31,15 @@ web app (`web-app.md`); its packages are optional, so it imports them only when 
   agent's tools find it (`ToolContext.repo_root`): the local source folder, or the clone of
   a URL. Rejected: reading the diff with a git library (a new dependency) and diffing
   stored file hashes (the store does not keep old file contents).
+- **Keys come from `./.env` or the environment (D-45).** `main()` called with no
+  arguments, which is what the `codeatlas` command does, first runs
+  `load_env_file()` (`envfile.py`, with `python-dotenv`). It copies only
+  `GROQ_API_KEY`, `GEMINI_API_KEY` and `CODEATLAS_*` names from the `.env` in the
+  folder you run it from, and never overwrites a variable already set. Tests call
+  `main([...])`, so they never read the owner's `.env`. Why a file: typing
+  `$env:GROQ_API_KEY = "..."` would leave the key in PowerShell's history file.
+  Why only those names: a `.env` in another project's folder holds that project's
+  secrets. `python -m codeatlas.agent` does the same.
 - **`ask` checks for a key before anything else.** Without `GROQ_API_KEY` or
   `GEMINI_API_KEY`, the providers would retry with a placeholder key and fail slowly. One
   line naming both variables and exit 2 is faster and clearer. A provider failure after
@@ -94,5 +103,6 @@ and targets orange in the neighbourhood graph.
 - **Contract types**: `Snapshot`, `Node` (`kind`, `key`, `path`, `span`) from
   `codeatlas.models`; the impact engine's `Change`, `ImpactConfig`, `ImpactResult`,
   `Target`, `TestPick`, `Evidence` and `Hop` from `impact/models.py`.
-- **Tests**: `tests/test_cli_commands.py` (the query commands, on a two-commit repository
+- **Tests**: `tests/test_envfile.py` (which names `.env` gives, the shell wins, a test
+  never reads `.env`), `tests/test_cli_commands.py` (the query commands, on a two-commit repository
   built in the test, LLM mocked) and `tests/test_cli.py`, `tests/view/` (the older ones).

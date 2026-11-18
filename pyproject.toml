@@ -40,6 +40,8 @@ dependencies = [
     "groq>=0.11",
     "google-genai>=1.0",
     "httpx>=0.27",
+    # Reads the LLM keys from a gitignored .env at the command line (D-45)
+    "python-dotenv>=1.0",
     # Model Context Protocol server (Wave 3). The server uses the 2.x low-level API
     # (`Server(on_list_tools=..., on_call_tool=...)`); 1.x registers handlers differently.
     "mcp>=2",
