@@ -27,6 +27,9 @@ class LLMConfig:
 
     providers: tuple[str, ...] = PROVIDERS
     groq_model: str = "openai/gpt-oss-20b"
+    # Tried after `groq_model`, before the next provider. Groq counts its limits per
+    # model, so each one brings its own tokens per minute.
+    groq_fallback_models: tuple[str, ...] = ("openai/gpt-oss-120b",)
     gemini_model: str = "gemini-3.8-flash"
     # Thinking tokens count against the output limit, so a low default keeps short
     # answers from coming back empty; "minimal" suits cheap one-shot calls.
@@ -56,6 +59,7 @@ class LLMConfig:
 ENV_KEYS: dict[str, str] = {
     "providers": "CODEATLAS_LLM_PROVIDERS",
     "groq_model": "CODEATLAS_GROQ_MODEL",
+    "groq_fallback_models": "CODEATLAS_GROQ_FALLBACK_MODELS",
     "gemini_model": "CODEATLAS_GEMINI_MODEL",
     "gemini_thinking_level": "CODEATLAS_GEMINI_THINKING",
     "groq_reasoning_effort": "CODEATLAS_GROQ_REASONING",

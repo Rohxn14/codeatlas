@@ -92,6 +92,8 @@ caller            LLMClient                Groq               Gemini
 
 Why not retry a 429 the way a 5xx is retried: free tiers limit tokens per minute, so a 429 does not lift in one or two seconds. Before this change (Nov 18) one agent question sent Groq 13 requests that were all refused: three quick tries per step, and every new step started with Groq again. The 429 was measured, not guessed: each step's input grew from 1,841 to 7,660 tokens, and three steps in three seconds used about 7,200 of the minute's budget.
 
+The default chain is Groq `gpt-oss-20b`, then Groq `gpt-oss-120b`, then Gemini (`groq_fallback_models`, the owner's order on Nov 18). Groq counts its limits per model, so when 20b's minute is used up, 120b usually still has its own.
+
 Providers are kept apart by their position in the list, not their name, so two models of one provider (Groq 20b and 120b) rest separately: each has its own limits.
 
 ### Worked example: model family
@@ -119,6 +121,7 @@ The fastembed model loads on first use, so a fully cached call never downloads w
 [llm]
 providers = ["groq", "gemini"]
 groq_model = "openai/gpt-oss-20b"
+groq_fallback_models = ["openai/gpt-oss-120b"]  # tried next, each with its own limits
 gemini_model = "gemini-3.8-flash"
 gemini_thinking_level = "low"  # "" | minimal | low | medium | high
 groq_reasoning_effort = "low"  # "" | low | medium | high
@@ -131,7 +134,7 @@ embedding_model = "BAAI/bge-small-en-v1.5"
 embedding_batch_size = 64
 ```
 
-Environment variables override these: `CODEATLAS_LLM_PROVIDERS` (comma-separated), `CODEATLAS_GROQ_MODEL`, `CODEATLAS_GEMINI_MODEL`, `CODEATLAS_GEMINI_THINKING`, `CODEATLAS_GROQ_REASONING`, `CODEATLAS_LLM_TIMEOUT`, `CODEATLAS_LLM_MAX_WAIT`, `CODEATLAS_LLM_CACHE`, `CODEATLAS_LLM_NAMESPACE`, `CODEATLAS_EMBEDDING_MODEL`. Keys come from `GROQ_API_KEY` and `GEMINI_API_KEY` when set. Files go under `[paths] data_dir`: `llm_cache.sqlite` and `llm_usage.jsonl`.
+Environment variables override these: `CODEATLAS_LLM_PROVIDERS` (comma-separated), `CODEATLAS_GROQ_MODEL`, `CODEATLAS_GROQ_FALLBACK_MODELS` (comma-separated), `CODEATLAS_GEMINI_MODEL`, `CODEATLAS_GEMINI_THINKING`, `CODEATLAS_GROQ_REASONING`, `CODEATLAS_LLM_TIMEOUT`, `CODEATLAS_LLM_MAX_WAIT`, `CODEATLAS_LLM_CACHE`, `CODEATLAS_LLM_NAMESPACE`, `CODEATLAS_EMBEDDING_MODEL`. Keys come from `GROQ_API_KEY` and `GEMINI_API_KEY` when set. Files go under `[paths] data_dir`: `llm_cache.sqlite` and `llm_usage.jsonl`.
 
 ## Where
 

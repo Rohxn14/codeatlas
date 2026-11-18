@@ -80,7 +80,7 @@ class LLMClient:
     def from_config(cls, config: LLMConfig | None = None) -> LLMClient:
         """Build providers, cache and log paths from `codeatlas.toml` and the environment."""
         config = config or load_llm_config()
-        providers = [_make_provider(name, config) for name in config.providers]
+        providers = [p for name in config.providers for p in _make_providers(name, config)]
         cache = None if config.cache == "off" else LLMCache(config.cache_path)
         return cls(
             providers,
@@ -257,14 +257,17 @@ def _label(provider: Provider) -> str:
     return f"{provider.name} {provider.model}"
 
 
-def _make_provider(name: str, config: LLMConfig) -> Provider:
+def _make_providers(name: str, config: LLMConfig) -> list[Provider]:
+    """One provider per model: Groq's main model, then each of its fallback models."""
     # Imported here so a test or tool that never calls a provider skips the SDK imports.
     if name == "groq":
         from codeatlas.llm.providers.groq import GroqProvider
 
-        return GroqProvider(config.groq_model, timeout=config.timeout_seconds,
-                            reasoning_effort=config.groq_reasoning_effort)
+        models = dict.fromkeys((config.groq_model, *config.groq_fallback_models))
+        return [GroqProvider(model, timeout=config.timeout_seconds,
+                             reasoning_effort=config.groq_reasoning_effort)
+                for model in models]
     from codeatlas.llm.providers.gemini import GeminiProvider
 
-    return GeminiProvider(config.gemini_model, timeout=config.timeout_seconds,
-                          thinking_level=config.gemini_thinking_level)
+    return [GeminiProvider(config.gemini_model, timeout=config.timeout_seconds,
+                           thinking_level=config.gemini_thinking_level)]
