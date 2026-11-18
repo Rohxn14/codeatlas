@@ -100,3 +100,21 @@ def test_unknown_thinking_level_is_rejected():
 
     with pytest.raises(ValueError, match="gemini_thinking_level"):
         llm_config_from_dict({"gemini_thinking_level": "max"})
+
+
+def test_groq_brings_one_provider_per_model_in_order() -> None:
+    from codeatlas.llm.client import _make_providers
+
+    config = LLMConfig(groq_fallback_models=("openai/gpt-oss-120b", "openai/gpt-oss-20b"))
+    models = [p.model for p in _make_providers("groq", config)]
+    assert models == ["openai/gpt-oss-20b", "openai/gpt-oss-120b"]  # no model twice
+    assert [p.model for p in _make_providers("groq", LLMConfig(groq_fallback_models=()))] \
+        == ["openai/gpt-oss-20b"]
+
+
+def test_fallback_models_come_from_the_environment() -> None:
+    from codeatlas.llm.config import apply_env
+
+    config = apply_env(LLMConfig(), {"CODEATLAS_GROQ_FALLBACK_MODELS": "a/one, b/two"})
+    assert config.groq_fallback_models == ("a/one", "b/two")
+
