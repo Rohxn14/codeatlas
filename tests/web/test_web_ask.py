@@ -3,6 +3,7 @@
 The language model is scripted: no test calls a real provider or needs a key.
 """
 
+import re
 import threading
 from collections.abc import Callable, Sequence
 from pathlib import Path
@@ -65,13 +66,21 @@ def app_with(indexed: tuple[Path, Config, str], *replies: LLMResponse | Exceptio
 
 
 def finish(client: TestClient, location: str) -> str:
+    page = None
     for _ in range(600):
         page = client.get(location)
         assert page.status_code == 200
         if 'http-equiv="refresh"' not in page.text:
             return page.text
         threading.Event().wait(0.05)
-    raise AssertionError("the question was not answered")
+    # This test failed about once in nine full runs: say what the page last showed.
+    raise AssertionError(f"not answered within 30 s; the page said: {main_text(page.text)}")
+
+
+def main_text(html: str) -> str:
+    """The page's main content as plain text, for an assertion message."""
+    body = html.split("<main", 1)[-1]
+    return " ".join(re.sub(r"<[^>]+>", " ", body).split())[:1500]
 
 
 def ask(client: TestClient, base: str, question: str) -> str:
@@ -95,8 +104,9 @@ def test_a_question_is_answered_with_its_steps_and_checked_citations(
     assert location.startswith(f"{base}/ask/")
     page = finish(client, location)
 
+    assert "No answer." not in page, main_text(page)  # the run itself failed: say why
     assert "How do I install this?" in page
-    assert f'href="{base}/file?path=README.md#L3"' in page
+    assert f'href="{base}/file?path=README.md#L3"' in page, main_text(page)
     assert f'href="{base}/file?path=lib/util.py#L1"' in page
     assert "not a real place: no such file" in page
     assert "1 of 3 citations point at no real place" in page
