@@ -175,3 +175,29 @@ def test_answer_parts_cut_the_text_at_each_citation() -> None:
         CitationCheck(short, "a.py", 1, True), CitationCheck(long, "a.py", 12, False, "x")])
     parts = answer_parts(answer)
     assert [p.get("text") or p["cite"].line for p in parts] == ["see ", 12, " and ", 1, "."]
+
+
+def test_a_rate_limit_wait_is_shown_with_the_answer(indexed: tuple[Path, Config, str]) -> None:
+    from codeatlas.llm.errors import LLMTransientError
+
+    client, base = app_with(
+        indexed,
+        LLMTransientError("scripted", 429, "slow down", retry_after=0.2),
+        reply("Nothing to cite."),
+    )
+    page = finish(client, ask(client, base, "Anything?"))
+    assert "s waiting for rate limits)" in page
+    assert "1 model call," in page  # the refused request is not counted as a step
+
+
+def test_a_running_question_knows_it_is_waiting_for_a_rate_limit() -> None:
+    from codeatlas.web.asks import Question
+
+    question = Question("q1", "demo@0123456789ab", "Anything?", state="running")
+    assert question.waiting_now is None
+    question.record_wait(30.0, "groq openai/gpt-oss-20b")
+    now = question.waiting_now
+    assert now is not None and now["provider"] == "groq openai/gpt-oss-20b"
+    assert 29 < now["left"] <= 30
+    question.state = "done"
+    assert question.waiting_now is None and question.seconds_waited == 30.0

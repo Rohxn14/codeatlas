@@ -33,6 +33,7 @@ from codeatlas.impact.evaluate import all_test_files
 from codeatlas.impact.models import Change
 from codeatlas.indexer.intake import IntakeError, looks_like_url, parse_repo_url
 from codeatlas.indexer.pipeline.index import index_repository, load_report, report_path
+from codeatlas.llm.client import OnWait
 from codeatlas.models import Snapshot
 from codeatlas.store import GraphStore
 from codeatlas.web.asks import (
@@ -196,15 +197,16 @@ def create_app(
 
         return LLMClient.from_config()
 
-    def run_question(snapshot_id: str, text: str, on_step: OnStep) -> Answer:
+    def run_question(snapshot_id: str, text: str, on_step: OnStep, on_wait: OnWait) -> Answer:
         """One question, on its own thread and so with its own connection."""
         from codeatlas.agent.loop import ask
         from codeatlas.llm import LLMError
 
+        client = make_client()
+        client.on_wait = on_wait  # so the page can say when it waits for a rate limit
         with GraphStore(db_path) as store:
             try:
-                return ask(text, store, snapshot_id, make_client(), config=config,
-                           on_step=on_step)
+                return ask(text, store, snapshot_id, client, config=config, on_step=on_step)
             except LLMError as exc:  # the trajectory so far is already on disk
                 raise RuntimeError(f"the language model could not be reached: {exc}") from exc
 

@@ -22,13 +22,14 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from codeatlas.agent.loop import Answer, OnStep
+from codeatlas.llm.client import OnWait
 
 MAX_QUESTION_CHARS = 2000
 MAX_WAITING = 3  # one running and two waiting
 MAX_KEPT = 30
 
-# What a question runs: (snapshot id, question, on_step) -> the agent's answer.
-Work = Callable[[str, str, OnStep], Answer]
+# What a question runs: (snapshot id, question, on_step, on_wait) -> the agent's answer.
+Work = Callable[[str, str, OnStep, OnWait], Answer]
 
 
 class TooManyQuestions(Exception):
@@ -44,6 +45,8 @@ class Question:
     text: str
     state: str = "waiting"  # waiting, running, done, failed
     steps: list[dict[str, Any]] = field(default_factory=list)  # trajectory records so far
+    # Each time every model was rate limited: {"seconds", "provider", "until"}.
+    waits: list[dict[str, Any]] = field(default_factory=list)
     answer: Answer | None = None
     error: str = ""
     created: float = field(default_factory=time.monotonic)
@@ -59,6 +62,23 @@ class Question:
         if self.started is None:
             return 0.0
         return (self.finished or time.monotonic()) - self.started
+
+    def record_wait(self, seconds: float, provider: str) -> None:
+        """Called by the LLM client just before it waits out a rate limit."""
+        self.waits.append({"seconds": seconds, "provider": provider,
+                           "until": time.monotonic() + seconds})
+
+    @property
+    def waiting_now(self) -> dict[str, Any] | None:
+        """The wait in progress, with the seconds left, or None."""
+        if not self.waits or self.state != "running":
+            return None
+        left = self.waits[-1]["until"] - time.monotonic()
+        return {**self.waits[-1], "left": left} if left > 0 else None
+
+    @property
+    def seconds_waited(self) -> float:
+        return sum(w["seconds"] for w in self.waits)
 
     @property
     def tokens(self) -> tuple[int, int]:
@@ -110,7 +130,8 @@ class Questions:
         with self._turn:
             question.state, question.started = "running", time.monotonic()
             try:
-                answer = self._work(question.snapshot_id, question.text, question.steps.append)
+                answer = self._work(question.snapshot_id, question.text,
+                                    question.steps.append, question.record_wait)
             except Exception as exc:  # a question must end as "failed", never vanish
                 question.error = str(exc) or type(exc).__name__
                 question.finished = time.monotonic()
