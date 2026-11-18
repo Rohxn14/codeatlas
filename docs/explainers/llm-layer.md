@@ -67,11 +67,12 @@ Rejected: writing raw `httpx` calls for Groq (smaller, but duplicates what the S
 3. For each provider in order (default `groq`, then `gemini`):
    1. The first time, list its models. If the configured model is missing, switch to the newest one of the same family and log a warning.
    2. Skip it if it is **resting** after a rate limit (below).
-   3. On a **429** (rate limited): do not retry. Rest this provider for as long as it asked (`retry-after` header, or "try again in 7.66s" / `retryDelay: "34s"` in the error), or 60 s if it did not say, and move to the next provider.
-   4. On another `LLMTransientError` (5xx, timeout): try up to `max_tries` (3) times, sleeping `base·2^attempt + uniform(0, base)` (1–2 s, then 2–3 s) in between. `LLMRequestError` propagates immediately.
+   3. Skip it, and rest it until its minute resets, if the request will not fit: Groq's last answer said how many tokens are left this minute (`x-ratelimit-remaining-tokens`, reset in `x-ratelimit-reset-tokens`), and `estimate_tokens` (characters ÷ 4) says this request needs more. Sending it would only earn a 429.
+   4. On a **429** (rate limited): do not retry. Rest this provider for as long as it asked (`retry-after` header, or "try again in 7.66s" / `retryDelay: "34s"` in the error), or 60 s if it did not say, and move to the next provider.
+   5. On another `LLMTransientError` (5xx, timeout): try up to `max_tries` (3) times, sleeping `base·2^attempt + uniform(0, base)` (1–2 s, then 2–3 s) in between. `LLMRequestError` propagates immediately.
 4. If the only providers left are resting, wait until the first is free and try it again, as long as the request's total wait stays within `max_wait_seconds` (60). `on_wait(seconds, label)`, when set, is called before each wait so a page can show it.
 5. Otherwise raise `LLMUnavailableError` with each failure listed, including how long the next provider would have taken to be free.
-6. Store the answer in the cache (unless the mode is `off`) and append the usage line: provider, model, tokens, latency.
+6. Store the answer in the cache (unless the mode is `off`) and append the usage line: provider, model, tokens, latency, the estimate made before sending (`estimated_input_tokens`, to check the ÷ 4 rule against the real count), and Groq's `limits` (tokens left this minute, requests left today, when each resets). The usage log is where the real free-tier limits are measured.
 
 ### Sequence on a 429
 

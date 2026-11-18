@@ -239,3 +239,32 @@ def test_retired_model_is_resolved_again_after_a_404(script, tmp_path):
     reply = make_client([provider], tmp_path).chat(msgs())
     assert reply.text == "ok" and provider.model == "gemini-3.9-flash"
     assert s.chat_requests[1]["path"].endswith("/models/gemini-3.9-flash:generateContent")
+
+
+LIMITS = {"x-ratelimit-limit-tokens": "8000", "x-ratelimit-remaining-tokens": "100",
+          "x-ratelimit-reset-tokens": "30s", "x-ratelimit-limit-requests": "1000",
+          "x-ratelimit-remaining-requests": "999", "x-ratelimit-reset-requests": "1m26.4s"}
+
+
+def test_a_request_too_big_for_the_minute_left_skips_that_model(script, tmp_path):
+    g = script([(200, load("groq_text.json"), LIMITS), (200, load("groq_text.json"))],
+               models=load("groq_models.json"))
+    m = script([(200, load("gemini_text.json"))], models=load("gemini_models.json"))
+    clock = Clock()
+    client = make_client([groq(g), gemini(m)], tmp_path, clock=clock)
+    assert client.chat(msgs()).provider == "groq"  # Groq says: 100 tokens left for 30 s
+    big = [Message("user", "x" * 800)]  # about 200 tokens
+    assert client.chat(big).provider == "gemini"
+    assert len(g.chat_requests) == 1  # Groq was not asked: it would have said 429
+    clock.now += 30
+    assert client.chat([Message("user", "y" * 800)]).provider == "groq"
+
+
+def test_the_usage_log_keeps_the_limits_and_the_estimate(script, tmp_path):
+    g = script([(200, load("groq_text.json"), LIMITS)], models=load("groq_models.json"))
+    make_client([groq(g)], tmp_path).chat([Message("user", "z" * 400)])
+    line = json.loads((tmp_path / "llm_usage.jsonl").read_text(encoding="utf-8"))
+    assert line["estimated_input_tokens"] == 100
+    assert line["limits"] == {"limit_tokens": 8000.0, "remaining_tokens": 100.0,
+                              "reset_tokens": 30.0, "limit_requests": 1000.0,
+                              "remaining_requests": 999.0, "reset_requests": 86.4}

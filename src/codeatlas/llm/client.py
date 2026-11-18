@@ -73,6 +73,8 @@ class LLMClient:
         # Keyed by position in `providers`: two providers can share a name (two Groq
         # models), and each has its own limits.
         self._rest_until: dict[int, float] = {}
+        # (tokens left this minute, when the minute resets), from a provider's last answer.
+        self._budget: dict[int, tuple[float, float]] = {}
         self._resolved: set[int] = set()
         self._re_resolved: set[int] = set()
 
@@ -131,12 +133,17 @@ class LLMClient:
         failures: list[str] = []
         done: set[int] = set()  # failed this request for a reason other than a rate limit
         waited = 0.0
+        estimate = estimate_tokens(messages, tools)
         while True:
             for index, provider in enumerate(self.providers):
                 if index in done or self._resting_for(index) > 0:
                     continue
+                if self._does_not_fit(index, estimate):
+                    failures.append(f"{_label(provider)}: about {estimate} tokens do not fit "
+                                    f"in what is left of its minute")
+                    continue
                 response = self._try_provider(index, provider, messages, tools, temperature,
-                                              max_tokens, failures, done)
+                                              max_tokens, failures, done, estimate)
                 if response is not None:
                     return response
             resting = [i for i in range(len(self.providers))
@@ -167,6 +174,7 @@ class LLMClient:
         max_tokens: int | None,
         failures: list[str],
         done: set[int],
+        estimate: int = 0,
     ) -> LLMResponse | None:
         """One provider's tries for one request: the answer, or None to move on."""
         self._resolve_once(index, provider)
@@ -201,12 +209,34 @@ class LLMClient:
                 if attempt < self.max_tries:
                     self._sleep(self._backoff(attempt - 1))
                 continue
-            self._log_usage(response, time.monotonic() - started)
+            limits = dict(getattr(provider, "last_limits", None) or {})
+            self._remember_budget(index, limits)
+            self._log_usage(response, time.monotonic() - started, limits, estimate)
             return response
         log.warning("%s gave up after %d tries; trying the next provider",
                     _label(provider), self.max_tries)
         done.add(index)
         return None
+
+    def _remember_budget(self, index: int, limits: dict[str, float]) -> None:
+        if "remaining_tokens" in limits and "reset_tokens" in limits:
+            self._budget[index] = (limits["remaining_tokens"],
+                                   self._clock() + limits["reset_tokens"])
+
+    def _does_not_fit(self, index: int, estimate: int) -> bool:
+        """True, and the provider rests until its minute resets, when the request is too big.
+
+        Asking anyway would only earn a 429; a request bigger than a whole minute's budget
+        (a fresh minute) is still sent, since nothing better can happen by waiting.
+        """
+        remaining, reset_at = self._budget.get(index, (float("inf"), 0.0))
+        if self._clock() >= reset_at or estimate <= remaining:
+            return False
+        self._rest_until[index] = reset_at
+        log.warning("%s: about %d tokens do not fit in the %d left this minute; resting it "
+                    "%.1f s", _label(self.providers[index]), estimate, remaining,
+                    reset_at - self._clock())
+        return True
 
     def _resting_for(self, index: int) -> float:
         """Seconds until provider `index` may be asked again; 0 when it is not resting."""
@@ -235,7 +265,8 @@ class LLMClient:
         resolve_model(provider)
         return provider.model != before
 
-    def _log_usage(self, response: LLMResponse, seconds: float) -> None:
+    def _log_usage(self, response: LLMResponse, seconds: float,
+                   limits: dict[str, float] | None = None, estimate: int = 0) -> None:
         if self.usage_log is None:
             return
         record = {
@@ -246,10 +277,27 @@ class LLMClient:
             "output_tokens": response.output_tokens,
             "latency_ms": round(seconds * 1000),
             "namespace": self.namespace,
+            # The guess made before sending, to measure how good `estimate_tokens` is.
+            "estimated_input_tokens": estimate,
         }
+        if limits:
+            record["limits"] = limits
         self.usage_log.parent.mkdir(parents=True, exist_ok=True)
         with self.usage_log.open("a", encoding="utf-8") as handle:
             handle.write(json.dumps(record) + "\n")
+
+
+def estimate_tokens(messages: Sequence[Message], tools: Sequence[ToolSpec] | None) -> int:
+    """A rough count of a request's input tokens: its characters divided by four.
+
+    Only used to avoid sending a request a provider's minute cannot fit; the usage log
+    keeps the estimate beside the real count so the ratio can be checked.
+    """
+    chars = sum(len(m.content or "") + len(json.dumps([c.to_dict() for c in m.tool_calls]))
+                for m in messages)
+    if tools:
+        chars += len(json.dumps([[t.name, t.description, t.parameters] for t in tools]))
+    return chars // 4
 
 
 def _label(provider: Provider) -> str:
