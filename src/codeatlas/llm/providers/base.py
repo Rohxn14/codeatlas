@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import re
 from collections.abc import Mapping, Sequence
@@ -56,10 +57,33 @@ def retry_after_seconds(headers: Mapping[str, str] | None, text: str) -> float |
         if seconds >= 0:
             return seconds
     match = _WAIT_IN_TEXT.search(text)
-    if match is None:
+    return None if match is None else duration_seconds(match.group(1))
+
+
+def duration_seconds(text: str) -> float | None:
+    """`7.66s`, `1m2.5s`, `250ms` or `2h3m` in seconds; None when it is not a duration."""
+    parts = _DURATION_PART.findall(text.strip())
+    if not parts or "".join(n + u for n, u in parts) != text.strip():
         return None
     units = {"h": 3600.0, "m": 60.0, "s": 1.0, "ms": 0.001}
-    return sum(float(n) * units[u] for n, u in _DURATION_PART.findall(match.group(1)))
+    return sum(float(n) * units[u] for n, u in parts)
+
+
+def rate_limits(headers: Mapping[str, str]) -> dict[str, float]:
+    """Groq's `x-ratelimit-*` headers: what is left of this minute's tokens and today's requests.
+
+    Keys (each only when sent): `limit_tokens`, `remaining_tokens`, `reset_tokens` (seconds),
+    `limit_requests`, `remaining_requests`, `reset_requests` (seconds).
+    """
+    out: dict[str, float] = {}
+    for kind in ("tokens", "requests"):
+        for field in ("limit", "remaining"):
+            with contextlib.suppress(KeyError, ValueError):  # a missing or odd header
+                out[f"{field}_{kind}"] = float(headers[f"x-ratelimit-{field}-{kind}"])
+        reset = duration_seconds(headers.get(f"x-ratelimit-reset-{kind}", ""))
+        if reset is not None:
+            out[f"reset_{kind}"] = reset
+    return out
 
 
 _DURATION = r"(?:\d+(?:\.\d+)?(?:h|ms|m|s))+"

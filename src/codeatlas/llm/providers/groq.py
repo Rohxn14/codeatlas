@@ -11,7 +11,12 @@ import groq
 import httpx
 
 from codeatlas.llm.errors import LLMEmptyResponseError, LLMRequestError, LLMTransientError
-from codeatlas.llm.providers.base import PLACEHOLDER_KEY, ModelInfo, retry_after_seconds
+from codeatlas.llm.providers.base import (
+    PLACEHOLDER_KEY,
+    ModelInfo,
+    rate_limits,
+    retry_after_seconds,
+)
 from codeatlas.llm.types import LLMResponse, Message, ToolCall, ToolSpec
 
 
@@ -34,6 +39,9 @@ class GroqProvider:
     ) -> None:
         self.model = model
         self.reasoning_effort = reasoning_effort
+        # The `x-ratelimit-*` headers of the last answer (see `rate_limits`); the client
+        # reads them to avoid sending a request this model's minute cannot fit.
+        self.last_limits: dict[str, float] = {}
         self._client = groq.Groq(
             api_key=api_key or os.environ.get("GROQ_API_KEY") or PLACEHOLDER_KEY,
             timeout=timeout,
@@ -60,9 +68,11 @@ class GroqProvider:
         if self.reasoning_effort:  # gpt-oss models accept low, medium or high
             kwargs["reasoning_effort"] = self.reasoning_effort
         try:
-            completion = self._client.chat.completions.create(**kwargs)
+            raw = self._client.chat.completions.with_raw_response.create(**kwargs)
+            completion = raw.parse()
         except groq.APIError as exc:
             raise _translate(exc) from exc
+        self.last_limits = rate_limits(raw.headers)
         return from_groq_completion(completion.model_dump(), self.model)
 
     def list_models(self) -> list[ModelInfo]:
