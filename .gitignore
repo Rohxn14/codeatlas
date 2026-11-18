@@ -27,3 +27,14 @@ build/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Working notes kept on the owner's machine only, not published
+CLAUDE.md
+.claude/
+docs/decisions.md
+docs/checkpoints.md
+docs/learning-log.md
+docs/roadmap.md
+docs/tasks/
+docs/plans/
+docs/history/

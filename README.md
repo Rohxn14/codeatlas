@@ -14,7 +14,7 @@ node with its language, its tier and the reason.
 
 **Status (Nov 2026):** v1 works end to end and is measured on 47 public repositories.
 Next: an impact engine v2 and a free public demo that replays recorded agent runs instead
-of calling a live model. See [docs/roadmap.md](docs/roadmap.md).
+of calling a live model.
 
 ## Install
 
@@ -229,8 +229,7 @@ python -m eval.suite --only click  # one repository of the acceptance suite
 ```
 
 CI runs lint and tests on Linux and Windows, Python 3.11 and 3.12, for every push and
-pull request. Work goes through a branch and a pull request; `CLAUDE.md` has the rules
-Claude Code follows in this repository.
+pull request. Work goes through a branch and a pull request.
 
 ## Learn how it works
 
@@ -239,5 +238,4 @@ read the modules in (following one repository through the system), how to study 
 module, a glossary, and one build traced through the code.
 
 Each module has an explainer in [docs/explainers/](docs/explainers/) (What, Why, How with
-a worked example, Where). The shared types are in [docs/contract.md](docs/contract.md),
-every design decision and its reason in [docs/decisions.md](docs/decisions.md).
+a worked example, Where). The shared types are in [docs/contract.md](docs/contract.md).
