@@ -6,7 +6,7 @@ import json
 import re
 import time
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -23,6 +23,15 @@ _PLACE = r":[^\s:`'\"()\[\]<>,;]+:\d+"
 # can show the steps while the answer is still being made.
 OnStep = Callable[[dict[str, Any]], None]
 LIMIT_NOTE = "(Step limit of {n} reached: this answer uses only what was found so far.)"
+# Every request re-sends the whole conversation, so tool results pile up: on one real
+# question (Nov 18) the input grew from 1,841 to 7,660 tokens over nine steps. The model
+# sees the results of the last FULL_RESULT_STEPS steps in full and older ones cut to
+# OLD_RESULT_CHARS (about a third fewer tokens on that question). The trajectory keeps
+# every result whole.
+FULL_RESULT_STEPS = 2
+OLD_RESULT_CHARS = 400
+SHORTENED_NOTE = ("\n[older result shortened from {n} characters; call the tool again "
+                  "to see all of it]")
 LIMIT_PROMPT = (
     "The step limit is reached. Answer now with what you know, without calling tools, and "
     "say that the step limit was hit."
@@ -139,7 +148,7 @@ def _no_step(record: dict[str, Any]) -> None:
 def _run(messages: list[Message], tools: ToolSet, client: LLMClient, max_steps: int,
          answer: Answer, log: list[dict[str, Any]], on_step: OnStep) -> None:
     for step in range(1, max_steps + 1):
-        response, seconds = _timed_chat(client, messages, tools.specs)
+        response, seconds = _timed_chat(client, _for_model(messages), tools.specs)
         answer.steps = step
         answer.input_tokens += response.input_tokens
         answer.output_tokens += response.output_tokens
@@ -169,7 +178,7 @@ def _finish_at_limit(messages: list[Message], client: LLMClient, max_steps: int,
                      answer: Answer, log: list[dict[str, Any]]) -> None:
     """One last call without tools, so the user gets what is known and is told the limit hit."""
     messages.append(Message("user", LIMIT_PROMPT))
-    response, seconds = _timed_chat(client, messages, None)
+    response, seconds = _timed_chat(client, _for_model(messages), None)
     answer.steps += 1
     answer.input_tokens += response.input_tokens
     answer.output_tokens += response.output_tokens
@@ -178,6 +187,21 @@ def _finish_at_limit(messages: list[Message], client: LLMClient, max_steps: int,
     record = _step_record(answer.steps, response, seconds)
     record.update({"final": True, "limit_hit": True})
     log.append(record)
+
+
+def _for_model(messages: list[Message]) -> list[Message]:
+    """The conversation as sent: tool results older than the last steps cut short."""
+    turns = [i for i, m in enumerate(messages) if m.role == "assistant"]
+    if len(turns) <= FULL_RESULT_STEPS:
+        return messages
+    keep_from = turns[-FULL_RESULT_STEPS]
+    sent = []
+    for i, message in enumerate(messages):
+        if i < keep_from and message.role == "tool" and len(message.content) > OLD_RESULT_CHARS:
+            message = replace(message, content=message.content[:OLD_RESULT_CHARS]
+                              + SHORTENED_NOTE.format(n=len(message.content)))
+        sent.append(message)
+    return sent
 
 
 def _timed_chat(client: LLMClient, messages: list[Message], specs: Any) -> tuple[Any, float]:
