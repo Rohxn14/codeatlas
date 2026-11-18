@@ -66,9 +66,12 @@ Rejected: writing raw `httpx` calls for Groq (smaller, but duplicates what the S
 2. If caching is on, look the key up. On a hit, return it with `cached=True`. On a miss in `replay_only` mode, raise `CacheMissError`.
 3. For each provider in order (default `groq`, then `gemini`):
    1. The first time, list its models. If the configured model is missing, switch to the newest one of the same family and log a warning.
-   2. Try up to `max_tries` (3) times. On `LLMTransientError`, sleep `base·2^attempt + uniform(0, base)` (1–2 s, then 2–3 s) and try again. There is no sleep after the last try. `LLMRequestError` propagates immediately.
-4. If every provider fails, raise `LLMUnavailableError` with each failure listed.
-5. Store the answer in the cache (unless the mode is `off`) and append the usage line: provider, model, tokens, latency.
+   2. Skip it if it is **resting** after a rate limit (below).
+   3. On a **429** (rate limited): do not retry. Rest this provider for as long as it asked (`retry-after` header, or "try again in 7.66s" / `retryDelay: "34s"` in the error), or 60 s if it did not say, and move to the next provider.
+   4. On another `LLMTransientError` (5xx, timeout): try up to `max_tries` (3) times, sleeping `base·2^attempt + uniform(0, base)` (1–2 s, then 2–3 s) in between. `LLMRequestError` propagates immediately.
+4. If the only providers left are resting, wait until the first is free and try it again, as long as the request's total wait stays within `max_wait_seconds` (60). `on_wait(seconds, label)`, when set, is called before each wait so a page can show it.
+5. Otherwise raise `LLMUnavailableError` with each failure listed, including how long the next provider would have taken to be free.
+6. Store the answer in the cache (unless the mode is `off`) and append the usage line: provider, model, tokens, latency.
 
 ### Sequence on a 429
 
@@ -77,19 +80,19 @@ caller            LLMClient                Groq               Gemini
   | chat(msgs) ---> |                         |                   |
   |                 | cache lookup: miss      |                   |
   |                 | GET /models (first use) |                   |
-  |                 | POST chat --------------> 429 rate limit    |
-  |                 | sleep ~1.4 s            |                   |
-  |                 | POST chat --------------> 429               |
-  |                 | sleep ~2.7 s            |                   |
-  |                 | POST chat --------------> 429               |
-  |                 | Groq gave up (3 tries), no sleep            |
+  |                 | POST chat --------------> 429, "try again in 7.66s"
+  |                 | Groq rests until now + 7.66 s               |
   |                 | GET /models (first use) ------------------->|
   |                 | POST generateContent ---------------------->| 200
   |                 | cache put, usage line   |                   |
   | <-- LLMResponse(provider="gemini", cached=False)              |
+  | chat(next) ---> | Groq is resting: skipped, no request        |
+  |                 | POST generateContent ---------------------->| 200
 ```
 
-If Groq's second try had returned 200, the caller would get Groq's answer after a single sleep, and Gemini would never be contacted.
+Why not retry a 429 the way a 5xx is retried: free tiers limit tokens per minute, so a 429 does not lift in one or two seconds. Before this change (Nov 18) one agent question sent Groq 13 requests that were all refused: three quick tries per step, and every new step started with Groq again. The 429 was measured, not guessed: each step's input grew from 1,841 to 7,660 tokens, and three steps in three seconds used about 7,200 of the minute's budget.
+
+Providers are kept apart by their position in the list, not their name, so two models of one provider (Groq 20b and 120b) rest separately: each has its own limits.
 
 ### Worked example: model family
 
@@ -121,13 +124,14 @@ gemini_thinking_level = "low"  # "" | minimal | low | medium | high
 groq_reasoning_effort = "low"  # "" | low | medium | high
 timeout_seconds = 30
 max_tries = 3
+max_wait_seconds = 60         # longest wait per request when every provider is rate limited
 cache = "read_write"          # off | read_write | replay_only
 cache_namespace = "default"
 embedding_model = "BAAI/bge-small-en-v1.5"
 embedding_batch_size = 64
 ```
 
-Environment variables override these: `CODEATLAS_LLM_PROVIDERS` (comma-separated), `CODEATLAS_GROQ_MODEL`, `CODEATLAS_GEMINI_MODEL`, `CODEATLAS_GEMINI_THINKING`, `CODEATLAS_GROQ_REASONING`, `CODEATLAS_LLM_TIMEOUT`, `CODEATLAS_LLM_CACHE`, `CODEATLAS_LLM_NAMESPACE`, `CODEATLAS_EMBEDDING_MODEL`. Keys come from `GROQ_API_KEY` and `GEMINI_API_KEY` when set. Files go under `[paths] data_dir`: `llm_cache.sqlite` and `llm_usage.jsonl`.
+Environment variables override these: `CODEATLAS_LLM_PROVIDERS` (comma-separated), `CODEATLAS_GROQ_MODEL`, `CODEATLAS_GEMINI_MODEL`, `CODEATLAS_GEMINI_THINKING`, `CODEATLAS_GROQ_REASONING`, `CODEATLAS_LLM_TIMEOUT`, `CODEATLAS_LLM_MAX_WAIT`, `CODEATLAS_LLM_CACHE`, `CODEATLAS_LLM_NAMESPACE`, `CODEATLAS_EMBEDDING_MODEL`. Keys come from `GROQ_API_KEY` and `GEMINI_API_KEY` when set. Files go under `[paths] data_dir`: `llm_cache.sqlite` and `llm_usage.jsonl`.
 
 ## Where
 

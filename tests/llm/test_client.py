@@ -29,26 +29,89 @@ def gemini(s):
     return GeminiProvider("gemini-3.8-flash", api_key="t", http_client=s.client())
 
 
-def make_client(providers, tmp_path, mode="read_write", sleeps=None):
+class Clock:
+    """A fake clock that the client's sleep moves forward, so tests never really wait."""
+
+    def __init__(self, sleeps=None):
+        self.now = 0.0
+        self.sleeps = sleeps if sleeps is not None else []
+
+    def __call__(self):
+        return self.now
+
+    def sleep(self, seconds):
+        self.sleeps.append(seconds)
+        self.now += seconds
+
+
+def make_client(providers, tmp_path, mode="read_write", sleeps=None, clock=None):
     cache = LLMCache(tmp_path / "llm_cache.sqlite")
+    clock = clock or Clock(sleeps)
     return LLMClient(
         providers,
         cache=cache,
         cache_mode=mode,
         usage_log=tmp_path / "llm_usage.jsonl",
-        sleep=(sleeps.append if sleeps is not None else lambda _s: None),
+        sleep=clock.sleep,
+        clock=clock,
         rng=random.Random(0),
     )
 
 
-def test_429_then_success_backs_off(script, tmp_path):
+def test_a_429_rests_the_provider_then_the_client_waits_for_it(script, tmp_path):
     s = script([(429, load("groq_rate_limit.json")), (200, load("groq_text.json"))],
                models=load("groq_models.json"))
     sleeps: list[float] = []
-    reply = make_client([groq(s)], tmp_path, sleeps=sleeps).chat(msgs())
+    client = make_client([groq(s)], tmp_path, sleeps=sleeps)
+    waits = []
+    client.on_wait = lambda seconds, label: waits.append((seconds, label))
+    reply = client.chat(msgs())
     assert reply.text == "ok" and reply.provider == "groq"
     assert len(s.chat_requests) == 2
-    assert len(sleeps) == 1 and 1.0 <= sleeps[0] < 2.0
+    assert sleeps == [60.0]  # no hint from the provider: rest a full minute, not 1-2 s
+    assert waits == [(60.0, "groq openai/gpt-oss-20b")]
+
+
+def test_a_429_moves_straight_to_the_next_provider_and_stays_resting(script, tmp_path):
+    g = script([(429, load("groq_rate_limit.json"), {"retry-after": "7"}),
+                (200, load("groq_text.json"))], models=load("groq_models.json"))
+    m = script([(200, load("gemini_text.json"))] * 2, models=load("gemini_models.json"))
+    clock = Clock()
+    client = make_client([groq(g), gemini(m)], tmp_path, clock=clock)
+    assert client.chat(msgs()).provider == "gemini"
+    assert clock.sleeps == []  # no retry and no wait: Gemini was free
+    # Within Groq's 7 s rest, the next request skips it without asking.
+    assert client.chat([Message("user", "again")]).provider == "gemini"
+    assert len(g.chat_requests) == 1
+    clock.now += 7
+    assert client.chat([Message("user", "later")]).provider == "groq"
+
+
+def test_a_wait_longer_than_the_limit_fails_and_says_why(script, tmp_path):
+    g = script([(429, load("groq_rate_limit.json"), {"retry-after": "3600"})],
+               models=load("groq_models.json"))
+    sleeps: list[float] = []
+    with pytest.raises(LLMUnavailableError, match="free again in 3600 s"):
+        make_client([groq(g)], tmp_path, sleeps=sleeps).chat(msgs())
+    assert sleeps == []
+
+
+def test_the_wait_is_read_from_the_message_when_there_is_no_header(script, tmp_path):
+    limited = {"error": {"code": 429, "status": "RESOURCE_EXHAUSTED",
+                         "message": "Quota exceeded. Please retry in 34.5s."}}
+    m = script([(429, limited), (200, load("gemini_text.json"))],
+               models=load("gemini_models.json"))
+    sleeps: list[float] = []
+    assert make_client([gemini(m)], tmp_path, sleeps=sleeps).chat(msgs()).provider == "gemini"
+    assert sleeps == [34.5]
+
+
+def test_two_models_of_one_provider_rest_separately(script, tmp_path):
+    small = script([(429, load("groq_rate_limit.json"))], models=load("groq_models.json"))
+    large = script([(200, load("groq_text.json"))], models=load("groq_models.json"))
+    bigger = GroqProvider("openai/gpt-oss-120b", api_key="t", http_client=large.client())
+    reply = make_client([groq(small), bigger], tmp_path).chat(msgs())
+    assert reply.text == "ok" and len(large.chat_requests) == 1
 
 
 def test_backoff_grows_exponentially(tmp_path):

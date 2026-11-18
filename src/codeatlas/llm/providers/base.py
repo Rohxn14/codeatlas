@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import re
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -40,6 +40,32 @@ class Provider(Protocol):
     ) -> LLMResponse: ...
 
     def list_models(self) -> list[ModelInfo]: ...
+
+
+def retry_after_seconds(headers: Mapping[str, str] | None, text: str) -> float | None:
+    """How long a rate-limited provider asked us to wait, or None if it did not say.
+
+    Groq sends a `retry-after` header in seconds and writes "try again in 7.66s" (or
+    "1m2.5s") in its message; Gemini writes `retryDelay: "34s"` or "retry in 34.5s".
+    """
+    if headers is not None:
+        try:
+            seconds = float(headers.get("retry-after", ""))
+        except ValueError:
+            seconds = -1.0
+        if seconds >= 0:
+            return seconds
+    match = _WAIT_IN_TEXT.search(text)
+    if match is None:
+        return None
+    units = {"h": 3600.0, "m": 60.0, "s": 1.0, "ms": 0.001}
+    return sum(float(n) * units[u] for n, u in _DURATION_PART.findall(match.group(1)))
+
+
+_DURATION = r"(?:\d+(?:\.\d+)?(?:h|ms|m|s))+"
+_WAIT_IN_TEXT = re.compile(
+    rf"(?:try again in|retry in|retryDelay['\"]?\s*:\s*['\"]?)\s*({_DURATION})", re.IGNORECASE)
+_DURATION_PART = re.compile(r"(\d+(?:\.\d+)?)(h|ms|m|s)")
 
 
 def model_family(model_id: str) -> str:
