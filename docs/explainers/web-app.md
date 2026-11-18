@@ -614,6 +614,11 @@ calls and tokens it took, how long, and which provider and model answered.
   which outlives the server. Rejected for now: a table in the database.
 - **One question at a time.** The free tiers limit tokens per minute; two answers made
   together would both run into the limit. At most three wait.
+- **Rate-limit waits are shown.** When every model is resting after a 429, the LLM
+  client waits (D-46) and calls `on_wait`; the question records it (`Question.waits`).
+  While it lasts, the page says which model it waits for and how many seconds are left;
+  once answered, the summary says how much of the time was waiting. Without this, a
+  minute's wait would look like a hang.
 - **No key, no form.** Without `GROQ_API_KEY` or `GEMINI_API_KEY` in the environment,
   the page says to put one in `.env` (D-45) instead of offering a box that would
   fail. It never suggests typing a key into a terminal: Windows PowerShell 5.1
