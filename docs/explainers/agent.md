@@ -78,6 +78,16 @@ recently indexed snapshot.
 2. Send `[system, user question]` with the tool specs to `LLMClient.chat`.
 3. If the response has tool calls, run each, append an `assistant` message (with its calls)
    and one `tool` message per result, and go to 2. If it has none, that text is the answer.
+   **What the model is sent** (`_for_model`, since Nov 18): results of the last two steps
+   in full, older results cut to 400 characters with a note saying how long they were and
+   that the tool can be called again. The conversation the loop keeps, and so the
+   trajectory, holds every result whole. Why: each request re-sends everything, so on a
+   real nine-step question the input grew from 1,841 to 7,660 tokens per request (42,909
+   in all) and ran into Groq's per-minute limit. Replayed on that trajectory, the cut
+   gives about 29,200 tokens (32% fewer) and a largest request of about 4,700. Rejected:
+   keeping only the last step (40% fewer, but the model would lose the step before
+   while it is still comparing two results); dropping old results entirely (it could
+   not even see what it had looked at). Not yet measured: whether answers get worse.
 4. After `max_steps` (20) model calls without an answer, make one last call **without
    tools** that says the limit is reached, and append a note to the answer
    (`limit_hit=True`). That closing call is counted as a step.
@@ -108,7 +118,7 @@ step 5  2595 in / 70 out  search_symbols {name: "create_user", kind: "function"}
 step 6  2826 in / 43 out  get_symbol_source {key: "backend/routes.py::create_user"}             -> 453 chars
 ```
 
-Input tokens grow each step because the whole conversation is sent again. Note the
+Input tokens grow each step because the whole conversation is sent again (older results are now cut short, step 3 above). Note the
 agent asked `find_callers` first and then fell back to text search, because the
 Python/TypeScript resolvers (T06, T07) were not merged, so the fixture had no CALLS edges.
 

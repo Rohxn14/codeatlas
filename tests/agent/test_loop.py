@@ -130,3 +130,34 @@ def test_a_snapshot_id_with_a_space_is_cited_whole():
     text = f"See ({sid}:src/a.py:3), and other@0ba557abfca8:b.py:9."
     found = [m.group(0) for m in citation_pattern(sid).finditer(text)]
     assert found == [f"{sid}:src/a.py:3", "other@0ba557abfca8:b.py:9"]
+
+
+def test_old_tool_results_are_cut_short_for_the_model_only() -> None:
+    from codeatlas.agent.loop import OLD_RESULT_CHARS, _for_model
+    from codeatlas.llm import Message
+
+    long = "x" * 1000
+    messages = [Message("system", "s"), Message("user", "q")]
+    for n in range(1, 4):  # three steps, each with one long tool result
+        messages += [Message("assistant", "", tool_calls=(call(str(n), "t"),)),
+                     Message("tool", long, tool_call_id=str(n))]
+    sent = _for_model(messages)
+    assert sent[3].content.startswith("x" * OLD_RESULT_CHARS)
+    assert sent[3].content.endswith("[older result shortened from 1000 characters; "
+                                    "call the tool again to see all of it]")
+    assert sent[5].content == long and sent[7].content == long  # the last two steps whole
+    assert messages[3].content == long  # the conversation itself (and so the trajectory) keeps it
+    assert _for_model(messages[:6]) == messages[:6]  # two steps: nothing to cut
+
+
+def test_the_model_is_sent_the_shortened_conversation(store, tmp_path):
+    client, provider = make_client(
+        reply(calls=[call("1", "search_symbols", name="create")]),
+        reply(calls=[call("2", "search_symbols", name="save")]),
+        reply(calls=[call("3", "search_symbols", name="rename")]),
+        reply("Done."),
+    )
+    ask("what is here?", store, SNAP, client, data_dir=tmp_path)
+    last = provider.requests[3]
+    assert [m.role for m in last].count("tool") == 3
+    assert last[5].content == provider.requests[2][5].content  # step 2 still whole at step 4
