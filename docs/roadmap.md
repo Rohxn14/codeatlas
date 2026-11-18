@@ -88,6 +88,24 @@ Open questions for you:
 - Static site (cheapest, no server) or a small server (live search and impact)?
 - How the recordings stay in sync with the code: a script that re-records them when the agent or tools change.
 
+## Last step: production on AWS (to discuss)
+
+Added Nov 18 at the owner's request, as the final step of the project, after the agent
+process is right and the UI has had its round. Preferably on a free tier. Nothing is
+decided yet; these are the questions to settle when we get there:
+
+- **What runs in production:** the whole app, or the public demo described above? The
+  two can be the same server.
+- **Keys and live answers.** The rules today say no keys on a server and no live model
+  call a public visitor can trigger. Hosting Ask live would mean changing that on
+  purpose: who may ask, a budget, and abuse limits. Replay-only keeps the rule as it is.
+- **Which AWS service:** for example Lightsail or EC2 (one small server), App Runner
+  (containers), or S3 with CloudFront if the demo becomes a static site.
+- **Free tier terms.** Check them at the time: AWS changed the free tier for accounts
+  created after July 15, 2025 (credits for a limited period, not twelve free months).
+- **Data:** the SQLite index file on the server's disk, built at deploy time.
+- **Deploying:** from GitHub Actions on a merge to `main`, with a health check.
+
 ## Suggested first week, hands-on
 
 1. Set up locally (README, "Develop"), run the tests, index the fixture, open the viewer.
