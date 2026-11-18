@@ -11,12 +11,22 @@
 
 {% if keys_missing %}
 <div class="notice">
-  <p><strong>No language model key is set.</strong> Stop the app (Ctrl+C), set a key in
-  the same terminal, and start it again. The key stays in that terminal: CodeAtlas never
+  <p><strong>No language model key is set.</strong> CodeAtlas reads
+  <code>GROQ_API_KEY</code> from the environment, and <code>GEMINI_API_KEY</code> too if
+  you have one (it is used when Groq fails). It checks that a key is there; it never
   shows it or writes it down.</p>
-<pre class="signature">$env:GROQ_API_KEY = "your Groq key"
-$env:GEMINI_API_KEY = "your Gemini key"   # optional: used when Groq fails
-codeatlas serve</pre>
+  <p>Do not type a key into a terminal: PowerShell saves every line you type in a history
+  file. Set it as a Windows environment variable instead:</p>
+  <ol>
+    <li>Open the Start menu and search for <em>Edit environment variables for your
+      account</em>.</li>
+    <li>Under <em>User variables</em>, choose <em>New</em>. Name: <code>GROQ_API_KEY</code>.
+      Value: paste the key. Choose OK, and OK again.</li>
+    <li>Close every VS Code and terminal window, then open a new one and start the app
+      again. A program only sees the variables that existed when it started.</li>
+  </ol>
+  <p class="muted">On Linux or macOS, set the variable where your login shell sets its
+    environment.</p>
 </div>
 {% else %}
 <form method="post" action="{{ base }}/ask" class="ask-form">

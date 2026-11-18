@@ -40,9 +40,10 @@ conversation so far. That is why both earlier documented runs ran out (D1, D2).
 - **Only the local app calls a model.** When the app is read-only (another host, or
   `--read-only`), the Ask box is not shown and the route refuses. A public demo will
   only replay recorded answers; that is later, with deployment.
-- **Keys stay in your shell.** The page says which key is missing and how to set it
-  (`$env:GROQ_API_KEY = "..."` in PowerShell, before `codeatlas serve`). It never shows,
-  logs or stores a key.
+- **Keys stay in the environment.** The page says which key is missing and how to set
+  it as a Windows user environment variable (changed on Nov 18: typing
+  `$env:GROQ_API_KEY = "..."` would leave the key in PowerShell's history file). It
+  never shows, logs or stores a key.
 - **No silent gaps.** A step-limit stop, a rate-limit failure, a cut tool result and an
   invalid citation are each said on the page.
 

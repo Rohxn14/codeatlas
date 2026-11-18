@@ -615,8 +615,11 @@ calls and tokens it took, how long, and which provider and model answered.
 - **One question at a time.** The free tiers limit tokens per minute; two answers made
   together would both run into the limit. At most three wait.
 - **No key, no form.** Without `GROQ_API_KEY` or `GEMINI_API_KEY` in the environment,
-  the page says how to set one in PowerShell instead of offering a box that would
-  fail. The app only checks that a key is present; it never reads its value.
+  the page says how to set one as a Windows user environment variable instead of
+  offering a box that would fail. It never suggests typing a key into a terminal:
+  Windows PowerShell 5.1 (PSReadLine 2.0) saves every typed line in a plain-text history
+  file. The page's check only tests that a key is present; only the provider reads its
+  value, to send it to Groq or Gemini.
 - **"All citations are real" is not "the answer is right".** The check proves the file
   and line exist in this snapshot, and the page says exactly that.
 
