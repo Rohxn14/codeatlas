@@ -11,6 +11,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from codeatlas.agent.leads import leads_text, look_up
 from codeatlas.agent.prompts import system_prompt
 from codeatlas.agent.tools import ToolSet
 from codeatlas.config import Config
@@ -186,14 +187,19 @@ def ask(
     config = config or Config()
     tools = ToolSet(store, snapshot_id, config)
     snapshot = tools.context.snapshot
+    leads = look_up(question, tools)  # the symbols the question names, found before step 1
     messages = [
         Message("system", system_prompt(store, snapshot, tools.specs)),
-        Message("user", question),
+        Message("user", question + leads_text(leads)),
     ]
+    first: dict[str, Any] = {"question": question}  # what step 1's record also holds
+    if leads:
+        first["leads"] = [{"name": lead["name"], "keys": [s["key"] for s in lead["symbols"]],
+                           "more": lead["more"]} for lead in leads]
     answer = Answer(text="")
     log: list[dict[str, Any]] = []
     try:
-        _run(messages, tools, client, max_steps, answer, log, on_step or _no_step)
+        _run(messages, tools, client, max_steps, answer, log, on_step or _no_step, first)
         answer.citations = check_citations(answer.text, tools)
         if log:
             log[-1]["invalid_citations"] = [c.text for c in answer.invalid_citations]
@@ -208,7 +214,8 @@ def _no_step(record: dict[str, Any]) -> None:
 
 
 def _run(messages: list[Message], tools: ToolSet, client: LLMClient, max_steps: int,
-         answer: Answer, log: list[dict[str, Any]], on_step: OnStep) -> None:
+         answer: Answer, log: list[dict[str, Any]], on_step: OnStep,
+         first: dict[str, Any]) -> None:
     made: dict[str, tuple[int, str]] = {}  # each call so far -> (step shown whole, result)
     for step in range(1, max_steps + 1):
         response, seconds = _timed_chat(client, _for_model(messages), tools.specs)
@@ -218,7 +225,7 @@ def _run(messages: list[Message], tools: ToolSet, client: LLMClient, max_steps: 
         messages.append(Message("assistant", response.text, tool_calls=response.tool_calls))
         record = _step_record(step, response, seconds)
         if step == 1:
-            record["question"] = messages[1].content
+            record.update(first)
         log.append(record)
         if not response.tool_calls:
             answer.text = response.text
