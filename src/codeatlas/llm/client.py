@@ -33,6 +33,8 @@ log = logging.getLogger(__name__)
 # How long a rate-limited provider rests when it does not say. Free tiers count tokens
 # per minute, so a minute is the longest a per-minute limit can last.
 DEFAULT_REST = 60.0
+# The shortest rest, even when a provider says "try again in 0s".
+MIN_REST = 1.0
 
 # Called with (seconds, provider label) just before the client waits for a rate limit.
 OnWait = Callable[[float, str], None]
@@ -146,11 +148,16 @@ class LLMClient:
                                               max_tokens, failures, done, estimate)
                 if response is not None:
                     return response
-            resting = [i for i in range(len(self.providers))
-                       if i not in done and self._resting_for(i) > 0]
-            if not resting:
+            # Every provider not ruled out is still a candidate, including one whose rest
+            # ended while this pass tried the others (a slow provider's retries can outlast
+            # a rest): then the wait is 0 and the next pass tries it at once.
+            left = [i for i in range(len(self.providers)) if i not in done]
+            if not left:
                 break
-            wait = min(self._resting_for(i) for i in resting)
+            wait = min(self._resting_for(i) for i in left)
+            if wait == 0:
+                continue
+            resting = [i for i in left if self._resting_for(i) > 0]
             if waited + wait > self.max_wait_seconds:
                 failures.append(f"still rate limited: the first provider is free again in "
                                 f"{wait:.0f} s, beyond the {self.max_wait_seconds:.0f} s "
@@ -199,6 +206,7 @@ class LLMClient:
                     # A rate limit does not lift in a second or two: retrying at once only
                     # earns more 429s. Rest this provider and move on.
                     rest = exc.retry_after if exc.retry_after is not None else DEFAULT_REST
+                    rest = max(rest, MIN_REST)  # never retry in a tight loop
                     self._rest_until[index] = self._clock() + rest
                     log.warning("%s is rate limited; resting it for %.1f s",
                                 _label(provider), rest)
