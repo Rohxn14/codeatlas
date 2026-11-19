@@ -132,6 +132,15 @@ recently indexed snapshot.
    note, and an earlier wording ("use other arguments") led it to drop `limit` so the
    call counted as new; the wording now asks it to work from the result. Most of the
    repeats were of results the cut above had shortened.
+   **Going round stops the tool calls** (since Nov 19). 20b ignores the note: with the
+   leads of step 2 it still asked for one test search eight times in one question,
+   seven of them with the result in plain view. So after the third repeat of a result
+   still in view (`MAX_IN_VIEW_REPEATS`; re-fetches of shortened results do not
+   count), the next request offers no tools and asks for the answer
+   (`REPEATS_PROMPT`), the way the step limit does. The answer ends with
+   `REPEATS_NOTE` ("Stopped early: the model kept asking for results it already
+   had..."), and the last trajectory line holds `"stopped": "repeats"`. On that
+   question it would have answered at step 6 instead of 12.
 5. After `max_steps` (20) model calls without an answer, make one last call **without
    tools** that says the limit is reached, and append a note to the answer
    (`limit_hit=True`). That closing call is counted as a step.
