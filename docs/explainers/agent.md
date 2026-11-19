@@ -81,15 +81,23 @@ recently indexed snapshot.
 3. If the response has tool calls, run each, append an `assistant` message (with its calls)
    and one `tool` message per result, and go to 2. If it has none, that text is the answer.
    **What the model is sent** (`_for_model`, since Nov 18): results of the last two steps
-   in full, older results cut to 400 characters with a note saying how long they were and
-   that the tool can be called again. The conversation the loop keeps, and so the
-   trajectory, holds every result whole. Why: each request re-sends everything, so on a
-   real nine-step question the input grew from 1,841 to 7,660 tokens per request (42,909
-   in all) and ran into Groq's per-minute limit. Replayed on that trajectory, the cut
-   gives about 29,200 tokens (32% fewer) and a largest request of about 4,700. Rejected:
-   keeping only the last step (40% fewer, but the model would lose the step before
-   while it is still comparing two results); dropping old results entirely (it could
-   not even see what it had looked at). Not yet measured: whether answers get worse.
+   whole. An older result longer than 400 characters is sent as **the places it named**
+   (`_shortened`, since Nov 19): every `qualname citation` in it, plus `query`,
+   `direction`, `depth`, `total` and `truncated`, and a note saying how long it was.
+   Signatures, source and text go. Example: the real `find_callers` result for
+   `contracts.validate` (4,003 characters) becomes 991: the function and its nine
+   callers, each as `build_gold PitwallOS@fa92551d9393:src/pipeline/feature_store.py:215`. A result that names no places keeps its first 400 characters and a note that
+   the tool can be called again, and nothing is shortened into something longer than
+   itself. The conversation the loop keeps, and so the trajectory, holds every result
+   whole. Why shorten at all: each request re-sends everything, so on a real nine-step
+   question the input grew from 1,841 to 7,660 tokens per request (42,909 in all) and ran
+   into Groq's per-minute limit. Why the places and not the first 400 characters (the
+   first version, D-49): on Nov 19 that cut hid `build_gold`, the third of nine callers of
+   `contracts.validate`, and the answer said nothing else called it. Replayed on six real
+   trajectories, the places cost from 28% fewer to 3% more characters than the first cut,
+   and `build_gold` stays visible to the end. Rejected: keeping only the last step (the
+   model would lose the step before while it is still comparing two results); dropping
+   old results entirely (it could not even see what it had looked at).
    **A repeated call** (`_result_of`, since Nov 19): the same tool with the same
    arguments is not run again, because the tools read one fixed snapshot and the result
    cannot have changed. On Nov 19 the model repeated 4 of 23 calls over two real
