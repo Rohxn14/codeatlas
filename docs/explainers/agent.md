@@ -83,8 +83,9 @@ recently indexed snapshot.
    names (`main.py`) and abbreviations (`e.g.`) never count, so an ordinary question
    looks nothing up. `look_up` runs `search_symbols` on each and keeps the exact
    matches (five at most per name); `leads_text` adds them under the question, each as
-   its key (for the tools), kind, citation (for the answer) and signature, and asks the
-   model to start from them. Example: "Which tests cover classify_pit_passage?" is sent
+   its key (for the tools), kind, citation (for the answer) and signature, and tells the
+   model to give the keys to the tools and to cite by citation, never by key (the first
+   wording, "start from these keys", led to an answer citing keys, which nothing checks). Example: "Which tests cover classify_pit_passage?" is sent
    with `- classify_pit_passage: src/pipeline/cleaner.py::classify_pit_passage (function)
    PitwallOS@fa92551d9393:src/pipeline/cleaner.py:227 ...` under it, 370 characters in
    all. Why: in every real run of Nov 19 the first steps went on finding a symbol the

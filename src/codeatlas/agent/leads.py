@@ -26,7 +26,10 @@ _FILE_ENDINGS = frozenset({"py", "pyi", "ts", "tsx", "js", "jsx", "mjs", "md", "
                            "php", "c", "h", "cc", "cpp", "hpp", "cs", "swift", "scala",
                            "lua", "ex", "exs", "html", "css", "sql", "sh"})
 LEADS_INTRO = "Looked up before you start (search_symbols, exact matches only):"
-LEADS_OUTRO = "Start from these keys; there is no need to search for them again."
+# The first wording ("Start from these keys") led the model to cite keys
+# (`cleaner.py::build_silver`) instead of citations in its answer (Nov 19).
+LEADS_OUTRO = ("Give these keys to the tools instead of searching for them again. In the "
+               "answer, cite places by their citation (repo@sha:path:line), never by key.")
 
 
 def code_names(question: str) -> list[str]:
