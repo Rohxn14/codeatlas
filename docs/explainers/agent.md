@@ -57,7 +57,7 @@ recently indexed snapshot.
 
 | Tool | What it does |
 | --- | --- |
-| `search_symbols(name, kind?, limit?)` | Scans the snapshot's nodes (modules, packages and externals excluded unless `kind` asks for them); exact name or qualname first, then prefix, then substring. |
+| `search_symbols(name, kind?, limit?)` | Scans the snapshot's nodes (modules, packages and externals excluded unless `kind` asks for them); exact name or qualname first, then prefix, then substring. A dotted name (`contracts.validate`) also matches the end of the module path plus qualname (`src.pipeline.contracts.validate`), whole parts only; on Nov 19 the model wrote it that way twice and found nothing. |
 | `semantic_search(query, k?)` | Uses `codeatlas.search.HybridSearch` with an `EmbeddingClient` when the module has it. If the import fails, or the engine raises (for example no embedding model), it falls back to `store.search_text` (BM25) and says so in `note`/`engine`. |
 | `search_docs(query, k?)` | The same search over documentation sections only (D-41, D-42): headings of Markdown and reStructuredText files. Each hit carries the section's `text`, cut at 800 characters, so the model can answer from it without a second call. Added at checkpoint 6. |
 | `get_symbol_source(key)` | Signature, docstring, span and numbered source lines (at most 60, and fewer if the JSON would pass the budget). The checkout is the snapshot's `source` when it is a local folder, otherwise `<data_dir>/repos/<owner>__<repo>`; the path is checked to stay inside it. A missing checkout gives `source: null` and a note. |

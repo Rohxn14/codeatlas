@@ -51,6 +51,19 @@ def test_search_symbols_kind_and_errors(tools):
     assert "error" in tools.call("search_symbols", {"name": " "})
 
 
+def test_search_symbols_reads_a_dotted_name_as_module_and_symbol(tools):
+    # How a model writes it (`contracts.validate`); on Nov 19 this found nothing.
+    out = tools.call("search_symbols", {"name": "service.create"})
+    assert keys(out["symbols"]) == ["app/service.py::create"]
+    assert out["symbols"][0]["match"] == "exact"
+    out = tools.call("search_symbols", {"name": "app.repo.Repo.save"})
+    assert keys(out["symbols"]) == ["app/repo.py::Repo.save"]
+    out = tools.call("search_symbols", {"name": "repo.Repo"})
+    assert keys(out["symbols"]) == ["app/repo.py::Repo"]
+    # Whole parts only: "ice" is the end of "service", not a part of the path.
+    assert tools.call("search_symbols", {"name": "ice.create"})["total"] == 0
+
+
 def test_search_symbols_limit_reports_truncation(tools):
     out = tools.call("search_symbols", {"name": "e", "limit": 1})
     assert len(out["symbols"]) == 1 and out["truncated"] is True and out["total"] > 1
