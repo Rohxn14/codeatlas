@@ -206,12 +206,57 @@ def test_a_repeat_of_a_result_cut_short_gets_it_whole_again(store, tmp_path):
     sent = provider.requests[4]
     first, again = sent[3].content, sent[-2].content
     assert "older result shortened from 559 characters" in first  # step 1, as the model sees it
-    assert again.startswith(provider.requests[1][3].content)  # the whole first result
-    assert again.endswith("[Same tool and arguments as step 1: the result has not changed. "
-                          "Work from that result, or answer.]")
+    whole = json.loads(provider.requests[1][3].content)  # step 1's result, as first sent
+    assert json.loads(again) == {**whole, "note": "Same tool and arguments as step 1: the "
+                                 "result has not changed. Work from that result, or answer."}
     assert json.loads(sent[-1].content)["note"].startswith("Same tool and arguments as step 1")
     repeats = [c.get("repeat_of") for c in read_lines(answer.trajectory_path)[3]["tool_calls"]]
     assert repeats == [1, 1]
+
+
+def callers_result(n: int) -> str:
+    """A find_callers result like the real one of Nov 19: n callers, long signatures."""
+    results = [{"key": f"src/pipeline/m{i}.py::build_{i}", "kind": "function",
+                "name": f"build_{i}", "path": f"src/pipeline/m{i}.py", "line": 10 * i,
+                "citation": f"{SNAP}:src/pipeline/m{i}.py:{10 * i}",
+                "signature": f"def build_{i}(year: int, round_number: int, *, root: str = "
+                             "lake.DEFAULT_LAKE_ROOT, telemetry: bool = False)",
+                "confidence": 1.0} for i in range(1, n + 1)]
+    return json.dumps({"symbol": {"key": "src/pipeline/contracts.py::validate",
+                                  "citation": f"{SNAP}:src/pipeline/contracts.py:158"},
+                       "direction": "callers", "depth": 2, "total": 38, "truncated": True,
+                       "results": results})
+
+
+def test_an_old_result_keeps_every_place_it_named() -> None:
+    from codeatlas.agent.loop import _for_model
+    from codeatlas.llm import Message
+
+    result = callers_result(9)
+    messages = [Message("system", "s"), Message("user", "q"),
+                Message("assistant", "", tool_calls=(call("1", "find_callers"),)),
+                Message("tool", result, tool_call_id="1")]
+    for n in (2, 3):
+        messages += [Message("assistant", "", tool_calls=(call(str(n), "t"),)),
+                     Message("tool", "{}", tool_call_id=str(n))]
+    sent = json.loads(_for_model(messages)[3].content)
+    # The first version kept 400 characters: callers 3 to 9 were gone (Nov 19).
+    assert f"build_9 {SNAP}:src/pipeline/m9.py:90" in sent["places"]
+    assert sent["places"][0] == f"validate {SNAP}:src/pipeline/contracts.py:158"
+    assert len(sent["places"]) == 10 and "signature" not in json.dumps(sent)
+    assert (sent["direction"], sent["total"], sent["truncated"]) == ("callers", 38, True)
+    assert sent["note"] == f"older result shortened from {len(result)} characters to the " \
+                           "places it named"
+    assert len(json.dumps(sent)) < len(result) / 2
+
+
+def test_a_result_is_never_shortened_into_something_longer() -> None:
+    from codeatlas.agent.loop import _shortened
+
+    long_query = json.dumps({"query": "q" * 450, "citation": f"{SNAP}:a.py:1"})
+    assert _shortened(long_query) is None  # the kept query alone is longer: sent whole
+    assert _shortened("x" * 401) is None  # 400 characters plus the note would be longer
+    assert _shortened("x" * 1000).startswith("x" * 400)  # no places: the first characters
 
 
 def test_the_system_prompt_names_the_tools_without_repeating_their_specs(store):

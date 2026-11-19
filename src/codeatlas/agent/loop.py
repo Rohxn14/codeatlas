@@ -25,11 +25,15 @@ OnStep = Callable[[dict[str, Any]], None]
 LIMIT_NOTE = "(Step limit of {n} reached: this answer uses only what was found so far.)"
 # Every request re-sends the whole conversation, so tool results pile up: on one real
 # question (Nov 18) the input grew from 1,841 to 7,660 tokens over nine steps. The model
-# sees the results of the last FULL_RESULT_STEPS steps in full and older ones cut to
-# OLD_RESULT_CHARS (about a third fewer tokens on that question). The trajectory keeps
+# sees the results of the last FULL_RESULT_STEPS steps whole; an older result longer than
+# OLD_RESULT_CHARS is sent as the places it named (`_shortened`). The trajectory keeps
 # every result whole.
 FULL_RESULT_STEPS = 2
 OLD_RESULT_CHARS = 400
+# Kept as they are in a shortened result: what was asked, and whether there was more.
+KEPT_FIELDS = ("query", "direction", "depth", "total", "truncated")
+PLACES_NOTE = "older result shortened from {n} characters to the places it named"
+# For a result that names no places: its first OLD_RESULT_CHARS characters, and this.
 SHORTENED_NOTE = ("\n[older result shortened from {n} characters; call the tool again "
                   "to see all of it]")
 # The tools read one fixed snapshot, so a call made again with the same arguments gets
@@ -196,9 +200,12 @@ def _result_of(call: ToolCall, step: int, tools: ToolSet,
     shown_at, result = made[identity]
     note = REPEAT_NOTE.format(step=shown_at)
     # The next request shows the results of the last FULL_RESULT_STEPS steps whole.
-    if len(result) <= OLD_RESULT_CHARS or step - shown_at < FULL_RESULT_STEPS:
+    if _shortened(result) is None or step - shown_at < FULL_RESULT_STEPS:
         return json.dumps({"note": note}), shown_at
     made[identity] = (step, result)
+    data = _json(result)
+    if isinstance(data, dict):  # still JSON, so it can be shortened to its places later
+        return json.dumps({**data, "note": note}, ensure_ascii=False), shown_at
     return f"{result}\n[{note}]", shown_at
 
 
@@ -218,18 +225,69 @@ def _finish_at_limit(messages: list[Message], client: LLMClient, max_steps: int,
 
 
 def _for_model(messages: list[Message]) -> list[Message]:
-    """The conversation as sent: tool results older than the last steps cut short."""
+    """The conversation as sent: tool results older than the last steps shortened."""
     turns = [i for i, m in enumerate(messages) if m.role == "assistant"]
     if len(turns) <= FULL_RESULT_STEPS:
         return messages
     keep_from = turns[-FULL_RESULT_STEPS]
     sent = []
     for i, message in enumerate(messages):
-        if i < keep_from and message.role == "tool" and len(message.content) > OLD_RESULT_CHARS:
-            message = replace(message, content=message.content[:OLD_RESULT_CHARS]
-                              + SHORTENED_NOTE.format(n=len(message.content)))
+        if i < keep_from and message.role == "tool":
+            short = _shortened(message.content)
+            if short is not None:
+                message = replace(message, content=short)
         sent.append(message)
     return sent
+
+
+def _shortened(content: str) -> str | None:
+    """An old tool result as the model is sent it, or None to send it whole.
+
+    It keeps every place the result named, as `qualname citation`, plus what was asked
+    and whether there was more; signatures, source and text go. The first version kept
+    the first 400 characters: on Nov 19 that hid `build_gold`, the third of nine
+    callers, and the answer said nothing else called the function. Replayed on six real
+    trajectories, keeping the places sent from 28% fewer to 3% more characters. A result
+    that names no places keeps its first characters. Nothing is shortened into something
+    longer than itself.
+    """
+    if len(content) <= OLD_RESULT_CHARS:
+        return None
+    data = _json(content)
+    places = _places(data)
+    if places:
+        kept = {k: data[k] for k in KEPT_FIELDS if isinstance(data, dict) and k in data}
+        short = json.dumps({**kept, "places": places,
+                            "note": PLACES_NOTE.format(n=len(content))}, ensure_ascii=False)
+    else:
+        short = content[:OLD_RESULT_CHARS] + SHORTENED_NOTE.format(n=len(content))
+    return short if len(short) < len(content) else None
+
+
+def _json(content: str) -> Any:
+    try:
+        return json.loads(content)
+    except json.JSONDecodeError:
+        return None
+
+
+def _places(value: Any, found: list[str] | None = None) -> list[str]:
+    """`qualname citation` of everything in a result that carries a citation, in order."""
+    found = [] if found is None else found
+    if isinstance(value, dict):
+        citation = value.get("citation")
+        if isinstance(citation, str):
+            key = str(value.get("key") or "")
+            name = key.split("::", 1)[1] if "::" in key else str(value.get("name") or "")
+            place = f"{name} {citation}".strip()
+            if place not in found:
+                found.append(place)
+        for item in value.values():
+            _places(item, found)
+    elif isinstance(value, list):
+        for item in value:
+            _places(item, found)
+    return found
 
 
 def _timed_chat(client: LLMClient, messages: list[Message], specs: Any) -> tuple[Any, float]:
