@@ -15,7 +15,7 @@ reply.text, reply.tool_calls, reply.provider, reply.cached
 Behind that call it:
 
 - tries **Groq** first (`openai/gpt-oss-20b`) and **Gemini** second (`gemini-3.8-flash`),
-- retries rate limits, server errors and timeouts, then falls back to the next provider,
+- rests a provider that is rate limited or overloaded, retries other server errors and timeouts, then falls back to the next provider,
 - **records** every answer in SQLite and **replays** it for an identical request, so an evaluation never pays twice,
 - appends one line per real call to `.codeatlas/llm_usage.jsonl`, so you can see what the free tiers consumed.
 
@@ -24,7 +24,7 @@ Behind that call it:
 | File | Role |
 | --- | --- |
 | `types.py` | `Message`, `ToolSpec`, `ToolCall`, `LLMResponse`: the provider-independent shapes |
-| `errors.py` | `LLMRequestError` (400-class, raise), `LLMTransientError` (429/5xx/timeout, retry), `LLMEmptyResponseError` (no text and no tool calls, fall back), `LLMUnavailableError`, `CacheMissError` |
+| `errors.py` | `LLMRequestError` (400-class, raise), `LLMTransientError` (429/5xx/timeout: rest or retry), `LLMEmptyResponseError` (no text and no tool calls, fall back), `LLMUnavailableError`, `CacheMissError` |
 | `config.py` | `LLMConfig` and `load_llm_config`: `[llm]` table, then environment overrides |
 | `cache.py` | canonical cache key, `LLMCache` (chat answers and embedding vectors) |
 | `providers/base.py` | the `Provider` protocol and the "model is gone" fallback rule |
@@ -68,9 +68,9 @@ Rejected: writing raw `httpx` calls for Groq (smaller, but duplicates what the S
    1. The first time, list its models. If the configured model is missing, switch to the newest one of the same family and log a warning.
    2. Skip it if it is **resting** after a rate limit (below).
    3. Skip it, and rest it until its minute resets, if the request will not fit: Groq's last answer said how many tokens are left this minute (`x-ratelimit-remaining-tokens`, reset in `x-ratelimit-reset-tokens`), and `estimate_tokens` (characters ÷ 4) says this request needs more. Sending it would only earn a 429.
-   4. On a **429** (rate limited): do not retry. Rest this provider for as long as it asked (`retry-after` header, or "try again in 7.66s" / `retryDelay: "34s"` in the error), or 60 s if it did not say, and move to the next provider.
-   5. On another `LLMTransientError` (5xx, timeout): try up to `max_tries` (3) times, sleeping `base·2^attempt + uniform(0, base)` (1–2 s, then 2–3 s) in between. `LLMRequestError` propagates immediately.
-4. After a pass, every provider not ruled out (5xx after its tries, empty answer) is still a candidate. One whose rest ended while the pass tried the others is tried again at once: on Nov 19 Gemini's three overloaded tries took about a minute, Groq's 42 s rest ended meanwhile, and the request failed anyway until this was fixed. A rest is never shorter than 1 s, so "try again in 0s" cannot loop. If the only providers left are resting, wait until the first is free and try it again, as long as the request's total wait stays within `max_wait_seconds` (60). `on_wait(seconds, label)`, when set, is called before each wait so a page can show it.
+   4. On a **429** (rate limited), **503** or **504** (overloaded: "high demand", or a deadline the server could not meet; `REST_STATUSES`): do not retry. Rest this provider for as long as it asked (`retry-after` header, or "try again in 7.66s" / `retryDelay: "34s"` in the error), or 60 s if it did not say, and move to the next provider.
+   5. On another `LLMTransientError` (500, 502, a timeout, a lost connection): try up to `max_tries` (3) times, sleeping `base·2^attempt + uniform(0, base)` (1–2 s, then 2–3 s) in between. `LLMRequestError` propagates immediately.
+4. After a pass, every provider not ruled out (5xx after its tries, empty answer) is still a candidate. One whose rest ended while the pass tried the others is tried again at once: on Nov 19 Gemini's three overloaded tries took about a minute, Groq's 42 s rest ended meanwhile, and the request failed anyway until this was fixed. (An overload now rests instead of being retried, but a 500's retries or a timeout can still outlast a rest.) A rest is never shorter than 1 s, so "try again in 0s" cannot loop. If the only providers left are resting, wait until the first is free and try it again, as long as the request's total wait stays within `max_wait_seconds` (60). `on_wait(seconds, label)`, when set, is called before each wait so a page can show it.
 5. Otherwise raise `LLMUnavailableError` with each failure listed, including how long the next provider would have taken to be free.
 6. Store the answer in the cache (unless the mode is `off`) and append the usage line: provider, model, tokens, latency, the estimate made before sending (`estimated_input_tokens`, to check the ÷ 4 rule against the real count), and Groq's `limits` (tokens left this minute, requests left today, when each resets). The usage log is where the real free-tier limits are measured.
 
@@ -90,6 +90,8 @@ caller            LLMClient                Groq               Gemini
   | chat(next) ---> | Groq is resting: skipped, no request        |
   |                 | POST generateContent ---------------------->| 200
 ```
+
+Why a 503 or 504 rests too (since Nov 19): that day Gemini answered 503 "high demand" and 504 "deadline exceeded" on every request that reached it. Three tries with backoff took about a minute before the client moved on, and the next step started the same three tries again. An overload, like a rate limit, does not lift in two seconds. A 500 is still retried: it can be a one-off.
 
 Why not retry a 429 the way a 5xx is retried: free tiers limit tokens per minute, so a 429 does not lift in one or two seconds. Before this change (Nov 18) one agent question sent Groq 13 requests that were all refused: three quick tries per step, and every new step started with Groq again. The 429 was measured, not guessed: each step's input grew from 1,841 to 7,660 tokens, and three steps in three seconds used about 7,200 of the minute's budget.
 

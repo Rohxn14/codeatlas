@@ -121,7 +121,8 @@ def test_backoff_grows_exponentially(tmp_path):
 
 
 def test_groq_5xx_falls_back_to_gemini(script, tmp_path):
-    g = script([(503, load("groq_server_error.json"))] * 3, models=load("groq_models.json"))
+    # A 500 is retried: it can be a one-off. (A 503 or 504 rests instead, below.)
+    g = script([(500, load("groq_server_error.json"))] * 3, models=load("groq_models.json"))
     m = script([(200, load("gemini_text.json"))], models=load("gemini_models.json"))
     sleeps: list[float] = []
     reply = make_client([groq(g), gemini(m)], tmp_path, sleeps=sleeps).chat(msgs())
@@ -275,7 +276,7 @@ def test_a_provider_whose_rest_ends_during_the_pass_is_tried_again(script, tmp_p
     # request failed although Groq was free again.
     g = script([(429, load("groq_rate_limit.json"), {"retry-after": "2"}),
                 (200, load("groq_text.json"))], models=load("groq_models.json"))
-    m = script([(503, load("groq_server_error.json"))] * 3, models=load("gemini_models.json"))
+    m = script([(500, load("groq_server_error.json"))] * 3, models=load("gemini_models.json"))
     clock = Clock()
     reply = make_client([groq(g), gemini(m)], tmp_path, clock=clock).chat(msgs())
     assert reply.provider == "groq" and len(g.chat_requests) == 2
@@ -288,3 +289,27 @@ def test_a_zero_second_retry_hint_still_rests_a_second(script, tmp_path):
     sleeps: list[float] = []
     assert make_client([groq(g)], tmp_path, sleeps=sleeps).chat(msgs()).text == "ok"
     assert sleeps == [1.0]
+
+
+OVERLOADED = {
+    503: {"error": {"code": 503, "status": "UNAVAILABLE", "message": "This model is currently "
+                    "experiencing high demand. Please try again later."}},
+    504: {"error": {"code": 504, "status": "DEADLINE_EXCEEDED",
+                    "message": "Deadline expired before operation could complete."}},
+}
+
+
+@pytest.mark.parametrize("status", [503, 504])
+def test_an_overloaded_provider_rests_instead_of_being_retried(script, tmp_path, status):
+    # Seen all day on Nov 19: Gemini's three tries per request cost about a minute.
+    m = script([(status, OVERLOADED[status]), (200, load("gemini_text.json"))],
+               models=load("gemini_models.json"))
+    g = script([(200, load("groq_text.json"))] * 2, models=load("groq_models.json"))
+    clock = Clock()
+    client = make_client([gemini(m), groq(g)], tmp_path, clock=clock)
+    assert client.chat(msgs()).provider == "groq"
+    assert len(m.chat_requests) == 1 and clock.sleeps == []  # no retry, no backoff
+    assert client.chat([Message("user", "again")]).provider == "groq"
+    assert len(m.chat_requests) == 1  # still resting: not asked
+    clock.now += 60
+    assert client.chat([Message("user", "later")]).provider == "gemini"
