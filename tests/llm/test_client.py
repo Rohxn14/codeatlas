@@ -313,3 +313,20 @@ def test_an_overloaded_provider_rests_instead_of_being_retried(script, tmp_path,
     assert len(m.chat_requests) == 1  # still resting: not asked
     clock.now += 60
     assert client.chat([Message("user", "later")]).provider == "gemini"
+
+
+def test_a_tool_call_groq_rejects_moves_on_to_the_next_model(script, tmp_path):
+    # Seen on Nov 19: gpt-oss called a tool named "commentary", Groq answered 400
+    # tool_use_failed, and the whole question failed like any bad request.
+    small = script([(400, load("groq_tool_use_failed.json"))], models=load("groq_models.json"))
+    large = script([(200, load("groq_text.json"))], models=load("groq_models.json"))
+    bigger = GroqProvider("openai/gpt-oss-120b", api_key="t", http_client=large.client())
+    clock = Clock()
+    reply = make_client([groq(small), bigger], tmp_path, clock=clock).chat(msgs())
+    assert reply.text == "ok" and len(small.chat_requests) == 1 and clock.sleeps == []
+
+
+def test_when_every_model_fumbles_its_tool_call_the_failure_says_so(script, tmp_path):
+    g = script([(400, load("groq_tool_use_failed.json"))], models=load("groq_models.json"))
+    with pytest.raises(LLMUnavailableError, match="tool call was rejected.*commentary"):
+        make_client([groq(g)], tmp_path).chat(msgs())

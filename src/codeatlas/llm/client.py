@@ -20,6 +20,7 @@ from codeatlas.llm.cache import LLMCache, cache_key
 from codeatlas.llm.config import LLMConfig, load_llm_config
 from codeatlas.llm.errors import (
     CacheMissError,
+    LLMBadToolCallError,
     LLMEmptyResponseError,
     LLMRequestError,
     LLMTransientError,
@@ -195,8 +196,8 @@ class LLMClient:
             started = time.monotonic()
             try:
                 response = provider.chat(messages, tools, temperature, max_tokens)
-            except LLMEmptyResponseError as exc:
-                # The same request would come back empty again: move on at once.
+            except (LLMEmptyResponseError, LLMBadToolCallError) as exc:
+                # The same request would most likely come back the same way: move on.
                 failures.append(str(exc))
                 log.warning("%s: %s; trying the next provider", _label(provider), exc)
                 done.add(index)

@@ -10,7 +10,12 @@ from typing import Any
 import groq
 import httpx
 
-from codeatlas.llm.errors import LLMEmptyResponseError, LLMRequestError, LLMTransientError
+from codeatlas.llm.errors import (
+    LLMBadToolCallError,
+    LLMEmptyResponseError,
+    LLMRequestError,
+    LLMTransientError,
+)
 from codeatlas.llm.providers.base import (
     PLACEHOLDER_KEY,
     ModelInfo,
@@ -155,4 +160,14 @@ def _translate(exc: groq.APIError) -> Exception:
         headers = getattr(response, "headers", None)
         return LLMTransientError("groq", status, str(exc),
                                  retry_after=retry_after_seconds(headers, str(exc)))
+    if status == 400 and _error_code(exc) == "tool_use_failed":
+        return LLMBadToolCallError("groq", str(exc))
     return LLMRequestError("groq", status, str(exc))
+
+
+def _error_code(exc: groq.APIError) -> str | None:
+    """The `code` inside Groq's error body (`{"error": {"code": ...}}`), when there is one."""
+    body = getattr(exc, "body", None)
+    error = body.get("error") if isinstance(body, dict) else None
+    code = error.get("code") if isinstance(error, dict) else None
+    return code if isinstance(code, str) else None
