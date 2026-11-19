@@ -208,6 +208,8 @@ def test_a_running_question_knows_it_is_waiting_for_a_rate_limit() -> None:
     question.record_wait(30.0, "groq openai/gpt-oss-20b")
     now = question.waiting_now
     assert now is not None and now["provider"] == "groq openai/gpt-oss-20b"
-    assert 29 < now["left"] <= 30
+    # Windows' clock ticks every ~15 ms, so both readings can fall in one tick and
+    # leave 30 plus float error (seen in CI: 30.00000000000003).
+    assert now["left"] == pytest.approx(30, abs=1)
     question.state = "done"
     assert question.waiting_now is None and question.seconds_waited == 30.0
