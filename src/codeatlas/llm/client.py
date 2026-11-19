@@ -1,10 +1,10 @@
 """`LLMClient.chat`: the one call the rest of CodeAtlas makes to a language model.
 
 Order of work for each request: look in the cache; on a miss, try each provider in
-priority order, retrying server errors with backoff; record the answer and log its token
-use. A provider that says "rate limited" (429) rests for as long as it asked, and the
-request moves on; when every provider is resting, the client waits for the first one to
-be free, up to `max_wait_seconds`.
+priority order, retrying other server errors and timeouts with backoff; record the answer
+and log its token use. A provider that says it is rate limited (429) or overloaded (503,
+504) rests for as long as it asked, and the request moves on; when every provider is
+resting, the client waits for the first one to be free, up to `max_wait_seconds`.
 """
 
 from __future__ import annotations
@@ -35,6 +35,11 @@ log = logging.getLogger(__name__)
 DEFAULT_REST = 60.0
 # The shortest rest, even when a provider says "try again in 0s".
 MIN_REST = 1.0
+# Answers that rest a provider instead of retrying it: 429, rate limited; 503 and 504,
+# overloaded ("high demand", or a deadline the server could not meet). On Nov 19 Gemini
+# answered 503 and 504 all day: three tries cost about a minute per request, and the
+# next step tried it again from scratch. Other 5xx and timeouts are still retried.
+REST_STATUSES = frozenset({429, 503, 504})
 
 # Called with (seconds, provider label) just before the client waits for a rate limit.
 OnWait = Callable[[float, str], None]
@@ -164,7 +169,7 @@ class LLMClient:
                                 f"this client waits")
                 break
             label = _label(self.providers[min(resting, key=self._resting_for)])
-            log.warning("every provider is rate limited; waiting %.1f s for %s", wait, label)
+            log.warning("every provider is resting; waiting %.1f s for %s", wait, label)
             if self.on_wait is not None:
                 self.on_wait(wait, label)
             self._sleep(wait)
@@ -202,14 +207,14 @@ class LLMClient:
                 continue  # retry once with the newly resolved model
             except LLMTransientError as exc:
                 failures.append(str(exc))
-                if exc.status == 429:
-                    # A rate limit does not lift in a second or two: retrying at once only
-                    # earns more 429s. Rest this provider and move on.
+                if exc.status in REST_STATUSES:
+                    # A rate limit or an overload does not lift in a second or two:
+                    # retrying at once only earns the same answer. Rest and move on.
                     rest = exc.retry_after if exc.retry_after is not None else DEFAULT_REST
                     rest = max(rest, MIN_REST)  # never retry in a tight loop
                     self._rest_until[index] = self._clock() + rest
-                    log.warning("%s is rate limited; resting it for %.1f s",
-                                _label(provider), rest)
+                    log.warning("%s answered %d; resting it for %.1f s",
+                                _label(provider), exc.status, rest)
                     return None
                 attempt += 1
                 log.warning("%s try %d/%d failed: %s", _label(provider), attempt,
