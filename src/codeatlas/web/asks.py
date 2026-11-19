@@ -137,6 +137,8 @@ class Questions:
                 question.finished = time.monotonic()
                 question.state = "failed"
                 return
+            # The answer before the state: a page that reads "done" relies on the answer
+            # being there already (`answer_page` in app.py).
             question.answer = answer
             question.finished = time.monotonic()
             question.state = "done"

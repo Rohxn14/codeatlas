@@ -502,11 +502,18 @@ def create_app(
             raise HTTPException(404, "no such question: questions are forgotten when the "
                                      "server stops. Each one's record stays in the "
                                      "trajectories folder")
+        # Read the state once and build the whole page from that reading: the question's
+        # thread may finish while this page is being made. Reading it twice once gave a
+        # "done" page built from "no answer yet": no answer text, and no reload to fix it.
+        # The thread sets `answer` before `state`, so "done" here means the answer is set.
+        state = question.state
+        answer = question.answer if state == "done" else None
         last = question.steps[-1] if question.steps else {}
-        return page(request, "answer.html", loaded, "ask", qn=question,
+        return page(request, "answer.html", loaded, "ask", qn=question, state=state,
+                    active=state in ("waiting", "running"), answer=answer,
                     rows=step_rows(question), model=last.get("model", ""),
                     provider=last.get("provider", ""),
-                    pieces=answer_parts(question.answer) if question.answer else [])
+                    pieces=answer_parts(answer) if answer else [])
 
     @app.exception_handler(HTTPException)
     def http_error(request: Request, exc: HTTPException) -> Any:
