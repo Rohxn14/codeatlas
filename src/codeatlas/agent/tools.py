@@ -162,7 +162,12 @@ def _clamp_limit(limit: object, default: int = DEFAULT_LIMIT) -> int:
 def search_symbols(
     ctx: ToolContext, name: str, kind: str | None = None, limit: int = DEFAULT_LIMIT
 ) -> dict[str, Any]:
-    """Symbols whose name matches `name`: exact first, then prefix, then substring."""
+    """Symbols whose name matches `name`: exact first, then prefix, then substring.
+
+    A dotted name also matches the end of the symbol's module path plus its qualname, so
+    `contracts.validate` finds `validate` in `src/pipeline/contracts.py`. Models write
+    names that way; on Nov 19 the search found nothing and the model searched again.
+    """
     wanted = name.strip().lower()
     if not wanted:
         return _error("name must not be empty")
@@ -177,7 +182,8 @@ def search_symbols(
         if (kinds and node.kind not in kinds) or (not kinds and node.kind in _NOT_SYMBOLS):
             continue
         lowered = node.name.lower()
-        if lowered == wanted or node.qualname.lower() == wanted:
+        if lowered == wanted or node.qualname.lower() == wanted or (
+                "." in wanted and _dotted_match(node, wanted)):
             ranked.append((0, node))
         elif lowered.startswith(wanted):
             ranked.append((1, node))
@@ -193,6 +199,17 @@ def search_symbols(
                     for r, n in ranked[:limit]],
     }
     return _fit(result, "symbols")
+
+
+def _dotted_match(node: Node, wanted: str) -> bool:
+    """True when `wanted` is the end of `src.pipeline.contracts.validate`, whole parts only.
+
+    The module part is the path without its extension, `/` read as `.`, and a package's
+    `__init__` dropped. Whole parts: `contracts.validate` matches, `acts.validate` does not.
+    """
+    module = node.path.rsplit(".", 1)[0].replace("/", ".").removesuffix(".__init__")
+    dotted = f"{module}.{node.qualname}".lower() if node.qualname else module.lower()
+    return dotted == wanted or dotted.endswith("." + wanted)
 
 
 def semantic_search(ctx: ToolContext, query: str, k: int = DEFAULT_LIMIT) -> dict[str, Any]:
