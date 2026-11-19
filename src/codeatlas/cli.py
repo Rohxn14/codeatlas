@@ -22,6 +22,7 @@ from typing import Any
 
 from codeatlas import __version__
 from codeatlas.config import Config, load_config
+from codeatlas.console import utf8_output
 from codeatlas.envfile import load_env_file
 from codeatlas.impact.diff import parse_diff
 from codeatlas.impact.models import Change
@@ -727,7 +728,8 @@ _RUNNERS = {
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    if argv is None:  # a real command line, not a test: read the keys from ./.env
+    if argv is None:  # a real command line, not a test: UTF-8 out, keys from ./.env
+        utf8_output()
         load_env_file()
     args = build_parser().parse_args(argv)
     try:

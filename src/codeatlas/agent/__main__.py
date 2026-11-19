@@ -89,9 +89,11 @@ def _mcp(args: argparse.Namespace) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
-    if argv is None:  # a real command line, not a test: read the keys from ./.env
+    if argv is None:  # a real command line, not a test: UTF-8 out, keys from ./.env
+        from codeatlas.console import utf8_output
         from codeatlas.envfile import load_env_file
 
+        utf8_output()
         load_env_file()
     args = _parser().parse_args(argv)
     return _ask(args) if args.command == "ask" else _mcp(args)
