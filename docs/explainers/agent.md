@@ -126,6 +126,18 @@ recently indexed snapshot.
    record is complete, so the web app can show steps while the answer is made.
    Citations are found with `citation_pattern(snapshot_id)`, which matches the
    snapshot's own id as written (an id can hold a space).
+   **Other shapes are checked too** (`_check`, since Nov 19). The model is still asked
+   for `repo@sha:path:line`, but answers held three other shapes, and none was found
+   before, so none was checked. A **range** (`...:588-600`, also written with a
+   non-breaking hyphen or an en dash) is valid when both ends are inside the file;
+   before, only its first line was checked. A **file with no line**
+   (`PitwallOS@fa92551d9393:src/interfaces/race_replay.py`) is reported as `no line
+   number`. A **bare path** (`【src/pipeline/cleaner.py:276】`) is checked like a
+   full one when its path is a file of the snapshot or holds a `/`; otherwise it is not
+   a citation, so `v1.2:3` or a host and port is never flagged. Re-checking all 15
+   real answers of Nov 18 and 19: 33 citations found instead of 31 (one bare path, valid;
+   one file with no line), and 13 ranges now checked at both ends (all valid, some
+   500 lines wide).
 6. Write `<data_dir>/trajectories/<UTC time>.jsonl` in a `finally`, so a run that dies on
    an LLM error still leaves its steps behind. One JSON line per model call: step number,
    seconds, tokens, provider and model, the text, and each tool call with its arguments,

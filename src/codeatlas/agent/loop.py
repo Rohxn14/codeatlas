@@ -16,9 +16,15 @@ from codeatlas.agent.tools import ToolSet
 from codeatlas.config import Config
 from codeatlas.llm import LLMClient, Message, ToolCall
 
-# repo@sha12:path:line. The path may not contain a colon or whitespace; trailing
-# punctuation such as `)` or `.` is not part of a citation.
-_PLACE = r":[^\s:`'\"()\[\]<>,;]+:\d+"
+# Citations are written repo@sha12:path:line (contract section 4). The path may not
+# contain a colon or whitespace; trailing punctuation such as `)` or `.` is not part of a
+# citation. Answers also hold shapes the contract does not ask for, and those are found
+# and checked rather than skipped (all seen on Nov 19): a range (`:588-600`, also with a
+# non-breaking hyphen or an en dash), a file with no line, and a bare `path/file.py:276`.
+_PATH = r"[^\s:`'\"()\[\]<>,;]+"
+_RANGE = r"(?:[-‑–](?P<{}>\d+))?"
+_BARE = (r"(?<![\w@./:-])(?P<bpath>[\w.\-]+(?:/[\w.\-]+)*\.[A-Za-z0-9]+)"
+         r":(?P<bline>\d+)" + _RANGE.format("bend") + r"(?!\d)")
 # Called with each step's trajectory record once its tool calls have run, so a page
 # can show the steps while the answer is still being made.
 OnStep = Callable[[dict[str, Any]], None]
@@ -78,47 +84,68 @@ class Answer:
 
 
 def check_citations(text: str, tools: ToolSet) -> list[CitationCheck]:
-    """Validate every citation in `text`: right snapshot, a file of it, a line inside it.
+    """Validate every citation in `text`: right snapshot, a file of it, lines inside it.
 
     "Inside" means within the file's module span, so a line past the end of the file is
-    reported rather than silently accepted. Invalid citations are returned, never dropped.
+    reported rather than silently accepted; a range is inside when both ends are.
+    Invalid citations are returned, never dropped. A bare `path:line` counts when the
+    path is a file of the snapshot or holds a `/`, so a version (`v1.2:3`) or a host and
+    port is not taken for one.
     """
     store, snapshot_id = tools.context.store, tools.context.snapshot_id
     checks: list[CitationCheck] = []
     seen: set[str] = set()
     for match in citation_pattern(snapshot_id).finditer(text):
-        citation = match.group(0)
-        if citation in seen:
+        if match.group(0) in seen:
             continue
-        seen.add(citation)
-        sha_and_path, _, line_text = citation.rpartition(":")
-        line = int(line_text)
-        prefix = snapshot_id + ":"
-        if not citation.startswith(prefix):
-            checks.append(CitationCheck(citation, "", line, False,
-                                        f"not from snapshot {snapshot_id}"))
-            continue
-        path = sha_and_path[len(prefix):]
-        module = store.module_for_path(snapshot_id, path)
-        if module is None:
-            checks.append(CitationCheck(citation, path, line, False, "no such file"))
-        elif not module.span.start_line <= line <= module.span.end_line:
-            checks.append(CitationCheck(
-                citation, path, line, False,
-                f"line outside the file (1-{module.span.end_line})"))
-        else:
-            checks.append(CitationCheck(citation, path, line, True))
+        seen.add(match.group(0))
+        check = _check(match, snapshot_id, store)
+        if check is not None:
+            checks.append(check)
     return checks
 
 
+def _check(match: re.Match[str], snapshot_id: str, store: Any) -> CitationCheck | None:
+    """One citation found by `citation_pattern`, checked; None when it is not one."""
+    citation, full = match.group(0), match.group("full") is not None
+    if full:
+        path, line, end = match.group("fpath"), match.group("fline"), match.group("fend")
+        if not citation.startswith(snapshot_id + ":"):
+            return CitationCheck(citation, "", int(line or 0), False,
+                                 f"not from snapshot {snapshot_id}")
+        if line is None:
+            return CitationCheck(citation, path, 0, False, "no line number")
+    else:
+        path, line, end = match.group("bpath"), match.group("bline"), match.group("bend")
+    first = int(line)
+    last = int(end) if end else first
+    module = store.module_for_path(snapshot_id, path)
+    if module is None:
+        if not full and "/" not in path:
+            return None  # a version or a host name, not a place in this snapshot
+        return CitationCheck(citation, path, first, False, "no such file")
+    if last < first:
+        return CitationCheck(citation, path, first, False, "the range ends before it starts")
+    span = module.span
+    if not (span.start_line <= first and last <= span.end_line):
+        return CitationCheck(citation, path, first, False,
+                             f"line outside the file (1-{span.end_line})")
+    return CitationCheck(citation, path, first, True)
+
+
 def citation_pattern(snapshot_id: str) -> re.Pattern[str]:
-    """Citations in an answer: this snapshot's, and anything else shaped like one.
+    """Citations in an answer: this snapshot's, anything else shaped like one, bare paths.
 
     A repository name can hold a space ("Antidote graph-hacks"), which the general shape
     does not allow, so this snapshot's own id is matched as written. A citation of
-    another snapshot is still found, and then reported as not from this one.
+    another snapshot is still found, and then reported as not from this one. Group
+    `full` is set for the contract's shape (its line and range are optional here, so a
+    file cited without a line is reported); otherwise the match is a bare path.
     """
-    return re.compile(f"(?:{re.escape(snapshot_id)}|" + r"[\w.\-]+@[0-9a-f]{12})" + _PLACE)
+    snapshot = f"(?:{re.escape(snapshot_id)}|" + r"[\w.\-]+@[0-9a-f]{12})"
+    full = (f"(?P<full>{snapshot}:(?P<fpath>{_PATH})"
+            + r"(?::(?P<fline>\d+)" + _RANGE.format("fend") + r")?)")
+    return re.compile(f"{full}|{_BARE}")
 
 
 def ask(

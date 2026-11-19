@@ -266,3 +266,22 @@ def test_the_system_prompt_names_the_tools_without_repeating_their_specs(store):
     prompt = system_prompt(store, tools.context.snapshot, tools.specs)
     assert all(spec.name in prompt for spec in tools.specs)
     assert not any(spec.description in prompt for spec in tools.specs)  # sent in the specs
+
+
+def test_every_shape_of_citation_in_an_answer_is_checked(store):
+    # All seen on Nov 19: a bare path, a range with a non-breaking hyphen, a file with no
+    # line. Before, none of them was found, so none was checked.
+    tools = ToolSet(store, SNAP)
+    text = (f"Bare: 【app/repo.py:2】 and app/ghost.py:1. "
+            f"Range: {SNAP}:app/service.py:3‑4, too long {SNAP}:app/service.py:6-99, "
+            f"backwards {SNAP}:app/repo.py:4-2. No line: `{SNAP}:app/repo.py`. "
+            "Not citations: v1.2:3, example.com:8080, 12:30.")
+    checks = {c.text: (c.line, c.valid, c.reason) for c in check_citations(text, tools)}
+    assert checks == {
+        "app/repo.py:2": (2, True, ""),
+        "app/ghost.py:1": (1, False, "no such file"),
+        f"{SNAP}:app/service.py:3‑4": (3, True, ""),
+        f"{SNAP}:app/service.py:6-99": (6, False, "line outside the file (1-7)"),
+        f"{SNAP}:app/repo.py:4-2": (4, False, "the range ends before it starts"),
+        f"{SNAP}:app/repo.py": (0, False, "no line number"),
+    }
