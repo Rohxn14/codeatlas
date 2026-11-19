@@ -614,6 +614,14 @@ calls and tokens it took, how long, and which provider and model answered.
   which outlives the server. Rejected for now: a table in the database.
 - **One question at a time.** The free tiers limit tokens per minute; two answers made
   together would both run into the limit. At most three wait.
+- **The answer page reads the question's state once.** The question runs on another
+  thread, so it can finish while a page is being built. The page used to read the state
+  twice: once to cut the answer into pieces (no answer yet, so none), and again in the
+  template (now "done"). That rendered a finished page with no answer text and no
+  reload, so it stayed blank. It made one test fail about once in twenty runs until the
+  test printed the page (Nov 19). Now `answer_page` takes one reading and builds the
+  whole page from it; the thread sets `answer` before `state`, so "done" always comes
+  with its answer.
 - **Rate-limit waits are shown.** When every model is resting after a 429, the LLM
   client waits (D-46) and calls `on_wait`; the question records it (`Question.waits`).
   While it lasts, the page says which model it waits for and how many seconds are left;

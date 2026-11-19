@@ -1,14 +1,14 @@
 {% extends "base.html" %}
 {% import "_parts.html" as parts %}
 {% block title %}{{ qn.text | truncate(60, True, "…", 0) }} · Ask · CodeAtlas{% endblock %}
-{% block head %}{% if qn.active %}<meta http-equiv="refresh" content="2">{% endif %}{% endblock %}
+{% block head %}{% if active %}<meta http-equiv="refresh" content="2">{% endif %}{% endblock %}
 {% block main %}
 <p class="eyebrow">Ask</p>
 <h1 class="question">{{ qn.text }}</h1>
 
-{% if qn.state == "waiting" %}
+{% if state == "waiting" %}
 <p class="meta">Waiting: one question is answered at a time. This page reloads by itself.</p>
-{% elif qn.state == "running" %}
+{% elif state == "running" %}
 <p class="meta">Working for {{ "%.0f" | format(qn.seconds) }} s, {{ qn.steps | length }} step{{ "" if qn.steps | length == 1 else "s" }} done.
   This page reloads by itself every two seconds.</p>
 {% set w = qn.waiting_now %}
@@ -16,10 +16,10 @@
 <p class="notice">Every model is rate limited: waiting {{ "%.0f" | format(w.left) }} more seconds for
   <code>{{ w.provider }}</code>. Free tiers limit tokens per minute; the answer goes on by itself.</p>
 {% endif %}
-{% elif qn.state == "failed" %}
+{% elif state == "failed" %}
 <p class="notice"><strong>No answer.</strong> {{ qn.error }}</p>
 {% else %}
-{% set a = qn.answer %}
+{% set a = answer %}
 {% set bad = a.invalid_citations | length %}
 <div class="answer">{% for p in pieces %}{% if p.cite %}{% set c = p.cite %}{% if c.valid %}<a class="cite" href="{{ parts.file_url(base, c.path) }}#L{{ c.line }}" title="{{ c.text }}">{{ c.path }}:{{ c.line }}</a>{% else %}<span class="cite invalid" title="{{ c.reason }}">{{ c.text }} (not a real place: {{ c.reason }})</span>{% endif %}{% else %}{{ p.text }}{% endif %}{% endfor %}</div>
 {% if a.limit_hit %}
@@ -51,7 +51,7 @@
     </tbody>
   </table>
   </div>
-  {% elif qn.state == "done" %}
+  {% elif state == "done" %}
   <p class="muted">The model answered without looking anything up.</p>
   {% else %}
   <p class="muted">No tool called yet.</p>
