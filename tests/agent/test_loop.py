@@ -266,3 +266,34 @@ def test_the_system_prompt_names_the_tools_without_repeating_their_specs(store):
     prompt = system_prompt(store, tools.context.snapshot, tools.specs)
     assert all(spec.name in prompt for spec in tools.specs)
     assert not any(spec.description in prompt for spec in tools.specs)  # sent in the specs
+
+
+def test_a_model_that_keeps_repeating_itself_is_asked_to_answer(store, tmp_path):
+    from codeatlas.agent.loop import REPEATS_NOTE
+
+    again = [reply(calls=[call(str(i), "search_symbols", name="save")]) for i in range(1, 5)]
+    client, provider = make_client(*again, reply("save is in app/repo.py."))
+    answer = ask("q", store, SNAP, client, data_dir=tmp_path)
+    # Step 1 runs the search; steps 2, 3 and 4 repeat it with the result in view, and
+    # the third such repeat ends the tool calls (seen on Nov 19: eight in a row).
+    assert answer.steps == 5 and answer.limit_hit is False
+    assert provider.requests[4][-1].content.startswith(
+        "You keep asking for results you already have")
+    assert answer.text == "save is in app/repo.py.\n\n" + REPEATS_NOTE
+    last = read_lines(answer.trajectory_path)[-1]
+    assert last["final"] is True and last["stopped"] == "repeats"
+
+
+def test_re_fetching_a_shortened_result_is_not_counted_as_going_round(store, tmp_path):
+    long = call("1", "get_file_symbols", path="app/service.py")  # 559 characters: cut later
+    others = [call(str(n), "search_symbols", name=name)
+              for n, name in ((2, "create"), (3, "rename"), (5, "Repo"), (6, "save"))]
+    client, _ = make_client(
+        reply(calls=[long]), reply(calls=[others[0]]), reply(calls=[others[1]]),
+        reply(calls=[call("4", "get_file_symbols", path="app/service.py")]),  # cut: whole
+        reply(calls=[others[2]]), reply(calls=[others[3]]),
+        reply(calls=[call("7", "get_file_symbols", path="app/service.py")]),  # cut again
+        reply("Done."),
+    )
+    answer = ask("q", store, SNAP, client, data_dir=tmp_path)
+    assert answer.text == "Done." and answer.steps == 8

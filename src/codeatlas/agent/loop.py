@@ -48,6 +48,17 @@ LIMIT_PROMPT = (
     "The step limit is reached. Answer now with what you know, without calling tools, and "
     "say that the step limit was hit."
 )
+# gpt-oss-20b ignores REPEAT_NOTE: on Nov 19 it asked for one test search eight times in a
+# question, seven of them with the result in plain view. After MAX_IN_VIEW_REPEATS such
+# repeats (re-fetches of shortened results do not count), the next request offers no
+# tools and asks for the answer.
+MAX_IN_VIEW_REPEATS = 3
+REPEATS_PROMPT = (
+    "You keep asking for results you already have. Answer now with what you know, without "
+    "calling tools, and say what you could not confirm."
+)
+REPEATS_NOTE = ("(Stopped early: the model kept asking for results it already had, so it was "
+                "asked to answer with what it had found.)")
 
 
 @dataclass(frozen=True, slots=True)
@@ -166,6 +177,7 @@ def _run(messages: list[Message], tools: ToolSet, client: LLMClient, max_steps: 
          answer: Answer, log: list[dict[str, Any]], on_step: OnStep,
          first: dict[str, Any]) -> None:
     made: dict[str, tuple[int, str]] = {}  # each call so far -> (step shown whole, result)
+    in_view_repeats = 0
     for step in range(1, max_steps + 1):
         response, seconds = _timed_chat(client, _for_model(messages), tools.specs)
         answer.steps = step
@@ -182,7 +194,8 @@ def _run(messages: list[Message], tools: ToolSet, client: LLMClient, max_steps: 
             on_step(record)
             return
         for call in response.tool_calls:
-            result, repeat_of = _result_of(call, step, tools, made)
+            result, repeat_of, in_view = _result_of(call, step, tools, made)
+            in_view_repeats += in_view
             messages.append(Message("tool", result, tool_call_id=call.id))
             # The result itself is kept (at most MAX_RESULT_CHARS), so a recorded answer
             # can be replayed step by step and a wrong answer traced to what it was shown.
@@ -192,42 +205,49 @@ def _run(messages: list[Message], tools: ToolSet, client: LLMClient, max_steps: 
                 entry["repeat_of"] = repeat_of
             record["tool_calls"].append(entry)
         on_step(record)
-    _finish_at_limit(messages, client, max_steps, answer, log)
+        if in_view_repeats >= MAX_IN_VIEW_REPEATS:
+            _finish(messages, client, answer, log, REPEATS_PROMPT, REPEATS_NOTE,
+                    stopped="repeats")
+            on_step(log[-1])
+            return
+    answer.limit_hit = True
+    _finish(messages, client, answer, log, LIMIT_PROMPT, LIMIT_NOTE.format(n=max_steps),
+            limit_hit=True)
     on_step(log[-1])
 
 
 def _result_of(call: ToolCall, step: int, tools: ToolSet,
-               made: dict[str, tuple[int, str]]) -> tuple[str, int | None]:
-    """The call's result, and for a repeat (see REPEAT_NOTE) the step it repeats."""
+               made: dict[str, tuple[int, str]]) -> tuple[str, int | None, bool]:
+    """The call's result; for a repeat (see REPEAT_NOTE) the step it repeats; and whether
+    it was a repeat of a result the model can still see whole."""
     identity = json.dumps([call.name, call.arguments], sort_keys=True)
     if identity not in made:
         result = tools.call_json(call.name, call.arguments)
         made[identity] = (step, result)
-        return result, None
+        return result, None, False
     shown_at, result = made[identity]
     note = REPEAT_NOTE.format(step=shown_at)
     # The next request shows the results of the last FULL_RESULT_STEPS steps whole.
     if _shortened(result) is None or step - shown_at < FULL_RESULT_STEPS:
-        return json.dumps({"note": note}), shown_at
+        return json.dumps({"note": note}), shown_at, True
     made[identity] = (step, result)
     data = _json(result)
     if isinstance(data, dict):  # still JSON, so it can be shortened to its places later
-        return json.dumps({**data, "note": note}, ensure_ascii=False), shown_at
-    return f"{result}\n[{note}]", shown_at
+        return json.dumps({**data, "note": note}, ensure_ascii=False), shown_at, False
+    return f"{result}\n[{note}]", shown_at, False
 
 
-def _finish_at_limit(messages: list[Message], client: LLMClient, max_steps: int,
-                     answer: Answer, log: list[dict[str, Any]]) -> None:
-    """One last call without tools, so the user gets what is known and is told the limit hit."""
-    messages.append(Message("user", LIMIT_PROMPT))
+def _finish(messages: list[Message], client: LLMClient, answer: Answer,
+            log: list[dict[str, Any]], prompt: str, note: str, **marks: Any) -> None:
+    """One last call without tools, so the user gets what is known and is told why."""
+    messages.append(Message("user", prompt))
     response, seconds = _timed_chat(client, _for_model(messages), None)
     answer.steps += 1
     answer.input_tokens += response.input_tokens
     answer.output_tokens += response.output_tokens
-    answer.limit_hit = True
-    answer.text = f"{response.text}\n\n{LIMIT_NOTE.format(n=max_steps)}".strip()
+    answer.text = f"{response.text}\n\n{note}".strip()
     record = _step_record(answer.steps, response, seconds)
-    record.update({"final": True, "limit_hit": True})
+    record.update({"final": True, **marks})
     log.append(record)
 
 
