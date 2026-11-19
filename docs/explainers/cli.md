@@ -40,6 +40,15 @@ web app (`web-app.md`); its packages are optional, so it imports them only when 
   `$env:GROQ_API_KEY = "..."` would leave the key in PowerShell's history file.
   Why only those names: a `.env` in another project's folder holds that project's
   secrets. `python -m codeatlas.agent` does the same.
+- **Output is UTF-8, also into a file or a pipe (`console.py`, since Nov 19).** Sent
+  to a file or a pipe on Windows, Python writes the ANSI code page (cp1252), which has
+  no non-breaking hyphen (U+2011), a character gpt-oss puts in its answers, and no
+  non-Latin script. `codeatlas ask ... > answer.txt` crashed with `UnicodeEncodeError`
+  after the answer was made. So `main()` with no arguments first calls `utf8_output()`,
+  which switches stdout and stderr to UTF-8 when they are not already. A console
+  window was never affected. Example: `codeatlas scan "repro‑dir" > out.txt`
+  exited 1 before and writes the name as UTF-8 now. Rejected: `errors="replace"`,
+  which would print `?` in place of the character.
 - **`ask` checks for a key before anything else.** Without `GROQ_API_KEY` or
   `GEMINI_API_KEY`, the providers would retry with a placeholder key and fail slowly. One
   line naming both variables and exit 2 is faster and clearer. A provider failure after
@@ -104,5 +113,6 @@ and targets orange in the neighbourhood graph.
   `codeatlas.models`; the impact engine's `Change`, `ImpactConfig`, `ImpactResult`,
   `Target`, `TestPick`, `Evidence` and `Hop` from `impact/models.py`.
 - **Tests**: `tests/test_envfile.py` (which names `.env` gives, the shell wins, a test
-  never reads `.env`), `tests/test_cli_commands.py` (the query commands, on a two-commit repository
+  never reads `.env`), `tests/test_console.py` (a cp1252 stream crashes on U+2011, and is switched to UTF-8
+  for a real command line only), `tests/test_cli_commands.py` (the query commands, on a two-commit repository
   built in the test, LLM mocked) and `tests/test_cli.py`, `tests/view/` (the older ones).
