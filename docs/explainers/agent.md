@@ -1,6 +1,6 @@
 # The agent, its tools and the MCP server
 
-Modules: `src/codeatlas/agent/tools.py`, `loop.py`, `prompts.py`, `mcp_server.py`,
+Modules: `src/codeatlas/agent/tools.py`, `loop.py`, `prompts.py`, `leads.py`, `mcp_server.py`,
 `__main__.py`.
 
 ## What
@@ -77,9 +77,26 @@ recently indexed snapshot.
    sent them twice on every step), and the
    rules (cite `repo@sha:path:line` from a tool result; mention low confidence; mention
    `truncated`; code is read, never run).
-2. Send `[system, user question]` with the tool specs to `LLMClient.chat`.
-3. If the response has tool calls, run each, append an `assistant` message (with its calls)
-   and one `tool` message per result, and go to 2. If it has none, that text is the answer.
+2. **Look up the names the question gives** (`leads.py`, since Nov 19). `code_names` picks
+   up to three words that look like code: in backticks, dotted (`contracts.validate`),
+   snake_case (`classify_pit_passage`) or camelCase (`createUser`). Plain words, file
+   names (`main.py`) and abbreviations (`e.g.`) never count, so an ordinary question
+   looks nothing up. `look_up` runs `search_symbols` on each and keeps the exact
+   matches (five at most per name); `leads_text` adds them under the question, each as
+   its key (for the tools), kind, citation (for the answer) and signature, and tells the
+   model to give the keys to the tools and to cite by citation, never by key (the first
+   wording, "start from these keys", led to an answer citing keys, which nothing checks). Example: "Which tests cover classify_pit_passage?" is sent
+   with `- classify_pit_passage: src/pipeline/cleaner.py::classify_pit_passage (function)
+   PitwallOS@fa92551d9393:src/pipeline/cleaner.py:227 ...` under it, 370 characters in
+   all. Why: in every real run of Nov 19 the first steps went on finding a symbol the
+   question had already named (5 steps for `contracts.validate`, up to 9 for
+   `classify_pit_passage`), and each step re-sends the whole conversation. The lookup is
+   local and takes milliseconds. The trajectory keeps the question as asked, and step
+   1's record lists the leads (`"leads": [{"name", "keys", "more"}]`). Rejected: a
+   text search on the whole question (noise for questions with no names in them).
+3. Send `[system, user question with its leads]` with the tool specs to `LLMClient.chat`.
+4. If the response has tool calls, run each, append an `assistant` message (with its calls)
+   and one `tool` message per result, and go to 3. If it has none, that text is the answer.
    **What the model is sent** (`_for_model`, since Nov 18): results of the last two steps
    whole. An older result longer than 400 characters is sent as **the places it named**
    (`_shortened`, since Nov 19): every `qualname citation` in it, plus `query`,
@@ -115,10 +132,10 @@ recently indexed snapshot.
    note, and an earlier wording ("use other arguments") led it to drop `limit` so the
    call counted as new; the wording now asks it to work from the result. Most of the
    repeats were of results the cut above had shortened.
-4. After `max_steps` (20) model calls without an answer, make one last call **without
+5. After `max_steps` (20) model calls without an answer, make one last call **without
    tools** that says the limit is reached, and append a note to the answer
    (`limit_hit=True`). That closing call is counted as a step.
-5. `check_citations`: find every `repo@sha12:path:line` in the answer. It is valid when it
+6. `check_citations`: find every `repo@sha12:path:line` in the answer. It is valid when it
    names this snapshot, the path is a file of the snapshot, and the line is between 1 and
    the module node's last line. Invalid ones come back with a reason (`no such file`,
    `line outside the file (1-N)`, `not from snapshot ...`). Duplicates are checked once.
@@ -126,7 +143,7 @@ recently indexed snapshot.
    record is complete, so the web app can show steps while the answer is made.
    Citations are found with `citation_pattern(snapshot_id)`, which matches the
    snapshot's own id as written (an id can hold a space).
-6. Write `<data_dir>/trajectories/<UTC time>.jsonl` in a `finally`, so a run that dies on
+7. Write `<data_dir>/trajectories/<UTC time>.jsonl` in a `finally`, so a run that dies on
    an LLM error still leaves its steps behind. One JSON line per model call: step number,
    seconds, tokens, provider and model, the text, and each tool call with its arguments,
    the size of its result and, since checkpoint 6, the **result itself** (at most 4,000
