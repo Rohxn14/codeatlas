@@ -163,6 +163,57 @@ def test_the_model_is_sent_the_shortened_conversation(store, tmp_path):
     assert last[5].content == provider.requests[2][5].content  # step 2 still whole at step 4
 
 
+def test_a_repeated_call_is_not_run_again_and_points_at_the_result_in_view(
+    store, tmp_path, monkeypatch,
+):
+    runs = []
+    original = ToolSet.call_json
+
+    def counted(self, name, args=None):
+        runs.append(name)
+        return original(self, name, args)
+
+    monkeypatch.setattr(ToolSet, "call_json", counted)
+    client, provider = make_client(
+        reply(calls=[call("1", "get_file_symbols", path="app/service.py")]),
+        reply(calls=[call("2", "get_file_symbols", path="app/service.py")]),
+        reply("Done."),
+    )
+    answer = ask("q", store, SNAP, client, data_dir=tmp_path)
+    assert runs == ["get_file_symbols"]  # the repeat was answered without running the tool
+    sent = provider.requests[2]
+    assert len(sent[3].content) > 400 and "app/service.py::create" in sent[3].content  # whole
+    assert json.loads(sent[5].content) == {
+        "note": "Same tool and arguments as step 1: the result has not changed. "
+                "Use other arguments or another tool, or answer."}
+    steps = read_lines(answer.trajectory_path)
+    assert "repeat_of" not in steps[0]["tool_calls"][0]
+    assert steps[1]["tool_calls"][0]["repeat_of"] == 1
+
+
+def test_a_repeat_of_a_result_cut_short_gets_it_whole_again(store, tmp_path):
+    long = call("1", "get_file_symbols", path="app/service.py")  # 559 characters: cut later
+    short = call("2", "search_symbols", name="save")  # 269 characters: never cut
+    client, provider = make_client(
+        reply(calls=[long, short]),
+        reply(calls=[call("3", "search_symbols", name="create")]),
+        reply(calls=[call("4", "search_symbols", name="rename")]),
+        reply(calls=[call("5", "get_file_symbols", path="app/service.py"),
+                     call("6", "search_symbols", name="save")]),
+        reply("Done."),
+    )
+    answer = ask("q", store, SNAP, client, data_dir=tmp_path)
+    sent = provider.requests[4]
+    first, again = sent[3].content, sent[-2].content
+    assert "older result shortened from 559 characters" in first  # step 1, as the model sees it
+    assert again.startswith(provider.requests[1][3].content)  # the whole first result
+    assert again.endswith("[Same tool and arguments as step 1: the result has not changed. "
+                          "Use other arguments or another tool, or answer.]")
+    assert json.loads(sent[-1].content)["note"].startswith("Same tool and arguments as step 1")
+    repeats = [c.get("repeat_of") for c in read_lines(answer.trajectory_path)[3]["tool_calls"]]
+    assert repeats == [1, 1]
+
+
 def test_the_system_prompt_names_the_tools_without_repeating_their_specs(store):
     from codeatlas.agent.prompts import system_prompt
 

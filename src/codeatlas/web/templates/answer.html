@@ -46,7 +46,7 @@
     {% for r in rows %}
       <tr><td class="n">{{ r.step }}</td><td><code>{{ r.tool }}</code></td>
         <td><code>{{ r.arguments | truncate(120, True, "…", 0) }}</code></td>
-        <td class="n">{{ r.chars | thousands }} characters</td></tr>
+        <td class="n">{% if r.repeat_of %}same as step {{ r.repeat_of }}{% else %}{{ r.chars | thousands }} characters{% endif %}</td></tr>
     {% endfor %}
     </tbody>
   </table>
