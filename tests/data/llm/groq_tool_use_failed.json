@@ -1,0 +1,8 @@
+{
+  "error": {
+    "message": "Tool call validation failed: tool call validation failed: attempted to call tool 'commentary' which was not in request.tools",
+    "type": "invalid_request_error",
+    "code": "tool_use_failed",
+    "failed_generation": "{\"name\": \"commentary\", \"arguments\": {\"kind\": \"function\", \"limit\": 200, \"name\": \"validate\"}}"
+  }
+}

@@ -10,7 +10,12 @@ from typing import Any
 import groq
 import httpx
 
-from codeatlas.llm.errors import LLMEmptyResponseError, LLMRequestError, LLMTransientError
+from codeatlas.llm.errors import (
+    LLMBadOutputError,
+    LLMEmptyResponseError,
+    LLMRequestError,
+    LLMTransientError,
+)
 from codeatlas.llm.providers.base import (
     PLACEHOLDER_KEY,
     ModelInfo,
@@ -18,6 +23,10 @@ from codeatlas.llm.providers.base import (
     retry_after_seconds,
 )
 from codeatlas.llm.types import LLMResponse, Message, ToolCall, ToolSpec
+
+# Codes of a 400 that mean "the model's output failed Groq's check", not "your request
+# is wrong" (both seen on Nov 19 with gpt-oss): see `LLMBadOutputError`.
+BAD_OUTPUT_CODES = ("tool_use_failed", "output_parse_failed")
 
 
 class GroqProvider:
@@ -155,4 +164,14 @@ def _translate(exc: groq.APIError) -> Exception:
         headers = getattr(response, "headers", None)
         return LLMTransientError("groq", status, str(exc),
                                  retry_after=retry_after_seconds(headers, str(exc)))
+    if status == 400 and _error_code(exc) in BAD_OUTPUT_CODES:
+        return LLMBadOutputError("groq", str(exc))
     return LLMRequestError("groq", status, str(exc))
+
+
+def _error_code(exc: groq.APIError) -> str | None:
+    """The `code` inside Groq's error body (`{"error": {"code": ...}}`), when there is one."""
+    body = getattr(exc, "body", None)
+    error = body.get("error") if isinstance(body, dict) else None
+    code = error.get("code") if isinstance(error, dict) else None
+    return code if isinstance(code, str) else None

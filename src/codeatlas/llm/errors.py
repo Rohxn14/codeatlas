@@ -46,6 +46,22 @@ class LLMEmptyResponseError(LLMError):
         self.reason = reason
 
 
+class LLMBadOutputError(LLMError):
+    """The model's output failed the provider's own check, so there is no answer to use.
+
+    Groq answers 400 with code `tool_use_failed` when gpt-oss calls a tool that was never
+    offered (on Nov 19 it called `commentary`, one of its own output channels) or writes
+    arguments that are not JSON, and `output_parse_failed` when its output cannot be
+    parsed at all (the same day: its reasoning came out as the answer). The request was
+    fine and another model may well manage it, so the client moves on, as for an empty
+    answer, instead of failing the whole question the way a 400 does.
+    """
+
+    def __init__(self, provider: str, message: str) -> None:
+        super().__init__(f"{provider}: the model's output was rejected: {message}")
+        self.provider = provider
+
+
 class LLMUnavailableError(LLMError):
     """Every provider was tried and each one failed with a transient error."""
 
