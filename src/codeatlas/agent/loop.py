@@ -20,11 +20,14 @@ from codeatlas.llm import LLMClient, Message, ToolCall
 # contain a colon or whitespace; trailing punctuation such as `)` or `.` is not part of a
 # citation. Answers also hold shapes the contract does not ask for, and those are found
 # and checked rather than skipped (all seen on Nov 19): a range (`:588-600`, also with a
-# non-breaking hyphen or an en dash), a file with no line, and a bare `path/file.py:276`.
+# non-breaking hyphen or an en dash), a file with no line, a bare `path/file.py:276`, and
+# a symbol's key (`path/file.py::build_silver`), which points at the symbol's first line.
 _PATH = r"[^\s:`'\"()\[\]<>,;]+"
-_RANGE = r"(?:[-‑–](?P<{}>\d+))?"
+_DASHES = "-" + chr(0x2011) + chr(0x2013)  # hyphen, non-breaking hyphen, en dash
+_RANGE = "(?:[" + _DASHES + r"](?P<{}>\d+))?"
+_NAME = r"[A-Za-z_](?:[\w.]*\w)?"  # a qualname, never ending in a full stop
 _BARE = (r"(?<![\w@./:-])(?P<bpath>[\w.\-]+(?:/[\w.\-]+)*\.[A-Za-z0-9]+)"
-         r":(?P<bline>\d+)" + _RANGE.format("bend") + r"(?!\d)")
+         r"(?:::(?P<bname>" + _NAME + r")|:(?P<bline>\d+)" + _RANGE.format("bend") + r"(?!\d))")
 # Called with each step's trajectory record once its tool calls have run, so a page
 # can show the steps while the answer is still being made.
 OnStep = Callable[[dict[str, Any]], None]
@@ -108,22 +111,23 @@ def check_citations(text: str, tools: ToolSet) -> list[CitationCheck]:
 def _check(match: re.Match[str], snapshot_id: str, store: Any) -> CitationCheck | None:
     """One citation found by `citation_pattern`, checked; None when it is not one."""
     citation, full = match.group(0), match.group("full") is not None
-    if full:
-        path, line, end = match.group("fpath"), match.group("fline"), match.group("fend")
-        if not citation.startswith(snapshot_id + ":"):
-            return CitationCheck(citation, "", int(line or 0), False,
-                                 f"not from snapshot {snapshot_id}")
-        if line is None:
-            return CitationCheck(citation, path, 0, False, "no line number")
-    else:
-        path, line, end = match.group("bpath"), match.group("bline"), match.group("bend")
+    g = "f" if full else "b"
+    path, name = match.group(g + "path"), match.group(g + "name")
+    line, end = match.group(g + "line"), match.group(g + "end")
+    if full and not citation.startswith(snapshot_id + ":"):
+        return CitationCheck(citation, "", int(line or 0), False,
+                             f"not from snapshot {snapshot_id}")
+    module = store.module_for_path(snapshot_id, path)
+    if module is None and not full and "/" not in path:
+        return None  # a version or a host name, not a place in this snapshot
+    if module is None:
+        return CitationCheck(citation, path, int(line or 0), False, "no such file")
+    if name is not None:  # a key: the place is where the symbol starts
+        return _check_key(citation, path, name, snapshot_id, store)
+    if line is None:
+        return CitationCheck(citation, path, 0, False, "no line number")
     first = int(line)
     last = int(end) if end else first
-    module = store.module_for_path(snapshot_id, path)
-    if module is None:
-        if not full and "/" not in path:
-            return None  # a version or a host name, not a place in this snapshot
-        return CitationCheck(citation, path, first, False, "no such file")
     if last < first:
         return CitationCheck(citation, path, first, False, "the range ends before it starts")
     span = module.span
@@ -133,6 +137,24 @@ def _check(match: re.Match[str], snapshot_id: str, store: Any) -> CitationCheck 
     return CitationCheck(citation, path, first, True)
 
 
+def _check_key(citation: str, path: str, name: str, snapshot_id: str,
+               store: Any) -> CitationCheck:
+    """A cited key: valid at the symbol's first line when it names one symbol of the file.
+
+    The model often drops the class (`race_replay.py::_compute_lap_times` for the method
+    `F1RaceReplayWindow._compute_lap_times`, four times in one answer on Nov 19), so a
+    name that is not a whole qualname counts when exactly one symbol's qualname ends in it.
+    """
+    found = store.nodes_by_key(f"{path}::{name}", snapshot_id)
+    if not found:
+        found = [n for n in store.nodes_in_file(snapshot_id, path)
+                 if n.qualname.endswith("." + name)]
+    if len(found) == 1:
+        return CitationCheck(citation, path, found[0].span.start_line, True)
+    reason = f"{len(found)} symbols end with that name" if found else "no such symbol"
+    return CitationCheck(citation, path, 0, False, reason)
+
+
 def citation_pattern(snapshot_id: str) -> re.Pattern[str]:
     """Citations in an answer: this snapshot's, anything else shaped like one, bare paths.
 
@@ -140,11 +162,13 @@ def citation_pattern(snapshot_id: str) -> re.Pattern[str]:
     does not allow, so this snapshot's own id is matched as written. A citation of
     another snapshot is still found, and then reported as not from this one. Group
     `full` is set for the contract's shape (its line and range are optional here, so a
-    file cited without a line is reported); otherwise the match is a bare path.
+    file cited without a line is reported); otherwise the match is a bare path. Either
+    can end in `::qualname` instead of a line: a key.
     """
     snapshot = f"(?:{re.escape(snapshot_id)}|" + r"[\w.\-]+@[0-9a-f]{12})"
     full = (f"(?P<full>{snapshot}:(?P<fpath>{_PATH})"
-            + r"(?::(?P<fline>\d+)" + _RANGE.format("fend") + r")?)")
+            + r"(?:::(?P<fname>" + _NAME + r")|:(?P<fline>\d+)" + _RANGE.format("fend")
+            + r")?)")
     return re.compile(f"{full}|{_BARE}")
 
 
