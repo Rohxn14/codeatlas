@@ -96,13 +96,17 @@ recently indexed snapshot.
    questions: twice with the first result in plain view, twice after the cut above told
    it to call again. If the first result is still shown whole at the next request (it is
    short, or from the last two steps), the repeat gets only a note: `{"note": "Same tool
-   and arguments as step 1: the result has not changed. Use other arguments or another
-   tool, or answer."}`. If it has been cut, the repeat gets it whole again, with the same
-   note after it. The trajectory marks the call `"repeat_of": 1`, and the answer page
-   shows "same as step 1". Example: step 1 `get_file_symbols(path="app/service.py")`
-   (559 characters), step 2 the same call: step 2's result is the note. What it does not
-   do: save the step itself. The model has already spent a request by the time it
-   repeats; the note only makes the repeat cheaper and tells the model it is going round.
+   and arguments as step 1: the result has not changed. Work from that result, or
+   answer."}`. If it has been cut, the repeat gets it whole again, with the same note
+   after it. The trajectory marks the call `"repeat_of": 1`, and the answer page shows
+   "same as step 1". Example: step 1 `get_file_symbols(path="app/service.py")` (559
+   characters), step 2 the same call: step 2's result is the note. What it does not do:
+   save the step itself. The model has already spent a request by the time it repeats.
+   Measured on the same two questions afterwards: steps did not go down (15 and 19
+   instead of 10 and 15). 20b repeated a call up to four times in a row despite the
+   note, and an earlier wording ("use other arguments") led it to drop `limit` so the
+   call counted as new; the wording now asks it to work from the result. Most of the
+   repeats were of results the cut above had shortened.
 4. After `max_steps` (20) model calls without an answer, make one last call **without
    tools** that says the limit is reached, and append a note to the answer
    (`limit_hit=True`). That closing call is counted as a step.

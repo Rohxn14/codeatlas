@@ -38,7 +38,7 @@ SHORTENED_NOTE = ("\n[older result shortened from {n} characters; call the tool 
 # repeat is not run again. While the first result is still shown whole, the repeat gets
 # only this note; once it has been cut, the repeat gets it whole again, with the note.
 REPEAT_NOTE = ("Same tool and arguments as step {step}: the result has not changed. "
-               "Use other arguments or another tool, or answer.")
+               "Work from that result, or answer.")
 LIMIT_PROMPT = (
     "The step limit is reached. Answer now with what you know, without calling tools, and "
     "say that the step limit was hit."

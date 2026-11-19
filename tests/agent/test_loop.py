@@ -185,7 +185,7 @@ def test_a_repeated_call_is_not_run_again_and_points_at_the_result_in_view(
     assert len(sent[3].content) > 400 and "app/service.py::create" in sent[3].content  # whole
     assert json.loads(sent[5].content) == {
         "note": "Same tool and arguments as step 1: the result has not changed. "
-                "Use other arguments or another tool, or answer."}
+                "Work from that result, or answer."}
     steps = read_lines(answer.trajectory_path)
     assert "repeat_of" not in steps[0]["tool_calls"][0]
     assert steps[1]["tool_calls"][0]["repeat_of"] == 1
@@ -208,7 +208,7 @@ def test_a_repeat_of_a_result_cut_short_gets_it_whole_again(store, tmp_path):
     assert "older result shortened from 559 characters" in first  # step 1, as the model sees it
     assert again.startswith(provider.requests[1][3].content)  # the whole first result
     assert again.endswith("[Same tool and arguments as step 1: the result has not changed. "
-                          "Use other arguments or another tool, or answer.]")
+                          "Work from that result, or answer.]")
     assert json.loads(sent[-1].content)["note"].startswith("Same tool and arguments as step 1")
     repeats = [c.get("repeat_of") for c in read_lines(answer.trajectory_path)[3]["tool_calls"]]
     assert repeats == [1, 1]
