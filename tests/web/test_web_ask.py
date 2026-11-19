@@ -117,6 +117,20 @@ def test_a_question_is_answered_with_its_steps_and_checked_citations(
     assert location in client.get(f"{base}/ask").text
 
 
+def test_a_repeated_tool_call_is_shown_as_the_same_as_its_first_step(
+    indexed: tuple[Path, Config, str],
+) -> None:
+    client, base = app_with(
+        indexed,
+        reply(calls=[ToolCall("1", "search_docs", {"query": "install"})]),
+        reply(calls=[ToolCall("2", "search_docs", {"query": "install"})]),
+        reply("Run the installer."),
+    )
+    page = finish(client, ask(client, base, "How do I install this?"))
+    assert page.count("query=&#39;install&#39;") == 2
+    assert "same as step 1" in page, main_text(page)
+
+
 def test_an_answer_with_no_citations_says_nothing_was_checked(
     indexed: tuple[Path, Config, str],
 ) -> None:

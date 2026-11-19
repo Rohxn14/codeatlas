@@ -180,5 +180,6 @@ def step_rows(question: Question) -> list[dict[str, Any]]:
         for call in record.get("tool_calls", []):
             args = ", ".join(f"{k}={v!r}" for k, v in (call.get("arguments") or {}).items())
             rows.append({"step": record["step"], "tool": call["name"], "arguments": args,
-                         "chars": call.get("result_chars", 0)})
+                         "chars": call.get("result_chars", 0),
+                         "repeat_of": call.get("repeat_of")})
     return rows

@@ -14,7 +14,7 @@ from typing import Any
 from codeatlas.agent.prompts import system_prompt
 from codeatlas.agent.tools import ToolSet
 from codeatlas.config import Config
-from codeatlas.llm import LLMClient, Message
+from codeatlas.llm import LLMClient, Message, ToolCall
 
 # repo@sha12:path:line. The path may not contain a colon or whitespace; trailing
 # punctuation such as `)` or `.` is not part of a citation.
@@ -32,6 +32,13 @@ FULL_RESULT_STEPS = 2
 OLD_RESULT_CHARS = 400
 SHORTENED_NOTE = ("\n[older result shortened from {n} characters; call the tool again "
                   "to see all of it]")
+# The tools read one fixed snapshot, so a call made again with the same arguments gets
+# the same result. On Nov 19 the model still repeated 4 of 23 calls over two questions:
+# twice with the first result in plain view, twice after SHORTENED_NOTE had cut it. A
+# repeat is not run again. While the first result is still shown whole, the repeat gets
+# only this note; once it has been cut, the repeat gets it whole again, with the note.
+REPEAT_NOTE = ("Same tool and arguments as step {step}: the result has not changed. "
+               "Work from that result, or answer.")
 LIMIT_PROMPT = (
     "The step limit is reached. Answer now with what you know, without calling tools, and "
     "say that the step limit was hit."
@@ -147,6 +154,7 @@ def _no_step(record: dict[str, Any]) -> None:
 
 def _run(messages: list[Message], tools: ToolSet, client: LLMClient, max_steps: int,
          answer: Answer, log: list[dict[str, Any]], on_step: OnStep) -> None:
+    made: dict[str, tuple[int, str]] = {}  # each call so far -> (step shown whole, result)
     for step in range(1, max_steps + 1):
         response, seconds = _timed_chat(client, _for_model(messages), tools.specs)
         answer.steps = step
@@ -163,15 +171,35 @@ def _run(messages: list[Message], tools: ToolSet, client: LLMClient, max_steps: 
             on_step(record)
             return
         for call in response.tool_calls:
-            result = tools.call_json(call.name, call.arguments)
+            result, repeat_of = _result_of(call, step, tools, made)
             messages.append(Message("tool", result, tool_call_id=call.id))
             # The result itself is kept (at most MAX_RESULT_CHARS), so a recorded answer
             # can be replayed step by step and a wrong answer traced to what it was shown.
-            record["tool_calls"].append({"name": call.name, "arguments": call.arguments,
-                                         "result_chars": len(result), "result": result})
+            entry = {"name": call.name, "arguments": call.arguments,
+                     "result_chars": len(result), "result": result}
+            if repeat_of is not None:
+                entry["repeat_of"] = repeat_of
+            record["tool_calls"].append(entry)
         on_step(record)
     _finish_at_limit(messages, client, max_steps, answer, log)
     on_step(log[-1])
+
+
+def _result_of(call: ToolCall, step: int, tools: ToolSet,
+               made: dict[str, tuple[int, str]]) -> tuple[str, int | None]:
+    """The call's result, and for a repeat (see REPEAT_NOTE) the step it repeats."""
+    identity = json.dumps([call.name, call.arguments], sort_keys=True)
+    if identity not in made:
+        result = tools.call_json(call.name, call.arguments)
+        made[identity] = (step, result)
+        return result, None
+    shown_at, result = made[identity]
+    note = REPEAT_NOTE.format(step=shown_at)
+    # The next request shows the results of the last FULL_RESULT_STEPS steps whole.
+    if len(result) <= OLD_RESULT_CHARS or step - shown_at < FULL_RESULT_STEPS:
+        return json.dumps({"note": note}), shown_at
+    made[identity] = (step, result)
+    return f"{result}\n[{note}]", shown_at
 
 
 def _finish_at_limit(messages: list[Message], client: LLMClient, max_steps: int,

@@ -90,6 +90,23 @@ recently indexed snapshot.
    keeping only the last step (40% fewer, but the model would lose the step before
    while it is still comparing two results); dropping old results entirely (it could
    not even see what it had looked at). Not yet measured: whether answers get worse.
+   **A repeated call** (`_result_of`, since Nov 19): the same tool with the same
+   arguments is not run again, because the tools read one fixed snapshot and the result
+   cannot have changed. On Nov 19 the model repeated 4 of 23 calls over two real
+   questions: twice with the first result in plain view, twice after the cut above told
+   it to call again. If the first result is still shown whole at the next request (it is
+   short, or from the last two steps), the repeat gets only a note: `{"note": "Same tool
+   and arguments as step 1: the result has not changed. Work from that result, or
+   answer."}`. If it has been cut, the repeat gets it whole again, with the same note
+   after it. The trajectory marks the call `"repeat_of": 1`, and the answer page shows
+   "same as step 1". Example: step 1 `get_file_symbols(path="app/service.py")` (559
+   characters), step 2 the same call: step 2's result is the note. What it does not do:
+   save the step itself. The model has already spent a request by the time it repeats.
+   Measured on the same two questions afterwards: steps did not go down (15 and 19
+   instead of 10 and 15). 20b repeated a call up to four times in a row despite the
+   note, and an earlier wording ("use other arguments") led it to drop `limit` so the
+   call counted as new; the wording now asks it to work from the result. Most of the
+   repeats were of results the cut above had shortened.
 4. After `max_steps` (20) model calls without an answer, make one last call **without
    tools** that says the limit is reached, and append a note to the answer
    (`limit_hit=True`). That closing call is counted as a step.
