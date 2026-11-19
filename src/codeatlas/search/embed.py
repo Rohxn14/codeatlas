@@ -64,14 +64,20 @@ def build_embeddings(
     """Embed the snapshot's symbols that lack a vector for this model; returns how many.
 
     Re-running only pays for new nodes, so a second call after an unchanged index is free.
+    Symbols go in order of text length: the model pads every text of a batch to the
+    batch's longest, so in file order one long docstring made 63 short signatures cost
+    as much as it did. On PitwallOS's 2,022 symbols: 195 s in file order, about 50 s by
+    length (Nov 19), with the same vectors.
     """
     done, _ = store.embeddings(snapshot_id, embedder.model)
     have = set(done)
-    todo = [n for n in store.nodes(snapshot_id) if n.kind in EMBEDDED_KINDS and n.id not in have]
+    todo = [(node_text(n, repo_root), n) for n in store.nodes(snapshot_id)
+            if n.kind in EMBEDDED_KINDS and n.id not in have]
+    todo.sort(key=lambda item: len(item[0]))
     for start in range(0, len(todo), BATCH):
         batch = todo[start : start + BATCH]
-        vectors = embedder.embed([node_text(n, repo_root) for n in batch])
+        vectors = embedder.embed([text for text, _ in batch])
         store.write_embeddings(
-            (n.id, embedder.model, v) for n, v in zip(batch, vectors, strict=True)
+            (n.id, embedder.model, v) for (_, n), v in zip(batch, vectors, strict=True)
         )
     return len(todo)

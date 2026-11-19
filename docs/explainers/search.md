@@ -11,6 +11,7 @@ Takes a question in plain words ("what hands out the next free number for a new 
 - **Brute-force NumPy cosine.** One matrix product over at most ~100,000 rows takes milliseconds; a vector index (FAISS, sqlite-vss) would add a dependency for no gain at this size.
 - **One graph hop, discounted.** The code that answers a question is often the neighbour of the one that matches (the class around a method, the callee). One hop at half weight adds that context without flooding results. Rejected: multi-hop walks (noise grows fast).
 - **Embeddings stored per node id and model**, in the existing table, so changing model never mixes vectors.
+- **Embedded in order of text length** (`build_embeddings`, since Nov 19). The model pads every text of a batch of 64 to the batch's longest, and node texts vary a lot (on PitwallOS: median 146 characters, the longest 5,931). In file order, one long docstring made 63 short signatures cost as much as it did. Sorted by length, PitwallOS's 2,022 symbols took 49.7 s instead of 195 s on the owner's laptop, with the same vectors (all 2,022 compared).
 
 ## How
 

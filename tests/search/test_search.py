@@ -193,3 +193,24 @@ def test_code_and_documentation_are_two_searches(store):
     docs = search.search("persist rows to disk", k=10, docs=True)
     assert [h.node.id for h in docs] == [section.id]
     assert set(docs[0].sources) == {"bm25", "vector"}
+
+
+def test_build_embeddings_goes_by_text_length_and_keeps_each_vector_with_its_node(store):
+    # A batch is padded to its longest text, so file order made short texts cost as
+    # much as their longest neighbour: 195 s instead of 50 s on PitwallOS (Nov 19).
+    seen: list[str] = []
+
+    class Recording(FakeEmbedder):
+        def embed(self, texts: list[str]) -> np.ndarray:
+            seen.extend(texts)
+            return super().embed(texts)
+
+    nodes = [mk("m.py", f"f{i}", lines=(i * 10 + 1, i * 10 + 5), doc="word " * (i * 7 % 13))
+             for i in range(1, 80)]  # more than one batch, lengths out of order
+    store.write_nodes(nodes)
+    assert build_embeddings(store, SID, Recording()) == len(nodes)
+    assert [len(t) for t in seen] == sorted(len(t) for t in seen)
+    ids, vectors = store.embeddings(SID, "fake")
+    by_id = dict(zip(ids, vectors, strict=True))
+    for node in nodes:
+        assert np.allclose(by_id[node.id], FakeEmbedder().embed([node_text(node)])[0])

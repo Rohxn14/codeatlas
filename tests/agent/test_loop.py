@@ -297,3 +297,33 @@ def test_re_fetching_a_shortened_result_is_not_counted_as_going_round(store, tmp
     )
     answer = ask("q", store, SNAP, client, data_dir=tmp_path)
     assert answer.text == "Done." and answer.steps == 8
+
+
+NB_HYPHEN = chr(0x2011)  # how gpt-oss-120b writes a range: 588‑600
+OPEN, CLOSE = chr(0x3010), chr(0x3011)  # the brackets it puts around a citation
+
+
+def test_every_shape_of_citation_in_an_answer_is_checked(store):
+    # All seen on Nov 19: a bare path, a range with a non-breaking hyphen, a file with no
+    # line, a key. Before, none of them was found, so none was checked.
+    tools = ToolSet(store, SNAP)
+    text = (f"Bare: {OPEN}app/repo.py:2{CLOSE} and app/ghost.py:1. "
+            f"Range: {SNAP}:app/service.py:3{NB_HYPHEN}4, too long "
+            f"{SNAP}:app/service.py:6-99, backwards {SNAP}:app/repo.py:4-2. "
+            f"No line: `{SNAP}:app/repo.py`. Keys: {OPEN}app/service.py::create{CLOSE}, "
+            f"{SNAP}:app/repo.py::Repo.save, app/repo.py::save (no class) and "
+            "app/service.py::missing. "
+            "Not citations: v1.2:3, example.com:8080, 12:30, notes.md::x.")
+    checks = {c.text: (c.line, c.valid, c.reason) for c in check_citations(text, tools)}
+    assert checks == {
+        "app/repo.py:2": (2, True, ""),
+        "app/ghost.py:1": (1, False, "no such file"),
+        f"{SNAP}:app/service.py:3{NB_HYPHEN}4": (3, True, ""),
+        f"{SNAP}:app/service.py:6-99": (6, False, "line outside the file (1-7)"),
+        f"{SNAP}:app/repo.py:4-2": (4, False, "the range ends before it starts"),
+        f"{SNAP}:app/repo.py": (0, False, "no line number"),
+        "app/service.py::create": (3, True, ""),  # where the symbol starts
+        f"{SNAP}:app/repo.py::Repo.save": (2, True, ""),
+        "app/repo.py::save": (2, True, ""),  # the one symbol of the file ending in .save
+        "app/service.py::missing": (0, False, "no such symbol"),
+    }
