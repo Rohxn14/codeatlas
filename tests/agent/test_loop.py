@@ -161,3 +161,12 @@ def test_the_model_is_sent_the_shortened_conversation(store, tmp_path):
     last = provider.requests[3]
     assert [m.role for m in last].count("tool") == 3
     assert last[5].content == provider.requests[2][5].content  # step 2 still whole at step 4
+
+
+def test_the_system_prompt_names_the_tools_without_repeating_their_specs(store):
+    from codeatlas.agent.prompts import system_prompt
+
+    tools = ToolSet(store, SNAP)
+    prompt = system_prompt(store, tools.context.snapshot, tools.specs)
+    assert all(spec.name in prompt for spec in tools.specs)
+    assert not any(spec.description in prompt for spec in tools.specs)  # sent in the specs

@@ -560,10 +560,7 @@ def select_tests(ctx: ToolContext, keys: list[str]) -> dict[str, Any]:
 
 # Specs and registry
 
-_KEY_HELP = (
-    "A node key such as 'backend/users.py::UserService.save' (path::qualname); a bare "
-    "qualname such as 'UserService.save' also works when it is unique."
-)
+_KEY_HELP = "Node key path::qualname, e.g. 'a/users.py::User.save'; a unique bare qualname works."
 
 
 def _schema(properties: dict[str, Any], required: list[str]) -> dict[str, Any]:
@@ -572,8 +569,7 @@ def _schema(properties: dict[str, Any], required: list[str]) -> dict[str, Any]:
 
 
 _KEY = {"type": "string", "description": _KEY_HELP}
-_DEPTH = {"type": "integer", "minimum": 1, "maximum": MAX_DEPTH, "default": 1,
-          "description": f"Hops to follow, at most {MAX_DEPTH}."}
+_DEPTH = {"type": "integer", "minimum": 1, "maximum": MAX_DEPTH, "default": 1}  # hops
 _CONFIDENCE = {"type": "number", "minimum": 0, "maximum": 1, "default": 0,
                "description": "Ignore edges below this confidence."}
 _KEYS = {"type": "array", "items": {"type": "string"}, "minItems": 1,
