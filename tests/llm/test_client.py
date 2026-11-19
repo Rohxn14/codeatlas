@@ -268,3 +268,23 @@ def test_the_usage_log_keeps_the_limits_and_the_estimate(script, tmp_path):
     assert line["limits"] == {"limit_tokens": 8000.0, "remaining_tokens": 100.0,
                               "reset_tokens": 30.0, "limit_requests": 1000.0,
                               "remaining_requests": 999.0, "reset_requests": 86.4}
+
+
+def test_a_provider_whose_rest_ends_during_the_pass_is_tried_again(script, tmp_path):
+    # Seen on Nov 19: Groq rested, Gemini's retries took longer than Groq's rest, and the
+    # request failed although Groq was free again.
+    g = script([(429, load("groq_rate_limit.json"), {"retry-after": "2"}),
+                (200, load("groq_text.json"))], models=load("groq_models.json"))
+    m = script([(503, load("groq_server_error.json"))] * 3, models=load("gemini_models.json"))
+    clock = Clock()
+    reply = make_client([groq(g), gemini(m)], tmp_path, clock=clock).chat(msgs())
+    assert reply.provider == "groq" and len(g.chat_requests) == 2
+    assert clock.now > 2  # Gemini's backoff outlasted Groq's rest: no extra wait needed
+
+
+def test_a_zero_second_retry_hint_still_rests_a_second(script, tmp_path):
+    g = script([(429, load("groq_rate_limit.json"), {"retry-after": "0"}),
+                (200, load("groq_text.json"))], models=load("groq_models.json"))
+    sleeps: list[float] = []
+    assert make_client([groq(g)], tmp_path, sleeps=sleeps).chat(msgs()).text == "ok"
+    assert sleeps == [1.0]
