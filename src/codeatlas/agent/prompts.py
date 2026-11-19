@@ -30,14 +30,17 @@ def describe_repository(store: GraphStore, snapshot: Snapshot) -> str:
 
 
 def system_prompt(store: GraphStore, snapshot: Snapshot, specs: list[ToolSpec]) -> str:
-    """The full system prompt for one snapshot."""
-    tools = "\n".join(f"- {s.name}: {s.description}" for s in specs)
+    """The full system prompt for one snapshot.
+
+    Tools are named, not described: each request also carries the tool specs, so their
+    descriptions here were sent twice on every step (D-50).
+    """
+    tools = ", ".join(s.name for s in specs)
     return f"""You answer questions about a code repository using a map built by static analysis.
 
 {describe_repository(store, snapshot)}
 
-Tools (call them; do not guess):
-{tools}
+Tools (call them; do not guess): {tools}.
 
 Rules:
 1. Every claim about the code must cite its evidence as `repo@sha:path:line`, copied from the

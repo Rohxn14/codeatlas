@@ -72,7 +72,9 @@ recently indexed snapshot.
 ### The loop
 
 1. Build `ToolSet` and the system prompt (`prompts.py`): repository name, snapshot id, file
-   count, languages with their tiers, packages, any `limits_hit`, the tool list, and the
+   count, languages with their tiers, packages, any `limits_hit`, the tool names (only the
+   names since D-50: the descriptions travel in the tool specs, and listing them here too
+   sent them twice on every step), and the
    rules (cite `repo@sha:path:line` from a tool result; mention low confidence; mention
    `truncated`; code is read, never run).
 2. Send `[system, user question]` with the tool specs to `LLMClient.chat`.
