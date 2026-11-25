@@ -302,7 +302,8 @@ h1 .sep { color: var(--muted); margin: 0 6px; font-weight: 400; }
 /* The architecture diagram */
 
 .diagram-wrap { margin-top: 18px; padding: 20px; overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; }
-.diagram { display: block; margin: 0 auto; max-width: none; }
+/* It shrinks to fit beside the chat; on a phone it scrolls, or the names could not be read. */
+.diagram { display: block; margin: 0 auto; max-width: 100%; height: auto; }
 .box rect { fill: var(--surface); stroke: var(--line-strong); stroke-width: 1.2; }
 .box .bar-left { stroke: none; fill: var(--text); }
 .box.tier-deep .bar-left { fill: var(--deep); }
@@ -390,6 +391,7 @@ td.indent { padding-left: 28px; font-family: var(--mono); font-size: 0.92em; ove
   .chat { position: fixed; inset: 0; z-index: 20; height: auto; border: 0; }
 }
 @media (max-width: 600px) {
+  .diagram { max-width: none; }
   .start { padding-top: 40px; }
   .index-form { flex-direction: column; }
   .index-form input { flex: none; }
