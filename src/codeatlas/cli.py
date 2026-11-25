@@ -438,6 +438,8 @@ def _run_ask(args: argparse.Namespace, config: Config) -> int:
               + ("" if c.valid else f"  ({c.reason})"))
     if not answer.citations:
         print("  none")
+    for q in answer.unfound_quotes:
+        print(f"  NOT IN {', '.join(q.paths)}: {q.text}")
     print(f"\nSteps: {answer.steps}  tokens in/out: {answer.input_tokens}/{answer.output_tokens}")
     print(f"Trajectory: {_posix(answer.trajectory_path)}")
     return 0

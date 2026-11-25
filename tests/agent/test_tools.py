@@ -371,3 +371,15 @@ def test_get_imports_says_which_files_name_a_file(store, source_dir):
     assert keys(out["named_by"]) == ["README.md::"] and "names" not in out
     assert keys(tools.call("get_imports", {"path": "README.md"})["names"]) == ["settings.yml::"]
     assert "named_by" not in tools.call("get_imports", {"path": "app/repo.py"})
+
+
+def test_the_text_of_a_file_in_a_search_hit_is_numbered(store, source_dir):
+    # Without numbers the model counted the lines itself, and cited .gitignore:1 for line 2.
+    text_file(store, source_dir, ".gitignore", "\n# caches\nzebra_cache/\n")
+    (hit,) = ToolSet(store, SNAP).call("search_docs", {"query": "zebra_cache"})["hits"]
+    assert hit["text"] == "1: \n2: # caches\n3: zebra_cache/"
+
+
+def test_tests_and_breakage_questions_have_a_tool_that_says_so(tools):
+    told = {s.name: s.description for s in tools.specs}
+    assert "tests" in told["select_tests"] and "breaks" in told["impact"]

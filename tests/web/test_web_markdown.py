@@ -70,3 +70,14 @@ def test_the_marks_cannot_be_forged_by_the_answer() -> None:
     cite = f"{SID}:a.py:1"
     html = render(f"{forged} then {cite}", CitationCheck(cite, "a.py", 1, True))
     assert html.count("<a ") == 1
+
+
+def test_quoted_code_that_is_not_in_the_file_is_marked() -> None:
+    from codeatlas.agent.quotes import QuoteCheck
+
+    text = 'It runs `go("x < 1")` and `stay()`.'
+    answer = Answer(text, quotes=[QuoteCheck('go("x < 1")', ("src/a.py",), ("go",)),
+                                  QuoteCheck("stay()", ("src/a.py",), ())])
+    html = str(render_answer(answer, "/s/r"))
+    assert html.count('class="unfound"') == 1 and "go: not in a.py, cited beside it" in html
+    assert "<code>stay()</code>" in html

@@ -113,3 +113,13 @@ def test_a_429_carries_the_retry_after_header(script):
     with pytest.raises(LLMTransientError) as caught:
         provider.chat([Message("user", "hi")], None, 0.0, None)
     assert caught.value.retry_after == 9.0
+
+
+def test_internal_markers_in_the_text_are_no_answer() -> None:
+    # Nov 25: "...【assistant to=select_tests<|channel|>commentary <|constrain|>json..."
+    from codeatlas.llm.errors import LLMBadOutputError
+    from codeatlas.llm.providers.groq import from_groq_completion
+
+    data = {"choices": [{"message": {"content": "It is <|channel|>commentary"}}]}
+    with pytest.raises(LLMBadOutputError, match="internal markers"):
+        from_groq_completion(data, "openai/gpt-oss-20b")

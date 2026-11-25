@@ -220,6 +220,7 @@ main.plain { max-width: 760px; padding-top: 64px; }
 .answer h1, .answer h2, .answer h3, .answer h4 { margin: 16px 0 6px; font-size: 1rem; }
 .answer code { padding: 1px 5px; background: var(--raised); border-radius: 4px; }
 .answer pre code { padding: 0; background: none; }
+.answer code.unfound { color: var(--warn-ink); background: var(--warn-bg); text-decoration: underline wavy; text-underline-offset: 3px; }
 .answer table { display: block; overflow-x: auto; margin: 0 0 12px; border: 1px solid var(--line); border-radius: 8px; }
 /* A wide table scrolls sideways; its words are never cut in two. */
 .answer th, .answer td { overflow-wrap: normal; padding: 7px 10px; }

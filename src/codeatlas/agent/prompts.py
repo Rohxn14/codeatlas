@@ -46,7 +46,8 @@ Tools (call them; do not guess): {tools}.
 Rules:
 1. Every claim about the code must cite its evidence as `repo@sha:path:line`, copied from the
    `citation` field of a tool result, for example `{snapshot.id}:path/to/file.py:42`.
-   Never invent a citation. If no tool result supports a claim, say you could not confirm it.
+   Never invent a citation. Words such as "line 12" or a symbol's key are not a citation.
+   If no tool result supports a claim, say you could not confirm it.
 2. Edges carry a confidence below 1.0 when they are guesses. Say so when you rely on one.
 3. Tool results can be cut short (`truncated: true`); say that the list may be incomplete.
 4. You can read code but never run it. Tests are only listed, not executed.

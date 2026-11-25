@@ -212,6 +212,10 @@ def _cited(answer: Answer) -> str:
 def _warning(answer: Answer) -> str:
     """What the reader must know before trusting an answer, or an empty string."""
     bad = len(answer.invalid_citations)
+    unfound = len(answer.unfound_quotes)
+    if unfound:
+        return (f"{unfound} of {len(answer.quotes)} quoted pieces of code are not in the file "
+                "cited beside them, so they are probably invented. They are marked.")
     if not answer.citations:
         return "This answer cites nothing, so none of it was checked against the code."
     if bad:

@@ -174,6 +174,21 @@ recently indexed snapshot.
    answers of Nov 18 and 19: 47 citations found instead of 31, and one invalid (a file
    with no line). 15 ranges are now checked at both ends (all valid, two of them over
    400 lines wide).
+   **Quoted code is checked against the file** (`quotes.py`, `check_quotes`, D-63, since Nov 25).
+   A valid citation proves that the line exists, not that it says what the answer claims: on
+   Nov 25 an answer listed eight callers of `contracts.validate`, five of them invented, and all
+   its citations were valid. On every line with both a citation and code in backticks, each word
+   of the code (three letters or more) must be a word of a file cited on that line, or a name on
+   the map (a symbol, a file, a folder). Otherwise the quote is marked in the answer, counted
+   above it, printed by the command line and listed in the trajectory (`unfound_quotes`).
+   Example: `contracts.validate(race, contracts.RACE, "Race")` beside `backfill.py:108`: `RACE`
+   is in no such place. Measured on all 27 real answers so far: 124 quotes checked, 13 flagged,
+   all 13 invented. Two honest limits: the rule was refined on these same answers (a first
+   version also flagged 13 real names that live in another file), and it says nothing about what
+   a sentence claims, nor about lines without a citation.
+   **Files are read as they were indexed** (`snapshot_files.py`): from the checkout when the hash
+   still matches, else from the indexed commit (`git show`), else with a note that the lines may
+   have moved. Before, an answer about an old snapshot read new lines at old numbers.
 7. Write `<data_dir>/trajectories/<UTC time>.jsonl` in a `finally`, so a run that dies on
    an LLM error still leaves its steps behind. One JSON line per model call: step number,
    seconds, tokens, provider and model, the text, and each tool call with its arguments,

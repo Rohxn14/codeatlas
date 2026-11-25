@@ -89,11 +89,11 @@ def split_parts(text: str) -> tuple[list[Section], int]:
 
 def _part(lines: list[str], start: int, end: int) -> Section:
     return Section(f"lines {start + 1}-{end}", 0, start + 1, end,
-                   "\n".join(lines[start:end]).strip())
+                   "\n".join(lines[start:end]).rstrip())
 
 
 def _with_text(parts: list[Section]) -> list[Section]:
-    return [part for part in parts if part.text]
+    return [part for part in parts if part.text.strip()]
 
 
 def _markdown_headings(lines: list[str]) -> list[tuple[int, int, int, str]]:

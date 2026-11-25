@@ -72,6 +72,8 @@ def _ask(args: argparse.Namespace) -> int:
                                                                     else f"  ({c.reason})"))
     if not answer.citations:
         print("  none")
+    for q in answer.unfound_quotes:
+        print(f"  NOT IN {', '.join(q.paths)}: {q.text}")
     print(f"\nSteps: {answer.steps}  tokens in/out: {answer.input_tokens}/{answer.output_tokens}")
     print(f"Trajectory: {answer.trajectory_path}")
     return 0
