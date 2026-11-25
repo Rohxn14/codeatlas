@@ -34,9 +34,10 @@
 {% elif e.symbols is defined %}
 <p class="meta">Search by meaning: {{ e.symbols | thousands }} symbols prepared in {{ e.seconds }} s.</p>
 {% endif %}
-{% if r.snapshot.limits_hit %}
-<p class="notice">A limit was reached: {{ r.snapshot.limits_hit | join(", ") }}.
-  Every file is still on the map, but some by name only. The Coverage tab lists them.</p>
+{% set stopped = r.snapshot.limits_hit | reject("equalto", "max_file_bytes") | list %}
+{% if stopped %}
+<p class="notice">Indexing stopped at a limit: {{ stopped | join(", ") }}.
+  The map covers only part of the repository.</p>
 {% endif %}
 {% if r.problems.plugin_and_resolver_failures %}
 <p class="notice">{{ r.problems.plugin_and_resolver_failures | length }} part(s) of the indexer reported a problem. The Coverage tab lists them.</p>

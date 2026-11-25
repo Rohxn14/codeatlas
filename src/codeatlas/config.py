@@ -1,7 +1,9 @@
 """Settings read from `codeatlas.toml`, with defaults that work when the file is absent.
 
-The limits exist so a huge repository cannot stall the indexer: when one is reached,
-indexing stops, keeps what it has, and names the limit in `Snapshot.limits_hit`.
+The limits are a guard, not a budget: they sit far above any repository indexed so far,
+so indexing finishes. `max_files` and `max_seconds` stop the run, which keeps what it has
+and names the limit in `Snapshot.limits_hit`. `max_file_bytes` stops nothing: one text
+file over it is not parsed into symbols, and its text is still searchable.
 """
 
 from __future__ import annotations
@@ -18,9 +20,9 @@ CONFIG_FILENAME = "codeatlas.toml"
 class Config:
     """Every tunable value in one place; each field maps to one key in `codeatlas.toml`."""
 
-    max_files: int = 20_000
-    max_file_bytes: int = 1_000_000
-    max_seconds: float = 300.0
+    max_files: int = 200_000
+    max_file_bytes: int = 5_000_000
+    max_seconds: float = 3_600.0
     max_history_commits: int = 2_000
     data_dir: str = ".codeatlas"
 

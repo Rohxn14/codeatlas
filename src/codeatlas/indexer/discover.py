@@ -29,6 +29,18 @@ EXCLUDED_DIRS = frozenset(
 )
 MINIFIED_SUFFIXES = (".min.js", ".min.css", ".min.mjs")
 
+# Files that usually hold keys or passwords. They stay on the map by name; nothing in
+# CodeAtlas reads what is in them, because indexed text can reach a language model.
+SECRET_REASON = "may hold secrets: its content is never read"
+_SECRET_NAMES = frozenset({
+    ".env", ".envrc", ".netrc", ".npmrc", ".pypirc", ".htpasswd", "credentials",
+    "credentials.json", "secrets.json", "secrets.yaml", "secrets.yml", "secrets.toml",
+    "id_rsa", "id_dsa", "id_ecdsa", "id_ed25519",
+})
+_SECRET_SUFFIXES = (".pem", ".key", ".pfx", ".p12", ".jks", ".keystore")
+# `.env.example` and its like are made to be read: they show the names, not the values.
+_SAMPLE_ENDINGS = (".example", ".sample", ".template", ".dist")
+
 # Extension -> language. Grammar names for languages CodeAtlas can parse; other names
 # label text-tier files so the census still says what they are.
 LANGUAGE_BY_EXTENSION: dict[str, str] = {
@@ -162,11 +174,18 @@ def _examine(
         return None
     language = language_for(rel)
     size = full.stat().st_size
+    if is_secret_path(rel):
+        # The hash stands for the name and size only: the bytes are not read.
+        digest = hashlib.sha256(f"{rel}\0{size}".encode()).hexdigest()
+        return FileRecord(rel, TEXT_LANGUAGE, Tier.TEXT, digest, size), SECRET_REASON
     reason = None
     if rel.lower().endswith(MINIFIED_SUFFIXES):
         reason = "minified"
     elif size > config.max_file_bytes:
-        reason = f"over max_file_bytes ({config.max_file_bytes})"
+        # A large image or archive is binary, not a text file too long to read.
+        with full.open("rb") as handle:
+            binary = b"\0" in handle.read(BINARY_SNIFF_BYTES)
+        reason = "binary" if binary else f"over max_file_bytes ({config.max_file_bytes})"
     if reason:
         return FileRecord(rel, language, Tier.TEXT, _hash_file(full), size), reason
     data = full.read_bytes()
@@ -175,6 +194,15 @@ def _examine(
         return FileRecord(rel, language, Tier.TEXT, digest, len(data)), "binary"
     tier = Tier.TEXT if language == TEXT_LANGUAGE else tier_for(language)
     return FileRecord(rel, language, tier, digest, len(data)), None
+
+
+def is_secret_path(path: str) -> bool:
+    """True for a file whose content must never be read (see SECRET_REASON)."""
+    name = path.rsplit("/", 1)[-1].lower()
+    if name.endswith(_SAMPLE_ENDINGS):
+        return False
+    return (name in _SECRET_NAMES or name.startswith(".env.")
+            or name.endswith(_SECRET_SUFFIXES))
 
 
 def _hash_file(path: Path) -> str:

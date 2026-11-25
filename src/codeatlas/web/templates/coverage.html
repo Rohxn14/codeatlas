@@ -22,9 +22,10 @@
   · from <span class="path">{{ snapshot.source }}</span>
 </p>
 
-{% if o.problems.limits_hit %}
+{% set stopped = o.problems.limits_hit | reject("equalto", "max_file_bytes") | list %}
+{% if stopped %}
 <p class="notice">
-  Indexing stopped early at a limit ({{ o.problems.limits_hit | join(", ") }}).
+  Indexing stopped early at a limit ({{ stopped | join(", ") }}).
   This map covers only part of the repository.
 </p>
 {% endif %}

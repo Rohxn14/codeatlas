@@ -57,7 +57,7 @@ recently indexed snapshot.
 
 | Tool | What it does |
 | --- | --- |
-| `search_symbols(name, kind?, limit?)` | Scans the snapshot's nodes (modules, packages and externals excluded unless `kind` asks for them); exact name or qualname first, then prefix, then substring. A dotted name (`contracts.validate`) also matches the end of the module path plus qualname (`src.pipeline.contracts.validate`), whole parts only; on Nov 19 the model wrote it that way twice and found nothing. |
+| `search_symbols(name, kind?, limit?)` | Scans the snapshot's nodes (modules, packages and externals excluded unless `kind` asks for them); exact name or qualname first, then prefix, then substring. A dotted name (`contracts.validate`) also matches the end of the module path plus qualname (`src.pipeline.contracts.validate`), whole parts only; on Nov 19 the model wrote it that way twice and found nothing. A file is found by its path or name (`.gitignore`, also as `gitignore`), and the words models use for kinds are understood (`file`, `method`). |
 | `semantic_search(query, k?)` | Uses `codeatlas.search.HybridSearch` with an `EmbeddingClient` when the module has it. If the import fails, or the engine raises (for example no embedding model), it falls back to `store.search_text` (BM25) and says so in `note`/`engine`. |
 | `search_docs(query, k?)` | The same search over documentation sections only (D-41, D-42): headings of Markdown and reStructuredText files. Each hit carries the section's `text`, cut at 800 characters, so the model can answer from it without a second call. Added at checkpoint 6. |
 | `get_symbol_source(key)` | Signature, docstring, span and numbered source lines (at most 60, and fewer if the JSON would pass the budget). The checkout is the snapshot's `source` when it is a local folder, otherwise `<data_dir>/repos/<owner>__<repo>`; the path is checked to stay inside it. A missing checkout gives `source: null` and a note. |
@@ -94,6 +94,12 @@ recently indexed snapshot.
    local and takes milliseconds. The trajectory keeps the question as asked, and step
    1's record lists the leads (`"leads": [{"name", "keys", "more"}]`). Rejected: a
    text search on the whole question (noise for questions with no names in them).
+   A **file** the question names is a lead too (`file_names`, since Nov 25), when one file
+   has that name: `.gitignore` (also as `gitignore`), `requirements.txt`, `src/main.py`.
+   **No tool schema holds an enum or a range** (since Nov 25): the tools bring a value into
+   range or explain the valid ones. With an enum, Groq refuses the whole request: "What does
+   the gitignore exclude?" failed at its first step because both models asked for kind
+   `file`. Measured live after the change: that question took 2 steps and named every entry.
 3. Send `[system, user question with its leads]` with the tool specs to `LLMClient.chat`.
 4. If the response has tool calls, run each, append an `assistant` message (with its calls)
    and one `tool` message per result, and go to 3. If it has none, that text is the answer.
