@@ -219,6 +219,26 @@ demo@3f2a9c1e5b7d:app/ghost.py:1.` The regex finds two citations. The first name
 the snapshot whose module spans lines 1 to 7, and 4 is inside, so it is valid. The second
 has no such file, so it is reported `invalid: no such file`. The CLI prints both with a mark.
 
+### What a caller row holds (Nov 25)
+
+`find_callers` and `find_callees` used to give each symbol's first line and nothing about the call,
+and mixed direct callers with callers of callers. The model filled the gap: on one day it invented
+five calls, and later took a caller's caller for a caller. Now each row says how many `hops` away it
+is, direct ones come first (code before tests), and a direct one has `calls_at`: for each call, its
+citation and that line of code as indexed. Example:
+
+```
+{"key": "src/pipeline/cleaner.py::build_silver", "hops": 1, "calls_at": [
+  {"citation": "...cleaner.py:588", "code": "contracts.validate(laps, contracts.SILVER_LAPS, \"Silver laps\")"},
+  {"citation": "...cleaner.py:600", "code": "contracts.validate(tel, contracts.SILVER_TELEMETRY, ..."}]}
+```
+
+Measured live, the same question each time ("Which parts of the pipeline call contracts.validate,
+and for which tables?"): 10 steps, 33,499 tokens and two invented tables on Nov 19; 2 steps, 4,230
+tokens and all seven calls with the right line and table after this (one run, on a later commit of
+the same repository). `select_tests` gives its evidence for the first two tests only, so many more
+fit in one result.
+
 ## Where
 
 - Uses `GraphStore` (`nodes`, `nodes_by_key`, `nodes_in_file`, `edges_from`, `edges_to`,
