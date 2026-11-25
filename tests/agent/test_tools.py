@@ -357,3 +357,17 @@ def test_no_tool_reads_a_file_that_may_hold_secrets(store, source_dir):
         out = tools.call(name, args)
         assert "zebrafish" not in json.dumps(out), (name, args)
         assert "may hold secrets" in out["note"]
+
+
+def test_get_imports_says_which_files_name_a_file(store, source_dir):
+    from codeatlas.models import Edge, Resolution, make_node_id
+
+    text_file(store, source_dir, "README.md", "see settings.yml")
+    text_file(store, source_dir, "settings.yml", "a: 1")
+    src, dst = make_node_id(SNAP, "README.md::"), make_node_id(SNAP, "settings.yml::")
+    store.write_edges(SNAP, [Edge(src, dst, EdgeKind.REFERENCES, 0.8, Resolution.CONVENTION, 1)])
+    tools = ToolSet(store, SNAP)
+    out = tools.call("get_imports", {"path": "settings.yml"})
+    assert keys(out["named_by"]) == ["README.md::"] and "names" not in out
+    assert keys(tools.call("get_imports", {"path": "README.md"})["names"]) == ["settings.yml::"]
+    assert "named_by" not in tools.call("get_imports", {"path": "app/repo.py"})

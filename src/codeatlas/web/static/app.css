@@ -319,6 +319,9 @@ a:hover .box rect:first-of-type, a:focus-visible .box rect:first-of-type { fill:
 .head { fill: var(--edge); }
 a:hover .arrow .line, a:focus-visible .arrow .line, .arrow.on .line { stroke: var(--hot); opacity: 1; }
 .head.on { fill: var(--hot); }
+.arrow.names .line, .swatch.names .line { stroke: #4a5568; }
+.head.names { fill: #4a5568; }
+a:hover .arrow.names .line, .arrow.names.on .line { stroke: var(--hot); }
 .swatch { width: 34px; height: 10px; margin-right: 6px; vertical-align: middle; }
 .swatch .line { fill: none; stroke: var(--edge); stroke-width: 2.5; }
 .conf { white-space: nowrap; }

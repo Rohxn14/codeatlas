@@ -15,7 +15,7 @@
 <div class="help-popup" id="help-map" popover>
   <p>A box is a folder or a file. An arrow from A to B means A uses B.</p>
   <p><strong>Click a folder</strong> to open it, <strong>a file</strong> to see only its arrows, <strong>an arrow</strong> to list what is behind it.</p>
-  <p class="muted">A thicker arrow has more behind it. Solid: found by a rule of the language. Dashed: one of a few candidates. Dotted: matched by name only.</p>
+  <p class="muted">A thicker arrow has more behind it. Solid: found by a rule of the language. Dashed: one of a few candidates. Dotted: matched by name only. Grey: A only names B in its text, as a README names an image.</p>
 </div>
 
 {% if d.pick %}
@@ -33,6 +33,9 @@
     <marker id="head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
       <path d="M0,0 L10,5 L0,10 z" class="head"/>
     </marker>
+    <marker id="head-names" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L10,5 L0,10 z" class="head names"/>
+    </marker>
     <marker id="head-on" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
       <path d="M0,0 L10,5 L0,10 z" class="head on"/>
     </marker>
@@ -42,10 +45,10 @@
   {% for a in d.arrows %}
   {% set on = picked and picked.src == a.src and picked.dst == a.dst %}
   <a href="{{ here(d.focus, keep) }}src={{ a.src | urlencode }}&amp;dst={{ a.dst | urlencode }}#arrow">
-    <g class="arrow level-{{ a.level }}{% if on %} on{% endif %}">
-      <title>{{ a.src }} uses {{ a.dst }}: {{ a.count | thousands }} edge{{ "" if a.count == 1 else "s" }} ({{ a.levels.certain }} certain, {{ a.levels.likely }} likely, {{ a.levels.guess }} guess). Click to list them.</title>
+    <g class="arrow level-{{ a.level }}{% if a.only_names %} names{% endif %}{% if on %} on{% endif %}">
+      <title>{{ a.src }} {{ "names" if a.only_names else "uses" }} {{ a.dst }}: {{ a.count | thousands }} edge{{ "" if a.count == 1 else "s" }} ({{ a.levels.certain }} certain, {{ a.levels.likely }} likely, {{ a.levels.guess }} guess). Click to list them.</title>
       <path class="hit" d="{{ a.path }}"/>
-      <path class="line" d="{{ a.path }}" stroke-width="{{ a.width }}" marker-end="url(#{{ "head-on" if on else "head" }})"/>
+      <path class="line" d="{{ a.path }}" stroke-width="{{ a.width }}" marker-end="url(#{{ "head-on" if on else ("head-names" if a.only_names else "head") }})"/>
     </g>
   </a>
   {% endfor %}
@@ -68,6 +71,7 @@
   <li><svg class="swatch" viewBox="0 0 40 10"><path class="line level-certain" d="M0,5 H40"/></svg>certain</li>
   <li><svg class="swatch" viewBox="0 0 40 10"><path class="line level-likely" d="M0,5 H40"/></svg>likely</li>
   <li><svg class="swatch" viewBox="0 0 40 10"><path class="line level-guess" d="M0,5 H40"/></svg>guess</li>
+  <li><svg class="swatch names" viewBox="0 0 40 10"><path class="line" d="M0,5 H40"/></svg>named in its text</li>
 </ul>
 {% elif d.loose %}
 <p class="callout">No file in this folder uses code in another file of this folder, so there are no arrows to draw.</p>

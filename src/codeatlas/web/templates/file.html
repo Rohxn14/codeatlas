@@ -28,7 +28,7 @@
 </p>
 
 {% if f.record.tier == "text" %}
-<p class="notice">This file is in the text tier: it can be searched by name, but nothing inside it is on the map.</p>
+<p class="notice">This file is in the text tier: its text can be searched, but it has no symbols.</p>
 {% endif %}
 {% if f.skipped_reason %}<p class="notice">Skipped while indexing: {{ f.skipped_reason }}.</p>{% endif %}
 {% if f.errors %}
