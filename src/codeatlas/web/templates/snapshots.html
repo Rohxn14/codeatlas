@@ -1,30 +1,22 @@
 {% extends "base.html" %}
-{% block title %}Repositories · CodeAtlas{% endblock %}
-{% block main %}
-<h1>Repositories</h1>
-
-{% if not read_only %}
-<section>
-  <h2>Index a repository</h2>
-  <p class="muted">
-    A public address on github.com, gitlab.com, bitbucket.org or codeberg.org, or a folder
-    on this machine. Add <code>@branch</code> or <code>@tag</code> to an address to choose
-    one. The code is read, never installed or run.
-  </p>
-  {% if error %}<p class="notice">{{ error }}</p>{% endif %}
-  <form method="post" action="/index" class="index-form">
+{% import "_icons.html" as icons %}
+{% block title %}CodeAtlas{% endblock %}
+{% block alone %}
+<main class="start">
+  <a class="brand" href="/">{{ icons.logo() }}CodeAtlas</a>
+  {% if not read_only %}
+  <form method="post" action="/index" class="index-form" aria-label="Index a repository">
     <input type="text" name="source" value="{{ typed }}" required spellcheck="false" autocomplete="off"
-           placeholder="https://github.com/pallets/itsdangerous   or   C:\code\my-project"
-           aria-label="Repository address or folder">
+           placeholder="GitHub address or folder" aria-label="GitHub address or folder"
+           title="A public address on github.com, gitlab.com, bitbucket.org or codeberg.org (add @branch or @tag to choose one), or a folder on this machine">
     <button class="button" type="submit">Index</button>
   </form>
-</section>
-{% endif %}
+  {% if error %}<p class="notice">{{ error }}</p>{% endif %}
+  {% endif %}
 
-{% if jobs %}
-<section>
+  {% if jobs %}
   <h2>Indexing</h2>
-  <ul class="plain">
+  <ul class="joblist">
     {% for job in jobs %}
     <li>
       <a href="/jobs/{{ job.id }}">{{ job.source }}</a>
@@ -34,42 +26,56 @@
     </li>
     {% endfor %}
   </ul>
-</section>
-{% endif %}
+  {% endif %}
 
-<section>
-  <h2>Indexed</h2>
+  <h2>Repositories</h2>
   {% if rows %}
-  <div class="table-wrap">
-  <table>
-    <thead><tr><th>Repository</th><th>Commit</th><th>Indexed</th><th class="num">Files</th><th>Source</th>{% if not read_only %}<th></th>{% endif %}</tr></thead>
-    <tbody>
+  <ul class="repos">
     {% for row in rows %}
-      {% set s = row.s %}
-      <tr>
-        <td><a href="/s/{{ s.id | slug }}/">{{ s.repo }}</a></td>
-        <td><code>{{ s.commit_sha[:12] }}</code></td>
-        <td>{{ s.indexed_at[:16] | replace("T", " ") }}</td>
-        <td class="num">{% if row.files is not none %}{{ row.files | thousands }}{% else %}–{% endif %}</td>
-        <td class="muted">{{ s.source }}</td>
-        {% if not read_only %}
-        <td class="actions">
+    {% set s = row.s %}
+    <li>
+      <button class="repo-row" type="button" popovertarget="repo-{{ loop.index }}">
+        <span class="name">{{ s.repo }}</span>
+        <span class="source">{{ s.source }}</span>
+      </button>
+      <a class="repo-open" href="/s/{{ s.id | slug }}/" title="Open" aria-label="Open {{ s.repo }}">{{ icons.icon("open") }}</a>
+      <div class="popup" id="repo-{{ loop.index }}" popover role="dialog" aria-label="{{ s.repo }}">
+        <h3>{{ s.repo }}</h3>
+        <dl>
+          <dt>Commit</dt><dd><code>{{ s.commit_sha[:12] }}</code></dd>
+          <dt>Indexed</dt><dd>{{ s.indexed_at[:16] | replace("T", " ") }}</dd>
+          <dt>Files</dt><dd>{% if row.files is not none %}{{ row.files | thousands }}{% else %}–{% endif %}</dd>
+        </dl>
+        <div class="do">
+          <a class="button" href="/s/{{ s.id | slug }}/">Open</a>
+          {% if not read_only %}
           <form method="post" action="/index">
             <input type="hidden" name="source" value="{{ s.source }}">
             <input type="hidden" name="force" value="1">
-            <button class="link" type="submit" title="Fetch the newest commit and index it; the same commit is indexed afresh">Index again</button>
+            <button class="button quiet" type="submit" title="Fetch the newest commit and index it">Index again</button>
           </form>
-          <a href="/s/{{ s.id | slug }}/remove">Remove</a>
-        </td>
+          <button class="button danger" type="button" popovertarget="remove-{{ loop.index }}">Remove</button>
+          {% endif %}
+        </div>
+        {% if not read_only %}
+        <div class="popup" id="remove-{{ loop.index }}" popover role="dialog" aria-label="Remove {{ s.repo }}">
+          <h3>Remove {{ s.repo }}?</h3>
+          <p>Its map is deleted. {% if row.is_url %}The clone stays on disk.{% else %}Your folder is not touched.{% endif %} Index it again to get the map back.</p>
+          <div class="do">
+            <button class="button quiet" type="button" popovertarget="remove-{{ loop.index }}" popovertargetaction="hide">Keep it</button>
+            <form method="post" action="/s/{{ s.id | slug }}/remove" style="grid-column: 1 / -1">
+              <button class="button danger" type="submit">Remove</button>
+            </form>
+          </div>
+        </div>
         {% endif %}
-      </tr>
+      </div>
+    </li>
     {% endfor %}
-    </tbody>
-  </table>
-  </div>
+  </ul>
   {% else %}
-  <p class="muted">Nothing is indexed yet.{% if read_only %} Index one from the command line:
+  <p class="muted">Nothing is indexed yet.{% if read_only %} Run
     <code>codeatlas index https://github.com/pallets/itsdangerous</code>{% endif %}</p>
   {% endif %}
-</section>
+</main>
 {% endblock %}

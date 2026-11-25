@@ -3,7 +3,6 @@
 {% block title %}{{ qn.text | truncate(60, True, "…", 0) }} · Ask · CodeAtlas{% endblock %}
 {% block head %}{% if active %}<meta http-equiv="refresh" content="2">{% endif %}{% endblock %}
 {% block main %}
-<p class="eyebrow">Ask</p>
 <h1 class="question">{{ qn.text }}</h1>
 
 {% if state == "waiting" %}
@@ -21,7 +20,7 @@
 {% else %}
 {% set a = answer %}
 {% set bad = a.invalid_citations | length %}
-<div class="answer">{% for p in pieces %}{% if p.cite %}{% set c = p.cite %}{% if c.valid %}<a class="cite" href="{{ parts.file_url(base, c.path) }}#L{{ c.line }}" title="{{ c.text }}">{{ c.path }}:{{ c.line }}</a>{% else %}<span class="cite invalid" title="{{ c.reason }}">{{ c.text }} (not a real place: {{ c.reason }})</span>{% endif %}{% else %}{{ p.text }}{% endif %}{% endfor %}</div>
+<div class="answer" style="margin-top: 20px">{{ html }}</div>
 {% if a.limit_hit %}
 <p class="notice">The agent reached its step limit, so this answer uses only what it had found by then.</p>
 {% endif %}

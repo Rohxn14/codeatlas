@@ -1,0 +1,31 @@
+{# One question and its answer, as the chat shows it. Everything here is escaped, or made
+   by markdown.py, which lets no HTML, link or image of the model's through. #}
+{% macro message(q, base) %}
+<article class="qa" id="qa-{{ q.id }}" data-state="{{ q.state }}">
+  <div class="asked">{{ q.text }}</div>
+  {% if q.state in ("waiting", "running") %}
+  {% if q.rows %}
+  <ol class="trail">
+    {% for r in q.rows[-4:] %}<li>{{ r.tool }}({{ r.arguments }})</li>{% endfor %}
+  </ol>
+  {% endif %}
+  <div class="working"><span class="pulse"></span>
+    {% if q.stopping %}Stopping
+    {% elif q.state == "waiting" %}Waiting for the question before it
+    {% elif q.wait %}Rate limited: {{ "%.0f" | format(q.wait.left) }} s
+    {% else %}{{ q.step_count }} step{{ "" if q.step_count == 1 else "s" }}{% endif %}
+    {% if not q.stopping %}<form method="post" action="{{ base }}/chat/{{ q.id }}/stop"><button class="button quiet" type="submit">Stop</button></form>{% endif %}
+  </div>
+  {% elif q.state == "failed" %}
+  <p class="notice">{{ q.error }}</p>
+  {% else %}
+  <div class="answer">{{ q.html }}</div>
+  {% if q.warning %}<p class="notice">{{ q.warning }}</p>{% endif %}
+  <details>
+    <summary>{{ q.summary }}</summary>
+    <ol class="trail">{% for r in q.rows %}<li title="{{ r.arguments }}">{{ r.tool }}({{ r.arguments }}){% if r.repeat_of %} same as step {{ r.repeat_of }}{% endif %}</li>{% endfor %}</ol>
+    <a href="{{ base }}/ask/{{ q.id }}">Full record</a>
+  </details>
+  {% endif %}
+</article>
+{% endmacro %}

@@ -1,0 +1,11 @@
+{# The conversation, as a piece of HTML the chat panel asks for again while it changes. #}
+{% import "_message.html" as m %}
+<div data-active="{{ "1" if active else "0" }}">
+{% if keys_missing %}
+<div class="chat-empty" id="chat-keys"><p>No language model key is set.</p><p><a href="{{ base }}/ask">How to set one</a></p></div>
+{% elif not asked %}
+<div class="chat-empty" id="chat-empty">Ask how something works, who calls it, what a file says, or what a change would break.</div>
+{% endif %}
+{% for q in asked %}{{ m.message(q, base) }}{% endfor %}
+{% if error %}<p class="notice" id="chat-error">{{ error }}</p>{% endif %}
+</div>

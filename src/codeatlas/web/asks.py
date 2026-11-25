@@ -13,7 +13,6 @@ also the agent's trajectory file on disk, which outlives the server.
 
 from __future__ import annotations
 
-import re
 import threading
 import time
 import uuid
@@ -23,6 +22,7 @@ from typing import Any
 
 from codeatlas.agent.loop import Answer, OnStep
 from codeatlas.llm.client import OnWait
+from codeatlas.web.markdown import render_answer
 
 MAX_QUESTION_CHARS = 2000
 MAX_WAITING = 3  # one running and two waiting
@@ -34,6 +34,10 @@ Work = Callable[[str, str, OnStep, OnWait], Answer]
 
 class TooManyQuestions(Exception):
     """Enough questions are waiting already."""
+
+
+class Stopped(Exception):
+    """The person asked to stop; raised between the agent's steps."""
 
 
 @dataclass(slots=True)
@@ -49,6 +53,7 @@ class Question:
     waits: list[dict[str, Any]] = field(default_factory=list)
     answer: Answer | None = None
     error: str = ""
+    stop_requested: bool = False
     created: float = field(default_factory=time.monotonic)
     started: float | None = None
     finished: float | None = None
@@ -63,10 +68,21 @@ class Question:
             return 0.0
         return (self.finished or time.monotonic()) - self.started
 
+    def record_step(self, record: dict[str, Any]) -> None:
+        """Called by the agent after each step. A finished answer is never thrown away."""
+        self.steps.append(record)
+        if not record.get("final"):
+            self.check_stop()
+
     def record_wait(self, seconds: float, provider: str) -> None:
         """Called by the LLM client just before it waits out a rate limit."""
+        self.check_stop()
         self.waits.append({"seconds": seconds, "provider": provider,
                            "until": time.monotonic() + seconds})
+
+    def check_stop(self) -> None:
+        if self.stop_requested:
+            raise Stopped("Stopped.")
 
     @property
     def waiting_now(self) -> dict[str, Any] | None:
@@ -111,6 +127,13 @@ class Questions:
         with self._lock:
             return self._questions.get(question_id)
 
+    def stop(self, question_id: str) -> None:
+        """Ask a question to stop. It does so between steps: a request to a model that
+        is already under way is waited for, and nothing is cut in the middle."""
+        question = self.get(question_id)
+        if question is not None and question.active:
+            question.stop_requested = True
+
     def recent(self, snapshot_id: str) -> list[Question]:
         """This snapshot's questions, newest first."""
         with self._lock:
@@ -130,8 +153,9 @@ class Questions:
         with self._turn:
             question.state, question.started = "running", time.monotonic()
             try:
+                question.check_stop()  # stopped while it waited its turn
                 answer = self._work(question.snapshot_id, question.text,
-                                    question.steps.append, question.record_wait)
+                                    question.record_step, question.record_wait)
             except Exception as exc:  # a question must end as "failed", never vanish
                 question.error = str(exc) or type(exc).__name__
                 question.finished = time.monotonic()
@@ -150,29 +174,6 @@ class Questions:
             del self._questions[question.id]
 
 
-def answer_parts(answer: Answer) -> list[dict[str, Any]]:
-    """The answer's text cut at its citations, so the page can link each one.
-
-    Each part is `{"text": ...}` or `{"cite": CitationCheck}`. The text itself is left
-    to the template, which escapes it: an answer is untrusted, like any model output.
-    """
-    if not answer.citations:
-        return [{"text": answer.text}]
-    by_text = {c.text: c for c in answer.citations}
-    # Longest first, so a citation that is the start of a longer one never cuts it.
-    pattern = "|".join(re.escape(t) for t in sorted(by_text, key=len, reverse=True))
-    parts: list[dict[str, Any]] = []
-    at = 0
-    for match in re.finditer(pattern, answer.text):
-        if match.start() > at:
-            parts.append({"text": answer.text[at:match.start()]})
-        parts.append({"cite": by_text[match.group(0)]})
-        at = match.end()
-    if at < len(answer.text):
-        parts.append({"text": answer.text[at:]})
-    return parts
-
-
 def step_rows(question: Question) -> list[dict[str, Any]]:
     """One row per tool call made so far, for the answer page."""
     rows = []
@@ -183,3 +184,37 @@ def step_rows(question: Question) -> list[dict[str, Any]]:
                          "chars": call.get("result_chars", 0),
                          "repeat_of": call.get("repeat_of")})
     return rows
+
+
+def chat_message(question: Question, base: str) -> dict[str, Any]:
+    """One question as the chat shows it. The state is read once, before everything else:
+    the question's thread may finish meanwhile, and "done" means the answer is there."""
+    state = question.state
+    out: dict[str, Any] = {
+        "id": question.id, "text": question.text, "state": state, "error": question.error,
+        "rows": step_rows(question), "step_count": len(question.steps),
+        "wait": question.waiting_now, "stopping": question.stop_requested,
+    }
+    answer = question.answer if state == "done" else None
+    if answer is not None:
+        steps = f"{answer.steps} step{'' if answer.steps == 1 else 's'}"
+        out.update(html=render_answer(answer, base), warning=_warning(answer),
+                   summary=f"{steps}, {question.seconds:.0f} s, {answer.input_tokens:,} tokens, "
+                           f"{_cited(answer)}")
+    return out
+
+
+def _cited(answer: Answer) -> str:
+    n = len(answer.citations)
+    return f"{n} citation{'' if n == 1 else 's'} checked"
+
+
+def _warning(answer: Answer) -> str:
+    """What the reader must know before trusting an answer, or an empty string."""
+    bad = len(answer.invalid_citations)
+    if not answer.citations:
+        return "This answer cites nothing, so none of it was checked against the code."
+    if bad:
+        return (f"{bad} of {len(answer.citations)} citations point at no real place. "
+                "They are marked.")
+    return ""
