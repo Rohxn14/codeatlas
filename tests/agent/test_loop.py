@@ -275,7 +275,7 @@ def test_a_model_that_keeps_repeating_itself_is_asked_to_answer(store, tmp_path)
     client, provider = make_client(*again, reply("save is in app/repo.py."))
     answer = ask("q", store, SNAP, client, data_dir=tmp_path)
     # Step 1 runs the search; steps 2, 3 and 4 repeat it with the result in view, and
-    # the third such repeat ends the tool calls (seen on Nov 19: eight in a row).
+    # the third such repeat ends the tool calls (seen on Nov 19: eight in one question).
     assert answer.steps == 5 and answer.limit_hit is False
     assert provider.requests[4][-1].content.startswith(
         "You keep asking for results you already have")

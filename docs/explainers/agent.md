@@ -133,8 +133,8 @@ recently indexed snapshot.
    call counted as new; the wording now asks it to work from the result. Most of the
    repeats were of results the cut above had shortened.
    **Going round stops the tool calls** (since Nov 19). 20b ignores the note: with the
-   leads of step 2 it still asked for one test search eight times in one question,
-   seven of them with the result in plain view. So after the third repeat of a result
+   leads of step 2 it still asked for one test search nine times in one question,
+   eight of them with the result in plain view. So after the third repeat of a result
    still in view (`MAX_IN_VIEW_REPEATS`; re-fetches of shortened results do not
    count), the next request offers no tools and asks for the answer
    (`REPEATS_PROMPT`), the way the step limit does. The answer ends with
@@ -166,8 +166,8 @@ recently indexed snapshot.
    so a name that is not a whole qualname counts when exactly one symbol of the file
    ends in it; several give `N symbols end with that name`. Re-checking all 16 real
    answers of Nov 18 and 19: 47 citations found instead of 31, and one invalid (a file
-   with no line). 13 ranges are now checked at both ends (all valid, some 500 lines
-   wide).
+   with no line). 15 ranges are now checked at both ends (all valid, two of them over
+   400 lines wide).
 7. Write `<data_dir>/trajectories/<UTC time>.jsonl` in a `finally`, so a run that dies on
    an LLM error still leaves its steps behind. One JSON line per model call: step number,
    seconds, tokens, provider and model, the text, and each tool call with its arguments,
