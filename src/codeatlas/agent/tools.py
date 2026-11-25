@@ -27,7 +27,7 @@ from codeatlas.agent.snapshot_files import snapshot_bytes
 from codeatlas.config import Config
 from codeatlas.indexer.discover import is_secret_path
 from codeatlas.llm import ToolSpec
-from codeatlas.models import Edge, EdgeKind, FileRecord, Node, NodeKind, Snapshot
+from codeatlas.models import Edge, EdgeKind, FileRecord, Node, NodeKind, RawCall, Snapshot
 from codeatlas.store import GraphStore
 from codeatlas.store import graph as graph_algos
 
@@ -35,6 +35,9 @@ MAX_RESULT_CHARS = 4000
 MAX_SOURCE_LINES = 60
 DEFAULT_LIMIT = 10
 MAX_DEPTH = 3
+MAX_CALL_SITES = 5  # shown per caller
+TESTS_WITH_EVIDENCE = 2  # the rest are listed without, so more of them fit
+MAX_CODE_CHARS = 140
 SECTION_TEXT_CHARS = 800  # of a documentation section, per search hit
 _NOT_SYMBOLS = frozenset({NodeKind.MODULE, NodeKind.PACKAGE, NodeKind.EXTERNAL})
 # What models call our kinds. On Nov 25 both Groq models asked for kind "file"; the
@@ -53,6 +56,8 @@ class ToolContext:
     config: Config = field(default_factory=Config)
     _graphs: dict[tuple[str, ...], nx.MultiDiGraph] = field(default_factory=dict)
     _files: dict[str, FileRecord] = field(default_factory=dict)
+    _calls: dict[str, list[RawCall]] = field(default_factory=dict)
+    _sources: dict[str, list[str] | None] = field(default_factory=dict)
 
     @property
     def snapshot(self) -> Snapshot:
@@ -66,6 +71,23 @@ class ToolContext:
         if not self._files:
             self._files.update({f.path: f for f in self.store.files(self.snapshot_id)})
         return self._files.get(path)
+
+    def calls_by(self, key: str) -> list[RawCall]:
+        """The calls written in one symbol; all are read once per context."""
+        if not self._calls:
+            for call, _ in self.store.raw_calls(self.snapshot_id):
+                self._calls.setdefault(call.caller_key, []).append(call)
+        return self._calls.get(key, [])
+
+    def source_lines(self, path: str) -> list[str] | None:
+        """A file's lines as indexed, or None when they cannot be read."""
+        if path not in self._sources:
+            record = self.file_record(path)
+            data = record and snapshot_bytes(self.repo_root(), self.snapshot.commit_sha, path,
+                                             record.sha256)
+            self._sources[path] = (data.decode("utf-8", errors="replace").splitlines()
+                                   if data else None)
+        return self._sources[path]
 
     def graph(self, kinds: Iterable[EdgeKind]) -> nx.MultiDiGraph:
         """The NetworkX view for some edge kinds, built once per context."""
@@ -373,13 +395,25 @@ def _related(
     depth = _clamp_depth(depth)
     g = ctx.graph([EdgeKind.CALLS])
     walk = graph_algos.callees if forwards else graph_algos.callers
-    reached = walk(g, node.id, depth, float(min_confidence or 0.0))
-    ranked = sorted(reached.items(), key=lambda item: (-item[1], item[0]))
+    floor = float(min_confidence or 0.0)
+    reached = walk(g, node.id, depth, floor)
+    hops: dict[str, int] = {}
+    for far in range(1, depth + 1):
+        for node_id in walk(g, node.id, far, floor):
+            hops.setdefault(node_id, far)
+    # Direct ones first, and code before tests: a cut then takes the least telling rows.
+    ranked = [(other, confidence) for node_id, confidence in reached.items()
+              if (other := ctx.store.node(node_id)) is not None]
+    ranked.sort(key=lambda item: (hops[item[0].id], item[0].kind is NodeKind.TEST,
+                                  -item[1], item[0].key))
     items = []
-    for node_id, confidence in ranked:
-        other = ctx.store.node(node_id)
-        if other is not None:
-            items.append(_symbol(ctx, other, confidence=round(confidence, 3)))
+    for other, confidence in ranked:
+        row = _symbol(ctx, other, confidence=round(confidence, 3), hops=hops[other.id])
+        row.pop("signature", None)
+        if hops[other.id] == 1:
+            caller, callee = (node, other) if forwards else (other, node)
+            row["calls_at"] = _call_sites(ctx, caller, callee)
+        items.append(row)
     result = {
         "symbol": _symbol(ctx, node),
         "direction": "callees" if forwards else "callers",
@@ -389,6 +423,25 @@ def _related(
         "results": items,
     }
     return _fit(result, "results")
+
+
+def _call_sites(ctx: ToolContext, caller: Node, callee: Node) -> list[dict[str, str]]:
+    """Where one symbol calls another: the place, and that line of code as indexed.
+
+    Without this the model was given the first line of each caller, and filled in the call:
+    on Nov 25 it invented five, and later took a caller's caller for a caller.
+    """
+    lines = {e.line for e in ctx.store.edges_from(caller.id, [EdgeKind.CALLS])
+             if e.dst_id == callee.id and e.line}
+    lines |= {c.line for c in ctx.calls_by(caller.key) if c.name == callee.name}
+    source = ctx.source_lines(caller.path)
+    sites = []
+    for line in sorted(lines)[:MAX_CALL_SITES]:
+        site = {"citation": ctx.citation(caller.path, line)}
+        if source is not None and line <= len(source):
+            site["code"] = source[line - 1].strip()[:MAX_CODE_CHARS]
+        sites.append(site)
+    return sites
 
 
 def find_callers(
@@ -620,8 +673,12 @@ def select_tests(ctx: ToolContext, keys: list[str]) -> dict[str, Any]:
             continue
         best = pick.evidence[0]
         covers = best.path[-2].key if len(best.path) > 1 else best.path[0].key
-        ranked.append(_symbol(ctx, found[0], confidence=round(pick.score, 3), covers=covers,
-                              evidence=_evidence_rows(pick.evidence)))
+        row = _symbol(ctx, found[0], confidence=round(pick.score, 3), covers=covers)
+        if len(ranked) < TESTS_WITH_EVIDENCE:
+            row["evidence"] = _evidence_rows(pick.evidence)
+        else:  # evidence for all filled the result with four tests of 125 (Nov 25)
+            row = {k: row[k] for k in ("key", "citation", "confidence", "covers")}
+        ranked.append(row)
     out = {
         "changed": [n.key for n in nodes],
         "problems": problems,
@@ -714,13 +771,15 @@ _TOOLS: tuple[Tool, ...] = (
     ),
     _tool(
         "find_callers",
-        "Who calls a symbol, with the best path confidence of each caller.",
+        "Who calls a symbol: for each direct caller (hops 1) the place and the line of code "
+        "of the call. Rows with more hops call it only through others.",
         _schema({"key": _KEY, "depth": _DEPTH, "min_confidence": _CONFIDENCE}, ["key"]),
         find_callers,
     ),
     _tool(
         "find_callees",
-        "What a symbol calls, with the best path confidence of each callee.",
+        "What a symbol calls: for each direct callee (hops 1) the place and the line of code "
+        "of the call. Rows with more hops are called only through others.",
         _schema({"key": _KEY, "depth": _DEPTH, "min_confidence": _CONFIDENCE}, ["key"]),
         find_callees,
     ),

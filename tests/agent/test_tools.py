@@ -383,3 +383,23 @@ def test_the_text_of_a_file_in_a_search_hit_is_numbered(store, source_dir):
 def test_tests_and_breakage_questions_have_a_tool_that_says_so(tools):
     told = {s.name: s.description for s in tools.specs}
     assert "tests" in told["select_tests"] and "breaks" in told["impact"]
+
+
+def test_a_direct_caller_comes_with_the_place_and_the_code_of_the_call(store, source_dir):
+    import hashlib
+
+    from codeatlas.models import RawCall
+
+    data = (source_dir / "app/service.py").read_bytes()
+    with store._conn:
+        store._conn.execute("UPDATE files SET sha256 = ? WHERE path = 'app/service.py'",
+                            (hashlib.sha256(data).hexdigest(),))
+    store.write_raw_calls(SNAP, [
+        RawCall("app/service.py::create", "Repo().save", "save", "Repo()", 4)])
+    out = ToolSet(store, SNAP).call("find_callers", {"key": "app/repo.py::Repo.save", "depth": 2})
+    rows = {r["key"]: r for r in out["results"]}
+    direct, far = rows["app/service.py::create"], rows["app/service.py::rename"]
+    assert direct["hops"] == 1 and direct["calls_at"] == [
+        {"citation": f"{SNAP}:app/service.py:4", "code": "return Repo().save(user)"}]
+    assert far["hops"] == 2 and "calls_at" not in far
+    assert [r["hops"] for r in out["results"]] == sorted(r["hops"] for r in out["results"])
