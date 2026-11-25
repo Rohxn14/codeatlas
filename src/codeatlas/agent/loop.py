@@ -57,8 +57,8 @@ LIMIT_PROMPT = (
     "The step limit is reached. Answer now with what you know, without calling tools, and "
     "say that the step limit was hit."
 )
-# gpt-oss-20b ignores REPEAT_NOTE: on Nov 19 it asked for one test search eight times in a
-# question, seven of them with the result in plain view. After MAX_IN_VIEW_REPEATS such
+# gpt-oss-20b ignores REPEAT_NOTE: on Nov 19 it asked for one test search nine times in a
+# question, eight of them with the result in plain view. After MAX_IN_VIEW_REPEATS such
 # repeats (re-fetches of shortened results do not count), the next request offers no
 # tools and asks for the answer.
 MAX_IN_VIEW_REPEATS = 3
