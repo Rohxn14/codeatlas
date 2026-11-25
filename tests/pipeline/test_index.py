@@ -4,6 +4,7 @@ import json
 from collections.abc import Callable
 from pathlib import Path
 
+import numpy as np
 import pytest
 
 from codeatlas.config import Config
@@ -17,7 +18,8 @@ FILES = {
     "main.go": "package main\n\nfunc main() {}\n",
     "README.md": "# demo\n",
 }
-FIELDS = {"snapshot", "seconds", "files", "nodes", "edges", "raw_calls", "problems", "repo_layer"}
+FIELDS = {"snapshot", "seconds", "files", "nodes", "edges", "raw_calls", "problems", "repo_layer",
+          "embeddings"}
 
 
 @pytest.fixture
@@ -105,3 +107,75 @@ def test_folders_discovery_did_not_enter_are_in_the_report(
     report = index_repository(str(repo), config, Path(config.data_dir) / "c.db")
     not_entered = report.files["not_entered"]
     assert not_entered["total"] == 1 and not_entered["paths"][0]["path"] == "node_modules"
+
+
+class FakeEmbedder:
+    """Two numbers per text, so no test loads a real model."""
+
+    model = "fake-model"
+
+    def __init__(self, error: Exception | None = None) -> None:
+        self.error = error
+
+    def embed(self, texts: list[str]) -> np.ndarray:
+        if self.error is not None:
+            raise self.error
+        return np.array([[len(t), 1.0] for t in texts], dtype=np.float32)
+
+
+def test_an_embedder_gives_the_new_snapshot_its_vectors(repo: Path, config: Config,
+                                                        tmp_path: Path) -> None:
+    db = tmp_path / "data" / "codeatlas.db"
+    seen: list[tuple[str, str]] = []
+    report = index_repository(str(repo), config, db, embedder=FakeEmbedder(),
+                              progress=lambda step, detail: seen.append((step, detail)))
+    sid = report.snapshot["id"]
+    with GraphStore(db) as store:
+        ids, vectors = store.embeddings(sid, "fake-model")
+    assert report.embeddings["model"] == "fake-model" and "seconds" in report.embeddings
+    assert report.embeddings["symbols"] == len(ids) == len(vectors) > 0
+    assert load_report(config, sid).embeddings == report.embeddings  # saved, not only returned
+    embed = [detail for step, detail in seen if step == "embed"]
+    assert embed == ["", f"0 of {len(ids)} symbols"]  # after every other step
+    assert [step for step, _ in seen][-2:] == ["embed", "embed"]
+
+
+def test_a_model_that_cannot_run_is_reported_and_the_index_stands(
+    repo: Path, config: Config, tmp_path: Path,
+) -> None:
+    db = tmp_path / "data" / "codeatlas.db"
+    report = index_repository(str(repo), config, db,
+                              embedder=FakeEmbedder(OSError("no network")))
+    assert report.embeddings == {"model": "fake-model", "error": "OSError: no network"}
+    assert report.nodes["total"] > 0
+    assert load_report(config, report.snapshot["id"]).embeddings == report.embeddings
+
+
+def test_stopping_half_way_through_embedding_keeps_the_report(
+    repo: Path, config: Config, tmp_path: Path,
+) -> None:
+    db = tmp_path / "data" / "codeatlas.db"
+
+    class Stopped(FakeEmbedder):
+        def embed(self, texts: list[str]) -> np.ndarray:
+            raise KeyboardInterrupt
+
+    with pytest.raises(KeyboardInterrupt):
+        index_repository(str(repo), config, db, embedder=Stopped())
+    # The next run finds the snapshot and its report, so nothing is rebuilt.
+    steps: list[str] = []
+    again = index_repository(str(repo), config, db,
+                             progress=lambda step, detail: steps.append(step))
+    assert "save" not in steps and again.embeddings == {}
+
+
+def test_a_report_saved_before_embeddings_existed_still_loads(
+    repo: Path, config: Config, tmp_path: Path,
+) -> None:
+    db = tmp_path / "data" / "codeatlas.db"
+    sid = index_repository(str(repo), config, db).snapshot["id"]
+    path = report_path(config, sid)
+    old = json.loads(path.read_text(encoding="utf-8"))
+    del old["embeddings"]
+    path.write_text(json.dumps(old), encoding="utf-8")
+    assert load_report(config, sid).embeddings == {}  # None here would force a full rebuild

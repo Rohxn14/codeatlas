@@ -54,7 +54,7 @@ def indexed(make_repo: Callable[..., Path], tmp_path: Path, monkeypatch: pytest.
     toml.write_text(f'[paths]\ndata_dir = "{(tmp_path / "data").as_posix()}"\n',
                     encoding="utf-8")
     db = tmp_path / "data" / "codeatlas.db"
-    assert main(["index", str(repo), "--config", str(toml)]) == 0
+    assert main(["index", "--no-embed", str(repo), "--config", str(toml)]) == 0
     return repo, db, toml
 
 
@@ -292,3 +292,41 @@ def test_llm_clients_use_the_config_option(indexed, capsys, monkeypatch) -> None
     capsys.readouterr()
     assert run(capsys, toml, "search", "save")[0] == 0
     assert seen and seen[0] is not None
+
+
+def test_index_prepares_search_by_meaning_unless_told_not_to(
+    make_repo, tmp_path, capsys, monkeypatch,
+) -> None:
+    from codeatlas.llm import embeddings
+
+    def fake(cls, config=None):
+        return embeddings.EmbeddingClient("fake-model", embedder=lambda batch: [[1.0]] * len(batch))
+
+    monkeypatch.setattr(embeddings.EmbeddingClient, "from_config", classmethod(fake))
+    repo = make_repo(FILES, name="shopdemo")
+    toml = tmp_path / "ct.toml"
+    toml.write_text(f'[paths]\ndata_dir = "{(tmp_path / "data").as_posix()}"\n', encoding="utf-8")
+    code, out, err = run(capsys, toml, "index", str(repo))
+    assert code == 0 and "preparing search by meaning" in err
+    assert re.search(r"^Embeddings: \d+ symbols with fake-model in ", out, re.M)
+    code, out, err = run(capsys, toml, "index", str(repo), "--force", "--no-embed")
+    assert code == 0 and "preparing search by meaning" not in err
+    assert "Embeddings: none built; search uses text only" in out
+
+
+def test_index_says_when_the_embedding_model_could_not_run(
+    make_repo, tmp_path, capsys, monkeypatch,
+) -> None:
+    from codeatlas.llm import embeddings
+
+    def offline(batch):
+        raise OSError("no network")
+
+    monkeypatch.setattr(
+        embeddings.EmbeddingClient, "from_config",
+        classmethod(lambda cls, config=None: cls("fake-model", embedder=offline)))
+    repo = make_repo(FILES, name="shopdemo")
+    toml = tmp_path / "ct.toml"
+    toml.write_text(f'[paths]\ndata_dir = "{(tmp_path / "data").as_posix()}"\n', encoding="utf-8")
+    code, out, _ = run(capsys, toml, "index", str(repo))
+    assert code == 0 and "Embeddings: not built (OSError: no network)" in out

@@ -43,7 +43,7 @@ def embedded(html: str) -> dict:
 
 def test_index_command_prints_summary_and_next_step(setup, capsys) -> None:
     repo, toml, _ = setup
-    assert main(["index", str(repo), "--config", str(toml)]) == 0
+    assert main(["index", "--no-embed", str(repo), "--config", str(toml)]) == 0
     out = capsys.readouterr().out
     assert "Edges:" in out and "Raw calls:" in out and "app/broken.py" in out
     assert "Next: codeatlas view" in out
@@ -52,7 +52,7 @@ def test_index_command_prints_summary_and_next_step(setup, capsys) -> None:
 def test_export_matches_contract_section_8(setup) -> None:
     repo, toml, db = setup
     out = db.parent / "graph.json"
-    assert main(["index", str(repo), "--config", str(toml)]) == 0
+    assert main(["index", "--no-embed", str(repo), "--config", str(toml)]) == 0
     assert main(["export", "--config", str(toml), "--out", str(out)]) == 0
     data = json.loads(out.read_text(encoding="utf-8"))
     assert set(data) == {"snapshot", "nodes", "edges"}
@@ -68,7 +68,7 @@ def test_export_matches_contract_section_8(setup) -> None:
 def test_view_writes_a_page_naming_the_snapshot(setup, capsys) -> None:
     repo, toml, db = setup
     out = db.parent / "v.html"
-    main(["index", str(repo), "--config", str(toml)])
+    main(["index", "--no-embed", str(repo), "--config", str(toml)])
     assert main(["view", "--config", str(toml), "--no-open", "--out", str(out)]) == 0
     html = out.read_text(encoding="utf-8")
     data = embedded(html)
@@ -138,7 +138,7 @@ def test_a_file_too_big_for_the_cap_does_not_hide_later_files(setup) -> None:
 
 def test_view_refuses_a_focus_that_matches_nothing(setup, capsys) -> None:
     repo, toml, db = setup
-    assert main(["index", str(repo), "--db", str(db), "--config", str(toml)]) == 0
+    assert main(["index", "--no-embed", str(repo), "--db", str(db), "--config", str(toml)]) == 0
     code = main(["view", "--db", str(db), "--focus", "nope", "--config", str(toml),
                  "--no-open", "--out", str(db.parent / "v.html")])
     assert code == 2 and "matches no file" in capsys.readouterr().err

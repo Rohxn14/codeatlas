@@ -49,6 +49,7 @@ web app (`web-app.md`); its packages are optional, so it imports them only when 
   window was never affected. Example: `codeatlas scan "repro‑dir" > out.txt`
   exited 1 before and writes the name as UTF-8 now. Rejected: `errors="replace"`,
   which would print `?` in place of the character.
+- **`index` prepares search by meaning** (D-58, since Nov 25). After the graph is stored it embeds the symbols and says so on stderr; the summary ends with how many, or why not. `--no-embed` skips it. No unit test may load the real model: a fixture in `tests/conftest.py` fails any that would, because on first use the model is downloaded.
 - **`ask` checks for a key before anything else.** Without `GROQ_API_KEY` or
   `GEMINI_API_KEY`, the providers would retry with a placeholder key and fail slowly. One
   line naming both variables and exit 2 is faster and clearer. A provider failure after

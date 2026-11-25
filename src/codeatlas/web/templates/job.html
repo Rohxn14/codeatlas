@@ -28,6 +28,13 @@
   <div class="tile"><span class="num">{{ r.edges.total | thousands }}</span><span class="lbl">connections</span></div>
   <div class="tile"><span class="num">{{ r.raw_calls.unresolved | thousands }}</span><span class="lbl">calls with no connection</span></div>
 </div>
+{% set e = r.embeddings or {} %}
+{% if e.error %}
+<p class="notice">Search by meaning is not ready: {{ e.error }}. Search by text works;
+  <code>codeatlas search --embed</code> tries again.</p>
+{% elif e.symbols is defined %}
+<p class="meta">Search by meaning: {{ e.symbols | thousands }} symbols prepared in {{ e.seconds }} s.</p>
+{% endif %}
 {% if r.snapshot.limits_hit %}
 <p class="notice">A limit was reached: {{ r.snapshot.limits_hit | join(", ") }}.
   Every file is still on the map, but some by name only. The Coverage tab lists them.</p>

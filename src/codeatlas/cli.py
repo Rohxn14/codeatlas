@@ -247,9 +247,21 @@ def render_index_text(report: IndexReport) -> str:
     lines += _problem_lines(report.problems)
     seconds = report.seconds
     lines.append("Seconds: " + ", ".join(f"{k} {v}" for k, v in seconds.items()))
+    lines.append(_embeddings_line(report.embeddings))
     limits = ", ".join(snap["limits_hit"]) or "none"
     lines += [f"limits hit: {limits}", "", "Next: codeatlas view"]
     return "\n".join(lines)
+
+
+def _embeddings_line(embeddings: dict[str, Any]) -> str:
+    """Never silent: vector search needs these, and text search is all that is left."""
+    if "error" in embeddings:
+        return (f"Embeddings: not built ({embeddings['error']}); search uses text only. "
+                "Retry: codeatlas search --embed")
+    if "symbols" in embeddings:
+        return (f"Embeddings: {embeddings['symbols']} symbols with {embeddings['model']} "
+                f"in {embeddings['seconds']} s")
+    return "Embeddings: none built; search uses text only (codeatlas search --embed)"
 
 
 def _pairs(counts: dict[str, int]) -> str:
@@ -285,9 +297,26 @@ def _open_store(args: argparse.Namespace, config: Config) -> tuple[GraphStore, s
 
 def _run_index(args: argparse.Namespace, config: Config) -> int:
     db_path = Path(args.db) if args.db else default_db_path(config)
-    report = index_repository(args.source, config, db_path, force=args.force)
+    embedder = None if args.no_embed else _embedder(args)
+    report = index_repository(args.source, config, db_path, force=args.force,
+                              progress=_say_embedding, embedder=embedder)
     print(render_index_text(report))
     return 0
+
+
+def _embedder(args: argparse.Namespace) -> Any:
+    """The configured embedding model; it is loaded when the first symbol is embedded."""
+    from codeatlas.llm.config import load_llm_config
+    from codeatlas.llm.embeddings import EmbeddingClient
+
+    return EmbeddingClient.from_config(load_llm_config(args.config))
+
+
+def _say_embedding(step: str, detail: str) -> None:
+    """Embedding takes most of a minute on a mid-sized repository: say it has started."""
+    if step == "embed" and not detail:  # the first call; the rest are its progress
+        print("codeatlas: preparing search by meaning (--no-embed skips this)",
+              file=sys.stderr)
 
 
 def _run_view(args: argparse.Namespace, config: Config) -> int:
@@ -630,7 +659,8 @@ def _run_serve(args: argparse.Namespace, config: Config) -> int:
     if not args.no_open:
         webbrowser.open(url)
     app = create_app(db_path, config, read_only=read_only,
-                     hosts=sorted(_THIS_MACHINE) if local else None)
+                     hosts=sorted(_THIS_MACHINE) if local else None,
+                     embedder=lambda: _embedder(args))
     uvicorn.run(app, host=args.host, port=args.port, log_level="warning")
     return 0
 
@@ -656,6 +686,8 @@ def build_parser() -> argparse.ArgumentParser:
     index_cmd.add_argument("source", help="a local folder or https://github.com/owner/repo[@ref]")
     index_cmd.add_argument("--db", type=Path, help="database file")
     index_cmd.add_argument("--force", action="store_true", help="re-index an indexed commit")
+    index_cmd.add_argument("--no-embed", action="store_true",
+                           help="skip building embeddings (search then uses text only)")
 
     view_cmd = add("view", "write an HTML page of the graph and open it")
     view_cmd.add_argument("--db", type=Path, help="database file")

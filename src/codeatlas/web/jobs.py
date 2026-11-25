@@ -27,6 +27,7 @@ STEPS: tuple[tuple[str, str], ...] = (
     ("resolve", "Connect calls and imports"),
     ("link", "Connect HTTP calls to routes"),
     ("save", "Store the connections"),
+    ("embed", "Prepare search by meaning"),
 )
 MAX_ACTIVE = 6  # one running and five waiting
 MAX_KEPT = 30
@@ -66,13 +67,18 @@ class Job:
             return 0.0
         return (self.finished or time.monotonic()) - self.started
 
+    def _embeddings(self) -> dict[str, Any]:
+        return (self.report or {}).get("embeddings") or {}
+
     def steps(self) -> list[dict[str, str]]:
         """Each pipeline step as done, now or next, for the progress page."""
         names = [name for name, _ in STEPS]
         at = names.index(self.step) if self.step in names else -1
         rows = []
         for i, (name, label) in enumerate(STEPS):
-            if self.state == "done" or i < at:
+            if name == "embed" and "error" in self._embeddings():
+                status = "failed"  # the job is done: the map works without vectors
+            elif self.state == "done" or i < at:
                 status = "done"
             elif i == at and self.state == "running":
                 status = "now"
