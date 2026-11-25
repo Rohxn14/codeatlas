@@ -15,6 +15,9 @@ node_modules/
 dist/
 build/
 
+# Left by an editor's Java extension that runs Gradle on the sample projects
+.gradle/
+
 # CodeAtlas working data: clones, indexes, LLM cache and usage log
 .codeatlas/
 
@@ -38,3 +41,4 @@ docs/roadmap.md
 docs/tasks/
 docs/plans/
 docs/history/
+docs/report/

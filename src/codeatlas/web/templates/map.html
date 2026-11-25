@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% import "_parts.html" as parts %}
+{% import "_icons.html" as icons %}
 {% block title %}{{ snapshot.repo }} · CodeAtlas{% endblock %}
 
 {# The address of this page for a folder, plus any extra parameters, e.g. {"pick": "a.py"}. #}
@@ -12,11 +13,11 @@
   {%- for c in d.crumbs %}<span class="sep">/</span><a class="crumb" href="{{ here(c.focus) }}">{{ c.name }}</a>{% endfor %}
 </h1>
 <button class="help" type="button" popovertarget="help-map" aria-label="How to read the map">?</button></div>
-<div class="help-popup" id="help-map" popover>
+{% call icons.popup("help-map", "How to read the map", box="help-popup") %}
   <p>A box is a folder or a file. An arrow from A to B means A uses B.</p>
   <p><strong>Click a folder</strong> to open it, <strong>a file</strong> to see only its arrows, <strong>an arrow</strong> to list what is behind it.</p>
   <p class="muted">A thicker arrow has more behind it. Solid: found by a rule of the language. Dashed: one of a few candidates. Dotted: matched by name only. Grey: A only names B in its text, as a README names an image.</p>
-</div>
+{% endcall %}
 
 {% if d.pick %}
 <p class="callout">
