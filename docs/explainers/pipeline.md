@@ -46,6 +46,7 @@ It is saved as `<data_dir>/reports/<snapshot id with @ and / replaced by _>.json
 | `raw_calls` | `total`, `resolved`, `unresolved`, `unresolved_by_language` |
 | `problems` | `files_with_errors` (path, errors), `plugin_and_resolver_failures`, `languages_without_resolver` |
 | `repo_layer` | the output of `repo.summarize` |
+| `embeddings` | `model`, `symbols`, `seconds`; or `model`, `error` when the model could not run; empty when none were asked for (since Nov 25; a report saved before then loads with it empty) |
 
 Timing lives in `BuildResult.seconds` (and `Parsed.seconds` for the first three steps); `write` includes the final edge write.
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 from typing import Protocol
 
@@ -60,6 +61,7 @@ def build_embeddings(
     snapshot_id: str,
     embedder: Embedder,
     repo_root: Path | None = None,
+    on_batch: Callable[[int, int], None] | None = None,
 ) -> int:
     """Embed the snapshot's symbols that lack a vector for this model; returns how many.
 
@@ -67,7 +69,8 @@ def build_embeddings(
     Symbols go in order of text length: the model pads every text of a batch to the
     batch's longest, so in file order one long docstring made 63 short signatures cost
     as much as it did. On PitwallOS's 2,022 symbols: 195 s in file order, about 50 s by
-    length (Nov 19), with the same vectors.
+    length (Nov 19), with the same vectors. `on_batch(done, total)` is called before
+    each batch, for a progress line.
     """
     done, _ = store.embeddings(snapshot_id, embedder.model)
     have = set(done)
@@ -75,6 +78,8 @@ def build_embeddings(
             if n.kind in EMBEDDED_KINDS and n.id not in have]
     todo.sort(key=lambda item: len(item[0]))
     for start in range(0, len(todo), BATCH):
+        if on_batch is not None:
+            on_batch(start, len(todo))
         batch = todo[start : start + BATCH]
         vectors = embedder.embed([text for text, _ in batch])
         store.write_embeddings(

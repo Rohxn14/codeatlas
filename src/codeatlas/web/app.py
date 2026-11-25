@@ -144,6 +144,7 @@ def create_app(
     read_only: bool = False,
     hosts: Sequence[str] | None = None,
     llm: Callable[[], Any] | None = None,
+    embedder: Callable[[], Any] | None = None,
 ) -> FastAPI:
     """The app for one database. Each request opens its own connection (see `open_store`).
 
@@ -151,6 +152,8 @@ def create_app(
     with, because a visitor must never cause a call to a language model.
     `llm` makes the client a question is answered with; None means `LLMClient` from the
     configuration and the environment's keys (tests pass a scripted one).
+    `embedder` makes the embedding model an index job builds vectors with; None means
+    no vectors (tests), and `codeatlas serve` passes the configured model.
     `hosts` are the names the app may be reached by; a request for any other name is
     refused, which stops another website from reaching the app through a DNS name
     that points at this machine. None means no check (tests).
@@ -181,7 +184,8 @@ def create_app(
             seen.add(step)
             progress(step, detail)
 
-        report = index_repository(source, config, db_path, force=force, progress=tell)
+        report = index_repository(source, config, db_path, force=force, progress=tell,
+                                  embedder=embedder() if embedder is not None else None)
         return {**report.to_dict(), "reused": "save" not in seen}
 
     def index_done(job: Job) -> None:

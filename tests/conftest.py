@@ -43,6 +43,31 @@ def git_stays_in_tmp_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
     monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path.parent))
 
 
+@pytest.fixture(autouse=True)
+def no_real_embedding_model(request: pytest.FixtureRequest,
+                            monkeypatch: pytest.MonkeyPatch) -> None:
+    """Fail any unit test that would load fastembed's model: on first use it downloads.
+
+    `codeatlas index` builds embeddings by default (D-58), so a test that indexes through
+    the command line must pass `--no-embed` or a fake. `pytest.fail` raises a
+    BaseException, so `embed_snapshot`, which records any Exception, cannot hide it.
+    Tests marked `live` may load the model.
+    """
+    if request.node.get_closest_marker("live"):
+        return
+    from codeatlas.llm.embeddings import EmbeddingClient
+
+    load = EmbeddingClient._get_embedder
+
+    def guarded(self: EmbeddingClient):  # type: ignore[no-untyped-def]
+        if self._embedder is None:
+            pytest.fail("a unit test tried to load the real embedding model; "
+                        "use --no-embed or pass a fake embedder")
+        return load(self)
+
+    monkeypatch.setattr(EmbeddingClient, "_get_embedder", guarded)
+
+
 @pytest.fixture
 def make_repo(tmp_path: Path) -> Callable[[dict[str, str]], Path]:
     """Create a git repository with the given files committed; returns its folder."""

@@ -5,6 +5,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import pytest
 from fastapi.testclient import TestClient
 
@@ -236,3 +237,33 @@ def test_a_form_posted_from_another_website_is_refused(
     assert not db_path.exists()
     own = client.post("/index", data=form, headers={"origin": "http://testserver"})
     finish(client, job_id(own))
+
+
+class Embedder:
+    model = "fake-model"
+
+    def __init__(self, error: str = "") -> None:
+        self.error = error
+
+    def embed(self, texts: list[str]) -> np.ndarray:
+        if self.error:
+            raise OSError(self.error)
+        return np.ones((len(texts), 2), dtype=np.float32)
+
+
+@pytest.mark.parametrize(("error", "shown"), [
+    ("", "Search by meaning: "),
+    ("no network", "Search by meaning is not ready: OSError: no network"),
+])
+def test_an_index_job_prepares_search_by_meaning_and_says_how_it_went(
+    make_repo: Callable[..., Path], tmp_path: Path, error: str, shown: str,
+) -> None:
+    config = Config(data_dir=(tmp_path / "data").as_posix())
+    app = create_app(tmp_path / "data" / "codeatlas.db", config,
+                     embedder=lambda: Embedder(error))
+    client = TestClient(app, follow_redirects=False)
+    repo = make_repo({"lib/util.py": "def helper():\n    pass\n"}, name="demo")
+    last = finish(client, job_id(client.post("/index", data={"source": str(repo)})))
+    assert "Open the map" in last and shown in last
+    assert "Prepare search by meaning" in last
+    assert ("stopped here" in last) == bool(error)
