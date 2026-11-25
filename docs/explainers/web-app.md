@@ -716,6 +716,15 @@ navigation inside a repository; and Ask as a chat that opens on the right and na
 - **One theme.** The light theme is gone: the owner asked for black. Amber is kept for warnings
   and red for Remove, the two places a colour carries a meaning.
 
+- **A page and its stylesheet always match.** The first day, the owner saw a window-wide blue cube:
+  the new page with the old stylesheet, which the browser had kept (a file without `Cache-Control`
+  is kept for a tenth of its age). Now the address of `app.css` and `app.js` holds a hash of the
+  content (`asset`), every response says `no-cache` (ask before using a saved copy), and every
+  icon carries its size in its tag. Reproduced before the fix, in one browser profile: the old app,
+  then the new one at the same address.
+  A running app also keeps the pages it started with: the owner's had been updated while it ran,
+  and drew new pages with old code, so its chat address did not exist.
+
 ### How it was checked
 
 A real browser (headless Edge) driven against the app with a scripted model: the popup measures

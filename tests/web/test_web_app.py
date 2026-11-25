@@ -217,3 +217,60 @@ def test_many_requests_at_once_each_get_a_page(tmp_path: Path) -> None:
         with ThreadPoolExecutor(8) as pool:
             codes = list(pool.map(get, range(40)))
     assert codes == [200] * 40
+
+
+def test_a_page_never_uses_the_stylesheet_of_another_version(tmp_path: Path) -> None:
+    # Nov 25: the browser showed the new page with the stylesheet it had saved the day before.
+    import re
+
+    from codeatlas.web import app as web_app
+
+    client = TestClient(create_app(tmp_path / "none.db", Config(data_dir=tmp_path.as_posix())))
+    page = client.get("/")
+    addresses = re.findall(r'(?:href|src)="(/static/[^"]+)"', page.text)
+    assert len(addresses) == 2 and all(re.search(r"\?v=[0-9a-f]{12}$", a) for a in addresses)
+    for address in addresses:
+        found = client.get(address)
+        assert found.status_code == 200 and found.headers["cache-control"] == "no-cache"
+    assert page.headers["cache-control"] == "no-cache"
+    static = tmp_path / "static"
+    static.mkdir()
+    before, real = [], web_app._HERE
+    try:
+        web_app._HERE = tmp_path
+        for content in ("a {}", "b {}"):
+            (static / "app.css").write_text(content, encoding="utf-8")
+            before.append(web_app.asset("app.css"))
+    finally:
+        web_app._HERE = real
+    assert before[0] != before[1]  # another content, another address
+
+
+def test_every_icon_has_a_size_of_its_own() -> None:
+    # Without one it fills the window when a page is drawn before its stylesheet.
+    import re
+
+    import codeatlas.web
+
+    folder = Path(codeatlas.web.__file__).parent / "templates"
+    for template in folder.glob("*.html"):
+        for tag in re.findall(r"<svg\b[^>]*>", template.read_text(encoding="utf-8")):
+            sized = re.search(r"\bwidth=", tag) and re.search(r"\bheight=", tag)
+            assert sized, (template.name, tag)
+
+
+def test_a_running_app_keeps_the_pages_it_started_with(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import shutil
+
+    from codeatlas.web import app as web_app
+
+    for folder in ("templates", "static"):
+        shutil.copytree(web_app._HERE / folder, tmp_path / folder)
+    monkeypatch.setattr(web_app, "_HERE", tmp_path)
+    client = TestClient(create_app(tmp_path / "none.db", Config(data_dir=tmp_path.as_posix())))
+    newer = tmp_path / "templates" / "snapshots.html"
+    newer.write_text("{{ made_by_a_newer_app() }}", encoding="utf-8")
+    page = client.get("/")
+    assert page.status_code == 200 and "Nothing is indexed yet" in page.text
