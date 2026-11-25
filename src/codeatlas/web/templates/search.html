@@ -4,7 +4,7 @@
 {% block main %}
 <h1>{% if q %}Results for “{{ q }}”{% else %}Search {{ snapshot.repo }}{% endif %}</h1>
 <form class="search big" action="{{ base }}/search" role="search">
-  <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
+  <svg class="icon" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
   <input type="search" name="q" value="{{ q }}" placeholder="A name, a path, or words in the text" aria-label="Search" autofocus>
   <button class="button" type="submit">Search</button>
 </form>

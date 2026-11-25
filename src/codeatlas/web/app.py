@@ -11,6 +11,7 @@ names, paths and docstrings there are untrusted text.
 
 from __future__ import annotations
 
+import hashlib
 import os
 import threading
 from collections.abc import Callable, Sequence
@@ -75,7 +76,17 @@ SECURITY_HEADERS = {
                                "form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "same-origin",
+    # Ask before using a saved copy. Without this a browser guesses how long a file stays
+    # good, and showed the Nov 25 pages with the stylesheet of the day before.
+    "Cache-Control": "no-cache",
 }
+
+
+def asset(name: str) -> str:
+    """The address of a file in `static/`, which changes when the file does, so a page is
+    never shown with the stylesheet or script of another version of the app."""
+    digest = hashlib.sha256((_HERE / "static" / name).read_bytes()).hexdigest()[:12]
+    return f"/static/{name}?v={digest}"
 
 
 def snapshot_slug(snapshot_id: str) -> str:
@@ -182,8 +193,13 @@ def create_app(
 
     templates = Jinja2Templates(directory=_HERE / "templates")
     templates.env.filters.update(percent=percent, thousands=thousands, slug=snapshot_slug)
-    templates.env.globals.update(version=__version__, level_meaning=MEANING)
+    templates.env.globals.update(version=__version__, level_meaning=MEANING, asset=asset)
     templates.env.globals.update(read_only=read_only)
+    # Every page is read once, now: an app that is updated while it runs goes on with the
+    # pages that fit its code, instead of drawing new pages with old code (Nov 25).
+    templates.env.auto_reload = False
+    for name in templates.env.list_templates():
+        templates.env.get_template(name)
     # Snapshots already read, by slug. A snapshot only changes when it is indexed again or
     # removed; both happen through this app and take it out of the cache (`forget`). An
     # index run from the command line while the server is up still needs a restart.
