@@ -24,6 +24,9 @@
 {% if a.limit_hit %}
 <p class="notice">The agent reached its step limit, so this answer uses only what it had found by then.</p>
 {% endif %}
+{% if a.unfound_quotes %}
+<p class="notice">{{ a.unfound_quotes | length }} of {{ a.quotes | length }} quoted pieces of code are not in the file cited beside them, so they are probably invented. They are marked above.</p>
+{% endif %}
 {% if not a.citations %}
 <p class="notice">This answer cites nothing, so none of it was checked against the code.</p>
 {% elif bad %}

@@ -23,10 +23,11 @@ from typing import Any
 
 import networkx as nx
 
+from codeatlas.agent.snapshot_files import snapshot_bytes
 from codeatlas.config import Config
 from codeatlas.indexer.discover import is_secret_path
 from codeatlas.llm import ToolSpec
-from codeatlas.models import Edge, EdgeKind, Node, NodeKind, Snapshot
+from codeatlas.models import Edge, EdgeKind, FileRecord, Node, NodeKind, Snapshot
 from codeatlas.store import GraphStore
 from codeatlas.store import graph as graph_algos
 
@@ -51,6 +52,7 @@ class ToolContext:
     snapshot_id: str
     config: Config = field(default_factory=Config)
     _graphs: dict[tuple[str, ...], nx.MultiDiGraph] = field(default_factory=dict)
+    _files: dict[str, FileRecord] = field(default_factory=dict)
 
     @property
     def snapshot(self) -> Snapshot:
@@ -58,6 +60,12 @@ class ToolContext:
         if snapshot is None:
             raise KeyError(f"no snapshot {self.snapshot_id!r} in the store")
         return snapshot
+
+    def file_record(self, path: str) -> FileRecord | None:
+        """What the index knows of one file; the list is read once per context."""
+        if not self._files:
+            self._files.update({f.path: f for f in self.store.files(self.snapshot_id)})
+        return self._files.get(path)
 
     def graph(self, kinds: Iterable[EdgeKind]) -> nx.MultiDiGraph:
         """The NetworkX view for some edge kinds, built once per context."""
@@ -280,6 +288,10 @@ def _hit(ctx: ToolContext, node: Node, score: float, sources: list[str]) -> dict
     if node.kind is NodeKind.SECTION and node.docstring:
         # The heading's text, so the model can answer without a second call.
         text = node.docstring
+        if "parts" in node.attrs:
+            # Numbered, or the model counts the lines itself and cites the wrong ones.
+            first = node.span.start_line
+            text = "\n".join(f"{n}: {line}" for n, line in enumerate(text.split("\n"), first))
         cut = len(text) > SECTION_TEXT_CHARS
         out["text"] = text[:SECTION_TEXT_CHARS] + " ..." if cut else text
     return out
@@ -308,7 +320,14 @@ def get_symbol_source(ctx: ToolContext, key: str) -> dict[str, Any]:
         out["source"] = None
         out["note"] = f"{node.path} is not readable in the checkout"
         return out
-    lines = target.read_text(encoding="utf-8", errors="replace").splitlines()
+    # As indexed, so the map's line numbers fit: the checkout may have moved on.
+    record = ctx.file_record(node.path)
+    data = snapshot_bytes(root, ctx.snapshot.commit_sha, node.path,
+                          record.sha256 if record else "")
+    if data is None:
+        data = target.read_bytes()
+        out["note"] = f"{node.path} changed since it was indexed: its lines may have moved"
+    lines = data.decode("utf-8", errors="replace").splitlines()
     start, end = node.span.start_line, node.span.end_line
     shown_end = min(end, start + MAX_SOURCE_LINES - 1)
     body = [f"{n}: {lines[n - 1]}" for n in range(start, shown_end + 1) if n <= len(lines)]
@@ -734,15 +753,15 @@ _TOOLS: tuple[Tool, ...] = (
     ),
     _tool(
         "impact",
-        "What a change to these symbols may break: nodes that reach them over calls and "
-        "imports ranked by confidence, plus files that change with them in history.",
+        "What depends on these symbols: everything that reaches them over calls and "
+        "imports, ranked, and files that change with them. Use it for what a change breaks.",
         _schema({"keys": _KEYS}, ["keys"]),
         impact,
     ),
     _tool(
         "select_tests",
-        "Tests worth running after a change to these symbols, ranked. It only lists "
-        "tests; CodeAtlas never runs code from an indexed repository.",
+        "Which tests cover these symbols, directly or through callers, ranked. Use it for "
+        "any question about tests of some code. It lists tests and never runs them.",
         _schema({"keys": _KEYS}, ["keys"]),
         select_tests,
     ),

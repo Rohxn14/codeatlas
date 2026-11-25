@@ -27,6 +27,9 @@ from codeatlas.llm.types import LLMResponse, Message, ToolCall, ToolSpec
 # Codes of a 400 that mean "the model's output failed Groq's check", not "your request
 # is wrong" (both seen on Nov 19 with gpt-oss): see `LLMBadOutputError`.
 BAD_OUTPUT_CODES = ("tool_use_failed", "output_parse_failed")
+# gpt-oss's own markers between its channels. In a message they mean a tool call came out
+# as text (Nov 25): the rest of the answer is lost, so it is no answer.
+CHANNEL_MARKERS = ("<|channel|>", "<|message|>", "<|constrain|>", "<|start|>", "<|call|>")
 
 
 class GroqProvider:
@@ -131,6 +134,8 @@ def from_groq_completion(data: dict[str, Any], model: str) -> LLMResponse:
         )
         for raw in message.get("tool_calls") or ()
     )
+    if any(marker in (message.get("content") or "") for marker in CHANNEL_MARKERS):
+        raise LLMBadOutputError("groq", "its internal markers came out in the text")
     if not (message.get("content") or "") and not calls:
         raise LLMEmptyResponseError("groq", f"finish reason {choice.get('finish_reason')}")
     usage = data.get("usage") or {}

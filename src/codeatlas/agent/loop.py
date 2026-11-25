@@ -13,6 +13,7 @@ from typing import Any
 
 from codeatlas.agent.leads import leads_text, look_up
 from codeatlas.agent.prompts import system_prompt
+from codeatlas.agent.quotes import QuoteCheck, check_quotes
 from codeatlas.agent.tools import ToolSet
 from codeatlas.config import Config
 from codeatlas.llm import LLMClient, Message, ToolCall
@@ -87,6 +88,7 @@ class Answer:
 
     text: str
     citations: list[CitationCheck] = field(default_factory=list)
+    quotes: list[QuoteCheck] = field(default_factory=list)
     steps: int = 0
     input_tokens: int = 0
     output_tokens: int = 0
@@ -96,6 +98,11 @@ class Answer:
     @property
     def invalid_citations(self) -> list[CitationCheck]:
         return [c for c in self.citations if not c.valid]
+
+    @property
+    def unfound_quotes(self) -> list[QuoteCheck]:
+        """Quoted code whose names are not in the files cited beside it."""
+        return [q for q in self.quotes if q.missing]
 
 
 def check_citations(text: str, tools: ToolSet) -> list[CitationCheck]:
@@ -212,8 +219,11 @@ def ask(
     try:
         _run(messages, tools, client, max_steps, answer, log, on_step or _no_step, first)
         answer.citations = check_citations(answer.text, tools)
+        answer.quotes = check_quotes(answer.text, answer.citations, tools,
+                                     citation_pattern(snapshot_id))
         if log:
             log[-1]["invalid_citations"] = [c.text for c in answer.invalid_citations]
+            log[-1]["unfound_quotes"] = [q.text for q in answer.unfound_quotes]
     finally:
         answer.trajectory_path = _write_trajectory(
             Path(data_dir if data_dir is not None else config.data_dir), log)

@@ -41,6 +41,13 @@ def render_answer(answer: Answer, base: str) -> Markup:
         text = re.sub(pattern, lambda m: f"{_OPEN}{by_text[m.group(0)]}{_CLOSE}", text)
         text = _BRACKETS.sub(r" \1", text)
     html = _renderer().render(text)
+    for found in answer.unfound_quotes:
+        where = ", ".join(p.rsplit("/", 1)[-1] for p in found.paths)
+        why = escape(f"{', '.join(found.missing)}: not in {where}, cited beside it")
+        # As markdown-it writes it: quotes are escaped inside code.
+        code = escape(found.text, quote=False).replace('"', "&quot;")
+        html = html.replace(f"<code>{code}</code>",
+                            f'<code class="unfound" title="{why}">{code}</code>')
     return Markup(_MARK.sub(lambda m: _citation(answer.citations, int(m.group(1)), base), html))
 
 
