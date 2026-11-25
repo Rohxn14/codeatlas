@@ -2,6 +2,7 @@
 
 import json
 from collections.abc import Callable
+from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
@@ -179,3 +180,36 @@ def test_a_report_saved_before_embeddings_existed_still_loads(
     del old["embeddings"]
     path.write_text(json.dumps(old), encoding="utf-8")
     assert load_report(config, sid).embeddings == {}  # None here would force a full rebuild
+
+
+def test_what_a_text_file_says_is_searchable_and_a_secret_is_not(
+    make_repo: Callable[..., Path], config: Config, tmp_path: Path,
+) -> None:
+    db = tmp_path / "data" / "codeatlas.db"
+    repo = make_repo({"a.py": "x = 1\n", ".gitignore": "# caches\n__pycache__/\ndata/lake/\n",
+                      "ci.yml": "jobs:\n  build:\n    runs-on: ubuntu-latest\n",
+                      ".env": "API_KEY=zebrafish\n"}, name="demo")
+    sid = index_repository(str(repo), config, db).snapshot["id"]
+    with GraphStore(db) as store:
+        def found(query: str) -> list[str]:
+            return [n.key for n, _ in store.search_text(sid, query, docs=True)]
+
+        assert found("__pycache__") == [".gitignore::section:lines 1-3"]
+        assert found("ubuntu") == ["ci.yml::section:lines 1-3"]
+        assert found("zebrafish") == []
+        env = store.module_for_path(sid, ".env")
+        assert env is not None and "never read" in str(env.attrs["skipped_reason"])
+
+
+def test_a_text_file_too_long_to_parse_is_still_searchable(
+    make_repo: Callable[..., Path], config: Config, tmp_path: Path,
+) -> None:
+    db = tmp_path / "data" / "codeatlas.db"
+    repo = make_repo({"big.py": "# quokka\n" + "x = 1\n" * 60}, name="demo")
+    report = index_repository(str(repo), replace(config, max_file_bytes=100), db)
+    sid = report.snapshot["id"]
+    assert report.snapshot["limits_hit"] == ["max_file_bytes"]
+    with GraphStore(db) as store:
+        assert [n.path for n, _ in store.search_text(sid, "quokka", docs=True)] == ["big.py"]
+        module = store.module_for_path(sid, "big.py")
+        assert module is not None and module.span.end_line == 61  # so its lines can be cited

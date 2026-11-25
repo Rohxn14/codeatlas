@@ -15,6 +15,9 @@ EMBEDDED_KINDS = frozenset({
     NodeKind.FUNCTION, NodeKind.CLASS, NodeKind.INTERFACE, NodeKind.TEST, NodeKind.MODULE,
     NodeKind.SECTION,
 })
+# Parts of a text file are embedded when the file has at most this many: a `.gitignore`
+# or a workflow, not a lock file. Text search finds the rest.
+MAX_EMBEDDED_PARTS = 3
 BODY_LINES = 15
 BATCH = 64
 
@@ -56,6 +59,11 @@ def _body(node: Node, repo_root: Path) -> str:
     return "\n".join(lines[start:end])
 
 
+def _long_text(node: Node) -> bool:
+    parts = node.attrs.get("parts")
+    return isinstance(parts, int) and parts > MAX_EMBEDDED_PARTS
+
+
 def build_embeddings(
     store: GraphStore,
     snapshot_id: str,
@@ -75,7 +83,7 @@ def build_embeddings(
     done, _ = store.embeddings(snapshot_id, embedder.model)
     have = set(done)
     todo = [(node_text(n, repo_root), n) for n in store.nodes(snapshot_id)
-            if n.kind in EMBEDDED_KINDS and n.id not in have]
+            if n.kind in EMBEDDED_KINDS and n.id not in have and not _long_text(n)]
     todo.sort(key=lambda item: len(item[0]))
     for start in range(0, len(todo), BATCH):
         if on_batch is not None:

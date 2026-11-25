@@ -313,3 +313,47 @@ def test_search_docs_finds_only_sections_and_carries_their_text(tmp_path):
         code = tools.call("semantic_search", {"query": "install"})
         kinds = [h["kind"] for h in code["hits"]]
         assert "function" in kinds and "section" not in kinds
+
+
+def text_file(store, source_dir, path: str, text: str):
+    """Add one text-tier file, as the text adapter would, to the fixture snapshot."""
+    from codeatlas.indexer.generic.adapter import TextAdapter
+
+    (source_dir / path).write_text(text, encoding="utf-8")
+    store.write_nodes(TextAdapter("text").parse(path, text.encode(), SNAP).nodes)
+
+
+def test_a_file_is_found_by_the_words_a_model_uses(store, source_dir):
+    # Nov 25: "What does the gitignore exclude?" failed at its first step, because the
+    # schema refused kind "file" and Groq answered 400; and .gitignore was not found.
+    text_file(store, source_dir, ".gitignore", "venv/\n__pycache__/\n")
+    tools = ToolSet(store, SNAP)
+    for args in ({"name": "gitignore", "kind": "file"}, {"name": ".gitignore"},
+                 {"name": "gitignore"}, {"name": "ignore", "kind": "file"}):
+        assert keys(tools.call("search_symbols", args)["symbols"]) == [".gitignore::"], args
+    assert keys(tools.call("search_symbols", {"name": "save", "kind": "method"})["symbols"]) == [
+        "app/repo.py::Repo.save"]
+    assert "file" in tools.call("search_symbols", {"name": "x", "kind": "nope"})["valid_kinds"]
+
+
+def test_no_schema_makes_a_provider_refuse_a_value_the_tool_can_handle(tools):
+    for spec in tools.specs:
+        for name, rule in spec.parameters["properties"].items():
+            assert not {"enum", "minimum", "maximum"} & set(rule), (spec.name, name)
+
+
+def test_get_file_symbols_gives_the_lines_of_a_text_file(store, source_dir):
+    text_file(store, source_dir, ".gitignore", "venv/\n__pycache__/\n")
+    out = ToolSet(store, SNAP).call("get_file_symbols", {"path": ".gitignore"})
+    assert out["symbols"] == [] and out["source"] == "1: venv/\n2: __pycache__/"
+
+
+def test_no_tool_reads_a_file_that_may_hold_secrets(store, source_dir):
+    text_file(store, source_dir, ".env", "API_KEY=zebrafish\n")  # as an old index had it
+    tools = ToolSet(store, SNAP)
+    for name, args in (("get_symbol_source", {"key": ".env::"}),
+                       ("get_symbol_source", {"key": ".env::section:lines 1-1"}),
+                       ("get_file_symbols", {"path": ".env"})):
+        out = tools.call(name, args)
+        assert "zebrafish" not in json.dumps(out), (name, args)
+        assert "may hold secrets" in out["note"]

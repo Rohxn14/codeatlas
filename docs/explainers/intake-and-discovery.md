@@ -173,3 +173,31 @@ and `skipped = [("node_modules", "excluded directory", 1 file)]`, `limits_hit = 
   repository ignores (for example `__pycache__`) appear in the census.
 - In git mode a `.gitignore`d `node_modules` is never seen, so it is not listed; the walk
   lists excluded folders even when ignored. The two modes differ there.
+
+## Nothing stops early, and nothing secret is read (Nov 25)
+
+**What the owner saw.** Every repository showed "Indexing stopped early at a limit
+(max_file_bytes)". Nothing had stopped: PitwallOS had six images over 1 MB, logfire a lock file
+and a screenshot, `cli` two git pack files. A large file is now looked at for binary content
+*before* its size, so an image is "binary", not a limit. Only `max_files` and `max_seconds` stop
+a run, and the message says so only for those two.
+
+**Limits.** They are a guard, not a budget: 200,000 files, 3,600 s, and 5 MB for one file to be
+parsed into symbols (from 20,000, 300 s and 1 MB). A longer text file keeps its first megabyte
+searchable. The tracked `codeatlas.toml` carries the same numbers; it overrides the defaults in
+the folder it sits in, so the old ones there would have kept the old limits.
+
+**The text of every text file** (D-59). A `.gitignore`, a workflow or a requirements file has no
+symbols, so the map knew its name and nothing else: searching `__pycache__` found nothing, and
+"What does the gitignore exclude?" could not be answered. `split_parts` (`generic/sections.py`)
+cuts such a file into parts of at most 60 lines or 4,000 characters, each a SECTION node, as a
+README's headings already were. At most 50 parts per file (a lock file is not worth more), and
+the module says at which line they stop. Vectors are built only for files of three parts or
+fewer; text search covers the rest.
+
+**Files that may hold secrets** (D-60). Reading every file's text means a `.env` in a folder that
+is not a git repository would be stored and could reach a language model. `is_secret_path` knows
+such files by name (`.env`, `.env.*` but not `.env.example`, `.pem`, `.key`, `id_rsa`,
+`credentials.json` and others). They stay on the map by name, their bytes are never read (the
+stored hash is of the name and size), and the agent's tools and the file page refuse them too,
+which also covers snapshots indexed before this.

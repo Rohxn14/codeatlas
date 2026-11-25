@@ -13,6 +13,10 @@ Two heading styles are read:
   least as long as the title. The first character seen is level 1, the next level 2.
 
 A section runs to the next heading of any level, so no line belongs to two sections.
+
+A text file without headings (`.gitignore`, YAML, JSON, a script in a language with no
+grammar) is cut into parts of at most `PART_LINES` lines instead (`split_parts`), so what
+it says can be found although nothing in the code points at it.
 """
 
 from __future__ import annotations
@@ -22,6 +26,9 @@ from dataclasses import dataclass
 
 DOC_LANGUAGES = frozenset({"markdown", "rst"})
 TOP_TITLE = "(top of file)"
+PART_LINES = 60
+PART_CHARS = 4000  # one section node keeps at most this much text
+MAX_PARTS = 50  # per file: 3,000 lines of a lock file or a data file is plenty
 
 _ATX = re.compile(r"^ {0,3}(#{1,6})[ \t]+(.+?)[ \t]*#*[ \t]*$")
 _FENCE = re.compile(r"^ {0,3}(`{3,}|~{3,})")
@@ -56,6 +63,37 @@ def split_sections(text: str, language: str) -> list[Section]:
             continue  # nothing before the first heading
         sections.append(Section(title, level, first + 1, max(end, first + 1), content))
     return sections
+
+
+def split_parts(text: str) -> tuple[list[Section], int]:
+    """Parts of a text file with no headings, and the last line they cover.
+
+    The second value is smaller than the file's line count when the file is longer than
+    `MAX_PARTS` parts, so the caller can say what was left out.
+    """
+    lines = text.splitlines()
+    parts: list[Section] = []
+    start = chars = 0
+    for i, line in enumerate(lines):
+        full = i > start and (i - start >= PART_LINES or chars + len(line) > PART_CHARS)
+        if full:
+            parts.append(_part(lines, start, i))
+            if len(parts) == MAX_PARTS:
+                return _with_text(parts), i
+            start, chars = i, 0
+        chars += len(line) + 1
+    if start < len(lines):
+        parts.append(_part(lines, start, len(lines)))
+    return _with_text(parts), len(lines)
+
+
+def _part(lines: list[str], start: int, end: int) -> Section:
+    return Section(f"lines {start + 1}-{end}", 0, start + 1, end,
+                   "\n".join(lines[start:end]).strip())
+
+
+def _with_text(parts: list[Section]) -> list[Section]:
+    return [part for part in parts if part.text]
 
 
 def _markdown_headings(lines: list[str]) -> list[tuple[int, int, int, str]]:

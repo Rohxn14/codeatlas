@@ -24,6 +24,7 @@ from typing import Any
 import networkx as nx
 
 from codeatlas.config import Config
+from codeatlas.indexer.discover import is_secret_path
 from codeatlas.llm import ToolSpec
 from codeatlas.models import Edge, EdgeKind, Node, NodeKind, Snapshot
 from codeatlas.store import GraphStore
@@ -35,6 +36,11 @@ DEFAULT_LIMIT = 10
 MAX_DEPTH = 3
 SECTION_TEXT_CHARS = 800  # of a documentation section, per search hit
 _NOT_SYMBOLS = frozenset({NodeKind.MODULE, NodeKind.PACKAGE, NodeKind.EXTERNAL})
+# What models call our kinds. On Nov 25 both Groq models asked for kind "file"; the
+# schema refused the word, Groq answered 400, and the question failed at its first step.
+_KIND_WORDS = {"file": NodeKind.MODULE, "method": NodeKind.FUNCTION,
+               "struct": NodeKind.CLASS, "doc": NodeKind.SECTION}
+_KIND_NAMES = [*(str(k) for k in NodeKind), *_KIND_WORDS]
 
 
 @dataclass(slots=True)
@@ -173,14 +179,21 @@ def search_symbols(
         return _error("name must not be empty")
     kinds = None
     if kind:
-        try:
-            kinds = {NodeKind(kind)}
-        except ValueError:
-            return _error(f"unknown kind {kind!r}", valid_kinds=[str(k) for k in NodeKind])
+        wanted_kind = str(kind).strip().lower()
+        if wanted_kind not in _KIND_NAMES:
+            return _error(f"unknown kind {kind!r}", valid_kinds=_KIND_NAMES)
+        kinds = {_KIND_WORDS.get(wanted_kind) or NodeKind(wanted_kind)}
     ranked: list[tuple[int, Node]] = []
     for node in ctx.store.nodes(ctx.snapshot_id):
+        if node.kind is NodeKind.MODULE and (not kinds or node.kind in kinds):
+            rank = _file_match(node.path.lower(), wanted, partly=bool(kinds))
+            if rank is not None:
+                ranked.append((rank, node))
+            continue
         if (kinds and node.kind not in kinds) or (not kinds and node.kind in _NOT_SYMBOLS):
             continue
+        if "parts" in node.attrs:
+            continue  # lines of a text file: its file is the match
         lowered = node.name.lower()
         if lowered == wanted or node.qualname.lower() == wanted or (
                 "." in wanted and _dotted_match(node, wanted)):
@@ -199,6 +212,15 @@ def search_symbols(
                     for r, n in ranked[:limit]],
     }
     return _fit(result, "symbols")
+
+
+def _file_match(path: str, wanted: str, partly: bool) -> int | None:
+    """How well a file matches: 0 its path or name (`.gitignore`, also as `gitignore`),
+    2 part of its path, when files were asked for; None when it does not match."""
+    name = path.rsplit("/", 1)[-1]
+    if wanted in (path, name, name.lstrip(".")) or path.endswith("/" + wanted):
+        return 0
+    return 2 if partly and wanted in path else None
 
 
 def _dotted_match(node: Node, wanted: str) -> bool:
@@ -270,6 +292,12 @@ def get_symbol_source(ctx: ToolContext, key: str) -> dict[str, Any]:
         return node
     out = _symbol(ctx, node)
     out.update({"end_line": node.span.end_line, "docstring": node.docstring})
+    if "parts" in node.attrs:
+        out["docstring"] = None  # the text itself, which the source below repeats
+    if is_secret_path(node.path):
+        out["source"] = None
+        out["note"] = f"{node.path} may hold secrets, so its content is never read"
+        return out
     root = ctx.repo_root()
     if root is None:
         out["source"] = None
@@ -295,10 +323,10 @@ def get_symbol_source(ctx: ToolContext, key: str) -> dict[str, Any]:
 
 
 def get_file_symbols(ctx: ToolContext, path: str) -> dict[str, Any]:
-    """Everything defined in a file, in source order."""
+    """Everything defined in a file, in source order; a text file's lines instead."""
     path = path.replace("\\", "/").removeprefix("./")
     nodes = [n for n in ctx.store.nodes_in_file(ctx.snapshot_id, path)
-             if n.kind is not NodeKind.MODULE]
+             if n.kind is not NodeKind.MODULE and "parts" not in n.attrs]
     module = ctx.store.module_for_path(ctx.snapshot_id, path)
     if module is None:
         return _error(f"{path!r} is not a file of this snapshot")
@@ -310,6 +338,10 @@ def get_file_symbols(ctx: ToolContext, path: str) -> dict[str, Any]:
         "truncated": False,
         "symbols": [_symbol(ctx, n, end_line=n.span.end_line) for n in nodes],
     }
+    if not nodes:  # `.gitignore`, YAML, a script: what it says is all there is to know
+        found = get_symbol_source(ctx, module.key)
+        result.update({k: found[k] for k in ("source", "note") if found.get(k)})
+        result["truncated"] = bool(found.get("truncated"))
     return _fit(result, "symbols")
 
 
@@ -586,8 +618,10 @@ def _schema(properties: dict[str, Any], required: list[str]) -> dict[str, Any]:
 
 
 _KEY = {"type": "string", "description": _KEY_HELP}
-_DEPTH = {"type": "integer", "minimum": 1, "maximum": MAX_DEPTH, "default": 1}  # hops
-_CONFIDENCE = {"type": "number", "minimum": 0, "maximum": 1, "default": 0,
+# No minimum or maximum: the tools bring a value into range; a schema would make Groq
+# refuse the request instead.
+_DEPTH = {"type": "integer", "default": 1}  # hops
+_CONFIDENCE = {"type": "number", "default": 0,
                "description": "Ignore edges below this confidence."}
 _KEYS = {"type": "array", "items": {"type": "string"}, "minItems": 1,
          "description": "Node keys of the changed symbols."}
@@ -610,12 +644,13 @@ def _tool(
 _TOOLS: tuple[Tool, ...] = (
     _tool(
         "search_symbols",
-        "Find symbols (functions, classes, tests, routes) whose name matches; exact "
-        "matches come first. Use it to get the key of a symbol.",
+        "Find symbols (functions, classes, tests, routes) and files whose name matches; "
+        "exact matches come first. Use it to get a key.",
         _schema({"name": {"type": "string", "description": "Name or part of a name."},
-                 "kind": {"type": "string", "enum": [str(k) for k in NodeKind],
-                          "description": "Only this kind of node."},
-                 "limit": {"type": "integer", "minimum": 1, "maximum": 50, "default": 10}},
+                 # No enum: Groq refuses the whole request over a word it does not list.
+                 "kind": {"type": "string", "description":
+                          "Only this kind: function, class, test, file, route, section."},
+                 "limit": {"type": "integer", "default": 10}},
                 ["name"]),
         search_symbols,
     ),
@@ -624,16 +659,17 @@ _TOOLS: tuple[Tool, ...] = (
         "Search by meaning and words (hybrid search when available, otherwise BM25 text "
         "search). Use it when you do not know a name.",
         _schema({"query": {"type": "string"},
-                 "k": {"type": "integer", "minimum": 1, "maximum": 50, "default": 10}},
+                 "k": {"type": "integer", "default": 10}},
                 ["query"]),
         semantic_search,
     ),
     _tool(
         "search_docs",
-        "Search the repository's documentation (headings of Markdown and reStructuredText "
-        "files, with their text). Use it for how to install, configure or use the project.",
+        "Search the text of documentation and of every other text file: README, .gitignore, "
+        "workflows, requirements, JSON and YAML settings. Use it for how to install or use "
+        "the project, and for what a settings file says.",
         _schema({"query": {"type": "string"},
-                 "k": {"type": "integer", "minimum": 1, "maximum": 50, "default": 10}},
+                 "k": {"type": "integer", "default": 10}},
                 ["query"]),
         search_docs,
     ),
@@ -645,7 +681,7 @@ _TOOLS: tuple[Tool, ...] = (
     ),
     _tool(
         "get_file_symbols",
-        "Everything defined in one file, in order.",
+        "Everything defined in one file, in order; for a text file, its lines.",
         _schema({"path": {"type": "string", "description": "Repo-relative path."}}, ["path"]),
         get_file_symbols,
     ),
@@ -679,8 +715,10 @@ _TOOLS: tuple[Tool, ...] = (
         "Walk the graph from a symbol along chosen edge kinds, at most 3 hops.",
         _schema({"key": _KEY,
                  "edge_kinds": {"type": "array", "minItems": 1,
-                                "items": {"type": "string", "enum": [str(k) for k in EdgeKind]}},
-                 "direction": {"type": "string", "enum": ["out", "in", "both"], "default": "out"},
+                                "items": {"type": "string"}, "description":
+                                "Any of: " + ", ".join(str(k) for k in EdgeKind)},
+                 "direction": {"type": "string", "default": "out",
+                               "description": "out, in or both."},
                  "depth": _DEPTH},
                 ["key", "edge_kinds"]),
         traverse,

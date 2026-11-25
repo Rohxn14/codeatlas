@@ -10,6 +10,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from codeatlas.config import Config
+from codeatlas.indexer.discover import is_secret_path
 from codeatlas.indexer.intake import IntakeError, looks_like_url, parse_repo_url
 from codeatlas.models import Snapshot
 
@@ -39,6 +40,8 @@ def read_lines(root: Path | None, path: str) -> tuple[list[str] | None, str]:
     `path` comes from an address someone typed, so it is resolved and must still be
     inside the checkout: `../../secrets.txt` resolves outside it and is refused.
     """
+    if is_secret_path(path):
+        return None, "This file may hold secrets, so its content is never read."
     if root is None:
         return None, "The indexed checkout is no longer on disk, so there is no source to show."
     base = root.resolve()
