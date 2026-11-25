@@ -9,7 +9,8 @@ def test_defaults_when_file_missing(tmp_path: Path, monkeypatch: pytest.MonkeyPa
     monkeypatch.chdir(tmp_path)
     config = load_config()
     assert config == Config()
-    assert (config.max_files, config.max_file_bytes, config.max_seconds) == (20_000, 1_000_000, 300)
+    assert (config.max_files, config.max_file_bytes, config.max_seconds) == (
+        200_000, 5_000_000, 3_600)
     assert config.max_history_commits == 2_000
 
 
@@ -19,7 +20,7 @@ def test_reads_toml(tmp_path: Path) -> None:
     config = load_config(path)
     assert config.max_files == 5
     assert config.max_history_commits == 10
-    assert config.max_file_bytes == 1_000_000
+    assert config.max_file_bytes == 5_000_000
 
 
 def test_rejects_bad_values() -> None:

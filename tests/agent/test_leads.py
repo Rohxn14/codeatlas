@@ -56,3 +56,15 @@ def test_a_plain_question_is_sent_as_it_is(store, tmp_path):
     client, provider = make_client(reply("Nothing to look up."))
     ask("How does saving work?", store, SNAP, client, data_dir=tmp_path)
     assert provider.requests[0][1].content == "How does saving work?"
+
+
+def test_a_file_the_question_names_is_a_lead(store, source_dir):
+    from codeatlas.indexer.generic.adapter import TextAdapter
+
+    store.write_nodes(TextAdapter("text").parse(".gitignore", b"venv/\n", SNAP).nodes)
+    tools = ToolSet(store, SNAP)
+    for question in ("What does the gitignore exclude?", "What is in .gitignore?"):
+        assert [lead["name"] for lead in look_up(question, tools)] == [".gitignore"]
+    (lead,) = look_up("What does app/service.py do?", tools)
+    assert lead["symbols"][0]["key"] == "app/service.py::"
+    assert look_up("How does the service save things?", tools) == []  # plain words

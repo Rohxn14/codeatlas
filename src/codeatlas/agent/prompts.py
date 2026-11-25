@@ -24,8 +24,9 @@ def describe_repository(store: GraphStore, snapshot: Snapshot) -> str:
         names = [f"{p.name} ({p.path})" for p in packages[:MAX_PACKAGES_LISTED]]
         more = len(packages) - len(names)
         lines.append("Packages: " + ", ".join(names) + (f", and {more} more" if more > 0 else ""))
-    if snapshot.limits_hit:
-        lines.append("The index is incomplete; limits hit: " + ", ".join(snapshot.limits_hit))
+    stopped = [name for name in snapshot.limits_hit if name != "max_file_bytes"]
+    if stopped:
+        lines.append("The index is incomplete; limits hit: " + ", ".join(stopped))
     return "\n".join(lines)
 
 

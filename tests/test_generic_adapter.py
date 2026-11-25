@@ -180,14 +180,31 @@ def test_ruby_locals_are_not_calls() -> None:
     assert ("greeter.rb::Greeter.greet", "log.info", "info", "log") in calls(result)
 
 
-def test_text_adapter_emits_only_module_with_reason() -> None:
+def test_text_adapter_emits_the_module_with_its_reason_and_the_text() -> None:
     adapter = Registry().adapter_for("json")
     assert adapter.tier is Tier.TEXT
     result = adapter.parse("data.json", b'{"a": 1,\n "# b": 2}\n', SNAPSHOT)
-    assert len(result.nodes) == 1
-    module = result.nodes[0]
+    module, part = result.nodes
     assert module.kind is NodeKind.MODULE and module.span.end_line == 2
+    assert part.kind is NodeKind.SECTION and part.name == "data.json"
+    assert part.key == "data.json::section:lines 1-2" and '"# b": 2' in (part.docstring or "")
+    assert part.attrs == {"level": 0, "parts": 1}
     assert "json" in str(module.attrs["tier_reason"])
+
+
+def test_a_long_text_file_is_cut_into_parts_and_says_where_it_stops() -> None:
+    from codeatlas.indexer.generic.sections import MAX_PARTS, PART_LINES
+
+    adapter = Registry().adapter_for("json")
+    two = adapter.parse("a.json", b"x\n" * (PART_LINES + 5), SNAPSHOT).nodes
+    assert [n.name for n in two[1:]] == ["a.json, lines 1-60", "a.json, lines 61-65"]
+    assert (two[2].span.start_line, two[2].span.end_line) == (61, 65)
+    lines = PART_LINES * MAX_PARTS + 7
+    module, *parts = adapter.parse("b.json", b"x\n" * lines, SNAPSHOT).nodes
+    assert len(parts) == MAX_PARTS and module.attrs["text_until_line"] == PART_LINES * MAX_PARTS
+    one = adapter.parse("c.json", b"y" * 9000, SNAPSHOT).nodes[1]  # one very long line
+    assert len(one.docstring or "") == 4000 and one.attrs["truncated"] is True
+    assert len(adapter.parse("d.json", b"\n\n", SNAPSHOT).nodes) == 1  # nothing to say
 
 
 def test_text_adapter_adds_a_section_per_heading_of_a_documentation_file() -> None:

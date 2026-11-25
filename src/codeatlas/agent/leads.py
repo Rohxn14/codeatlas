@@ -13,6 +13,7 @@ import re
 from typing import Any
 
 from codeatlas.agent.tools import ToolSet
+from codeatlas.models import NodeKind
 
 MAX_NAMES = 3  # names looked up per question
 MAX_FOUND = 5  # exact matches shown per name
@@ -20,6 +21,7 @@ MAX_SIGNATURE = 120
 # A word of letters, digits and underscores, possibly dotted: `contracts.validate`.
 _WORD = re.compile(r"[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*")
 _BACKTICKED = re.compile(r"`([^`\s]+)`")
+_FILE_WORD = re.compile(r"[\w./-]*\w")
 # A dotted word ending like this is a file name (`main.py`), not a symbol.
 _FILE_ENDINGS = frozenset({"py", "pyi", "ts", "tsx", "js", "jsx", "mjs", "md", "rst", "txt",
                            "json", "toml", "yaml", "yml", "rs", "go", "java", "kt", "rb",
@@ -58,9 +60,34 @@ def _looks_like_code(word: str) -> bool:
     return "_" in inner or re.search(r"[a-z][A-Z]|[A-Z][a-z]+[A-Z]", word) is not None
 
 
+def file_names(question: str, tools: ToolSet) -> list[str]:
+    """Files the question names by file name or path: `.gitignore` (also as `gitignore`),
+    `requirements.txt`, `src/main.py`. Only a name that one file has, so a plain word never
+    becomes a lead."""
+    paths: dict[str, list[str]] = {}
+    for node in tools.context.store.nodes(tools.context.snapshot_id):
+        if node.kind is NodeKind.MODULE:
+            name = node.path.rsplit("/", 1)[-1].lower()
+            names = {node.path.lower(), name}
+            if name.startswith(".") and "." not in name[1:]:
+                names.add(name[1:])
+            for each in names:
+                paths.setdefault(each, []).append(node.path)
+    found: list[str] = []
+    for word in _FILE_WORD.findall(question.replace("\\", "/")):
+        match = paths.get(word.lower().rstrip("."), [])
+        if len(match) == 1 and match[0] not in found:
+            found.append(match[0])
+    return found
+
+
 def look_up(question: str, tools: ToolSet) -> list[dict[str, Any]]:
     """Each code-like name with its exact matches; names that match nothing are left out."""
     leads = []
+    for path in file_names(question, tools)[:MAX_NAMES]:
+        result = tools.call("search_symbols", {"name": path, "kind": "file", "limit": 50})
+        exact = [s for s in result["symbols"] if s["path"] == path]
+        leads.append({"name": path, "symbols": exact[:1], "more": 0})
     for name in code_names(question):
         # Exact matches come first, so 50 (the most the tool returns) counts them all
         # but in a very large repository.

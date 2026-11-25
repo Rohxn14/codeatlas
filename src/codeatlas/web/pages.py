@@ -33,7 +33,7 @@ def file_page(loaded: Loaded, path: str) -> dict[str, Any] | None:
         return None
     inside = [n for n in loaded.nodes.values() if n.path == path]
     module = next((n for n in inside if n.kind is NodeKind.MODULE), None)
-    symbols = sorted((n for n in inside if n.kind in OUTLINE_KINDS),
+    symbols = sorted((n for n in inside if n.kind in OUTLINE_KINDS and "parts" not in n.attrs),
                      key=lambda n: (n.span.start_line, n.qualname))
     calls = [done for call, done in loaded.calls if call.caller_key.split("::", 1)[0] == path]
     return {

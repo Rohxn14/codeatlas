@@ -3,11 +3,11 @@
 # indexed repository, so a repository cannot raise its own limits.
 
 [limits]
-# When a limit is reached, indexing stops, keeps what it has, and names the limit
-# in the snapshot's `limits_hit`.
-max_files = 20000          # files per index, of any language
-max_file_bytes = 1000000   # larger files are skipped and listed with the reason
-max_seconds = 300          # wall-clock time per index
+# A guard, far above any repository indexed so far. At max_files or max_seconds indexing
+# stops, keeps what it has and names the limit in the snapshot's `limits_hit`.
+max_files = 200000         # files per index, of any language
+max_file_bytes = 5000000   # a longer text file is searchable but not parsed into symbols
+max_seconds = 3600         # wall-clock time per index
 
 [history]
 max_history_commits = 2000 # commits read for co-change analysis (repository layer)

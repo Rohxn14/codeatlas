@@ -1,6 +1,7 @@
 """Hybrid search with a deterministic fake embedder: exact fusion, expansion and packing."""
 
 import zlib
+from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
@@ -214,3 +215,13 @@ def test_build_embeddings_goes_by_text_length_and_keeps_each_vector_with_its_nod
     by_id = dict(zip(ids, vectors, strict=True))
     for node in nodes:
         assert np.allclose(by_id[node.id], FakeEmbedder().embed([node_text(node)])[0])
+
+
+def test_only_parts_of_short_text_files_are_embedded(store):
+    short = replace(mk(".gitignore", "section:lines 1-3", NodeKind.SECTION, doc="caches"),
+                    attrs={"level": 0, "parts": 1})
+    lock = replace(mk("uv.lock", "section:lines 1-60", NodeKind.SECTION, doc="pandas"),
+                   attrs={"level": 0, "parts": 50})
+    store.write_nodes([short, lock])
+    assert build_embeddings(store, SID, FakeEmbedder()) == 1
+    assert store.embeddings(SID, "fake")[0] == [short.id]

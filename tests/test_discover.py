@@ -7,7 +7,13 @@ from pathlib import Path
 import pytest
 
 from codeatlas.config import Config
-from codeatlas.indexer.discover import Discovery, discover, language_for
+from codeatlas.indexer.discover import (
+    SECRET_REASON,
+    Discovery,
+    discover,
+    is_secret_path,
+    language_for,
+)
 from codeatlas.indexer.registry import Registry
 from codeatlas.models import Tier
 
@@ -220,3 +226,37 @@ def test_differently_cased_root_still_counts_as_top_level(
 ) -> None:
     root = make_repo({"a.py": "x = 1\n"})
     assert run(Path(str(root).upper())).used_git
+
+
+def test_a_large_image_is_binary_not_a_limit(tmp_path: Path) -> None:
+    # PitwallOS was said to have "stopped early at a limit" over six images (Nov 25).
+    (tmp_path / "menu.gif").write_bytes(b"GIF89a\x00" + b"z" * 500)
+    found = run(tmp_path, replace(Config(), max_file_bytes=100))
+    assert found.skip_reasons == {"menu.gif": "binary"} and found.limits_hit == ()
+
+
+@pytest.mark.parametrize(("path", "secret"), [
+    (".env", True), ("app/.env.local", True), ("deploy/server.pem", True), ("id_rsa", True),
+    ("config/credentials.json", True), (".npmrc", True),
+    (".env.example", False), ("app/.env.sample", False), ("src/environment.py", False),
+    ("secrets.py", False), ("keys.md", False),
+])
+def test_files_that_may_hold_secrets(path: str, secret: bool) -> None:
+    assert is_secret_path(path) is secret
+
+
+def test_a_secret_file_is_listed_and_its_bytes_are_never_read(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (tmp_path / ".env").write_text("API_KEY=do-not-read-me\n", encoding="utf-8")
+    (tmp_path / "ok.py").write_text("x = 1\n", encoding="utf-8")
+    opened: list[str] = []
+    real_open, real_bytes = Path.open, Path.read_bytes
+    monkeypatch.setattr(Path, "open",
+                        lambda self, *a, **k: opened.append(self.name) or real_open(self, *a, **k))
+    monkeypatch.setattr(Path, "read_bytes",
+                        lambda self: opened.append(self.name) or real_bytes(self))
+    found = run(tmp_path)
+    assert found.skip_reasons[".env"] == SECRET_REASON
+    assert {f.path for f in found.files} == {".env", "ok.py"}  # still on the map
+    assert ".env" not in opened and "ok.py" in opened

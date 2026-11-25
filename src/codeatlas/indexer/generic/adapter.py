@@ -17,7 +17,13 @@ from pathlib import Path, PurePosixPath
 from tree_sitter import Language, Parser, Query, QueryCursor
 from tree_sitter import Node as TSNode
 
-from codeatlas.indexer.generic.sections import DOC_LANGUAGES, Section, split_sections
+from codeatlas.indexer.generic.sections import (
+    DOC_LANGUAGES,
+    PART_CHARS,
+    Section,
+    split_parts,
+    split_sections,
+)
 from codeatlas.models import (
     Node,
     NodeKind,
@@ -307,7 +313,7 @@ def _vendored_imports_query(language: str) -> str | None:
 
 
 # The most text one section node keeps. A longer section is cut and says so.
-MAX_SECTION_CHARS = 4000
+MAX_SECTION_CHARS = PART_CHARS
 
 
 class TextAdapter:
@@ -315,6 +321,8 @@ class TextAdapter:
 
     A documentation file (Markdown, reStructuredText) also gets one SECTION node per
     heading, holding the text under it, so search can find what a README says (D-41).
+    Any other text file gets one SECTION node per part of its lines (D-59), so search
+    can find what a `.gitignore` or a workflow says though no code points at it.
     """
 
     tier: Tier = Tier.TEXT
@@ -326,11 +334,12 @@ class TextAdapter:
 
     def parse(self, path: str, source: bytes, snapshot_id: str) -> ParseResult:
         attrs: dict[str, object] = {"tier_reason": self.reason} if self.reason else {}
-        module = module_node(path, self.language, source, snapshot_id, attrs)
-        sections: list[Node] = []
+        text = source.decode("utf-8", errors="replace")
         if self.language in DOC_LANGUAGES:
-            text = source.decode("utf-8", errors="replace")
             sections = section_nodes(path, self.language, text, snapshot_id)
+        else:
+            sections = part_nodes(path, self.language, text, snapshot_id, attrs)
+        module = module_node(path, self.language, source, snapshot_id, attrs)
         return ParseResult(path, self.language, self.tier, (module, *sections))
 
 
@@ -342,6 +351,28 @@ def section_nodes(path: str, language: str, text: str, snapshot_id: str) -> list
         seen[section.title] = seen.get(section.title, 0) + 1
         nodes.append(_section_node(path, language, section, seen[section.title], snapshot_id))
     return nodes
+
+
+def part_nodes(path: str, language: str, text: str, snapshot_id: str,
+               file_attrs: dict[str, object]) -> list[Node]:
+    """One SECTION node per part of a text file without headings, in file order.
+
+    `attrs["parts"]` on each is how many the file has; `file_attrs` is told when the
+    file was longer than the parts kept, so nothing is left out without a word.
+    """
+    parts, last = split_parts(text)
+    if last < len(text.splitlines()):
+        file_attrs["text_until_line"] = last
+    name = PurePosixPath(path).name
+    return [
+        replace(
+            _section_node(path, language, part, 1, snapshot_id),
+            name=f"{name}, {part.title}" if len(parts) > 1 else name,
+            attrs={"level": 0, "parts": len(parts),
+                   **({"truncated": True} if len(part.text) > MAX_SECTION_CHARS else {})},
+        )
+        for part in parts
+    ]
 
 
 def _section_node(

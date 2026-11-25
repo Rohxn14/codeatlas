@@ -7,11 +7,12 @@ import time
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from pathlib import Path
 
 from codeatlas import __version__
 from codeatlas.config import Config, Deadline
 from codeatlas.indexer.discover import TEXT_LANGUAGE, Discovery, discover
-from codeatlas.indexer.generic.adapter import TextAdapter, module_node
+from codeatlas.indexer.generic.adapter import TextAdapter, module_node, part_nodes
 from codeatlas.indexer.intake import IntakeResult, open_source
 from codeatlas.indexer.registry import Registry
 from codeatlas.models import FileRecord, ParseResult, Snapshot, Tier, make_snapshot_id
@@ -21,6 +22,7 @@ UNKNOWN_TYPE_REASON = "unknown file type: no language matches this file name or 
 # app) can show where an index is. The step names are those of the report's `seconds`.
 Progress = Callable[[str, str], None]
 PARSE_REPORT_EVERY = 25
+HEAD_BYTES = 1_000_000  # read of a text file too long to parse
 
 
 def no_progress(step: str, detail: str) -> None:
@@ -72,7 +74,7 @@ def parse_source(
             limits.add("max_seconds")
             reason = "not parsed: the max_seconds limit was reached"
         results[record.path] = (
-            skipped_result(record, reason, snapshot_id)
+            skipped_result(record, reason, snapshot_id, _head(intake.root, record, reason))
             if reason
             else parse_file(intake, record, registry, snapshot_id)
         )
@@ -108,10 +110,28 @@ def parse_file(
     return adapter.parse(record.path, source, snapshot_id)
 
 
-def skipped_result(record: FileRecord, reason: str, snapshot_id: str) -> ParseResult:
-    """A TEXT-tier module node for a file that is not parsed, carrying the reason."""
-    module = module_node(record.path, record.language, b"", snapshot_id, {"skipped_reason": reason})
-    return ParseResult(record.path, record.language, Tier.TEXT, (module,))
+def skipped_result(record: FileRecord, reason: str, snapshot_id: str,
+                   head: bytes = b"") -> ParseResult:
+    """A TEXT-tier module node for a file that is not parsed, carrying the reason.
+
+    `head` is the start of a text file that is only too long: its text stays searchable.
+    """
+    attrs: dict[str, object] = {"skipped_reason": reason}
+    parts = part_nodes(record.path, record.language, head.decode("utf-8", errors="replace"),
+                       snapshot_id, attrs) if head else []
+    module = module_node(record.path, record.language, head, snapshot_id, attrs)
+    return ParseResult(record.path, record.language, Tier.TEXT, (module, *parts))
+
+
+def _head(root: Path, record: FileRecord, reason: str | None) -> bytes:
+    """The first megabyte of a text file over `max_file_bytes`; nothing for other reasons."""
+    if reason is None or not reason.startswith("over max_file_bytes"):
+        return b""
+    try:
+        with root.joinpath(*record.path.split("/")).open("rb") as handle:
+            return handle.read(HEAD_BYTES)
+    except OSError:
+        return b""
 
 
 def content_sha(files: Sequence[FileRecord]) -> str:
