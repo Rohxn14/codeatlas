@@ -267,3 +267,22 @@ def test_an_index_job_prepares_search_by_meaning_and_says_how_it_went(
     assert "Open the map" in last and shown in last
     assert "Prepare search by meaning" in last
     assert ("stopped here" in last) == bool(error)
+
+
+def test_the_start_page_opens_a_repository_and_keeps_the_rest_behind_an_info_button(
+    setup: tuple[TestClient, Path, Config, Path],
+) -> None:
+    client, db_path, config, repo = setup
+    index_repository(str(repo), config, db_path)
+    page = client.get("/").text
+    with GraphStore(db_path) as store:
+        base = f"/s/{snapshot_slug(store.snapshots()[0].id)}/"
+    assert f'<a class="repo-row" href="{base}">' in page  # the row opens the repository
+    assert 'class="repo-info" type="button" popovertarget="repo-1"' in page
+    # A click outside a popup hides it and reaches nothing underneath: the popover fills the
+    # window, and the area around its box is a button that hides it (Nov 25).
+    for popover, hides in (("repo-1", "repo-1"), ("remove-1", "repo-1")):
+        inside = page.split(f'<div class="overlay" id="{popover}" popover>')[1]
+        close = inside.split("<button", 1)[1].split(">", 1)[0]
+        assert 'class="overlay-close"' in close and f'popovertarget="{hides}"' in close
+        assert 'popovertargetaction="hide"' in close

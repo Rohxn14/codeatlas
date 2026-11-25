@@ -29,12 +29,12 @@
 {% block main %}
 {% if not chosen %}
 <h1>What could a change break?</h1>
-<p class="meta">Pick a change to see what it reaches and which test files to run.</p>
+<p class="meta">Pick a change, made or planned. You get the code that depends on it and the tests worth running.</p>
 {% if error %}<p class="notice">{{ error }}</p>{% endif %}
 
 <section class="two">
 <div class="card">
-  <h2>Uncommitted changes</h2>
+  <h2>What I am changing now</h2>
   {% if worktree %}
   <p><a class="button" href="{{ base }}/impact?change=worktree">Check my uncommitted changes</a></p>
   {% elif has_checkout %}
@@ -44,13 +44,13 @@
   {% endif %}
 </div>
 <div class="card">
-  <h2>One file or symbol</h2>
-  <p class="muted">Open it from the map or the search, then “What could a change here break?”.</p>
+  <h2>What I plan to change</h2>
+  <p class="muted">Open a file or function from the map or the search, then “What could a change here break?”.</p>
 </div>
 </section>
 
 <section>
-  <h2>A recent commit</h2>
+  <h2>What a commit could break</h2>
   {% if commits %}
   <ul class="plain commits">
     {% for c in commits %}

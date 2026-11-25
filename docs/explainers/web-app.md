@@ -682,9 +682,9 @@ navigation inside a repository; and Ask as a chat that opens on the right and na
 
 ### What
 
-- **Start page** (`snapshots.html`): an address box and the list. Clicking a row opens a 360 by
-  360 popup with commit, time, files, Open, Index again and Remove; Remove asks once more in a
-  popup of its own. The arrow at the end of a row opens the repository directly.
+- **Start page** (`snapshots.html`): an address box and the list. A row opens its repository;
+  its ⓘ opens a 360 by 360 popup with commit, time, files, Open, Index again and Remove, and
+  Remove asks once more in a popup of its own (the owner swapped row and popup on Nov 25).
 - **Shell** (`base.html`): navigation on the left (Map, Search, Change impact, Coverage), search
   and Ask on top, the chat on the right. Pages explain themselves in a `?` popup or a fold, not
   in paragraphs.
@@ -696,8 +696,12 @@ navigation inside a repository; and Ask as a chat that opens on the right and na
 
 ### Why
 
-- **Popups without JavaScript.** The browser's own popover (`popover`, `popovertarget`) opens,
-  centres and closes them, with Escape and a click outside for free.
+- **Popups without JavaScript.** The browser's own popover (`popover`, `popovertarget`) opens
+  and closes them, with Escape for free. Its "light dismiss" closes on a click outside too, but
+  **lets that click through** to what is underneath: clicking outside one popup opened another
+  repository's. A popover's backdrop cannot stop it (the browser sets `pointer-events: none` on
+  it, and no stylesheet may change that). So the popover fills the window and the area around
+  its box is a button that hides it (`popup` in `_icons.html`).
 - **A little JavaScript, for the chat only.** A panel that keeps its place while it updates
   needs it. `app.js` has no library and turns nothing of the model's into HTML: the server
   renders each message, the script swaps in the ones that changed (so an opened detail stays

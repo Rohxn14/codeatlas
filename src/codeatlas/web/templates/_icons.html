@@ -8,11 +8,21 @@
 {%- elif name == "coverage" %}<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>
 {%- elif name == "ask" %}<path d="M4 5h16v11H9l-5 4z"/>
 {%- elif name == "all" %}<path d="m15 6-6 6 6 6"/>
-{%- elif name == "open" %}<path d="m9 6 6 6-6 6"/>
+{%- elif name == "info" %}<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5.2M12 7.6v.1"/>
 {%- elif name == "close" %}<path d="m6 6 12 12M18 6 6 18"/>
 {%- elif name == "send" %}<path d="M12 20V5M5.5 11.5 12 5l6.5 6.5"/>
 {%- elif name == "page" %}<path d="M14 4h6v6M20 4l-9 9M18 14v6H4V6h6"/>
 {%- endif %}
 </svg>
+{% endmacro %}
+{# A popup that a click outside closes, and nothing else. The browser's own popover closes on
+   such a click but lets it through to what is underneath, which opened another popup (Nov 25).
+   So the popover is the whole window, and the area around the box is a button that hides it.
+   `closes` is the popover that button hides: a question inside a popup hides both. #}
+{% macro popup(id, label, closes=none, box="popup") %}
+<div class="overlay" id="{{ id }}" popover>
+  <button class="overlay-close" type="button" tabindex="-1" aria-label="Close" popovertarget="{{ closes or id }}" popovertargetaction="hide"></button>
+  <div class="{{ box }}" role="dialog" aria-label="{{ label }}">{{ caller() }}</div>
+</div>
 {% endmacro %}
 {% macro logo() %}<svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5 20.5 7v10L12 21.5 3.5 17V7z" fill="none" stroke="#388bfd" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 12 20.5 7M12 12v9.5M12 12 3.5 7" stroke="#388bfd" stroke-width="1.8" stroke-linejoin="round"/></svg>{% endmacro %}
