@@ -210,7 +210,9 @@ def test_map_page_draws_boxes_and_an_arrow(client: tuple[TestClient, str]) -> No
     assert "<svg" in page.text
     assert "app/ uses lib/" in page.text           # the arrow's tooltip
     assert "notes.txt" in page.text                # listed as not connected
-    assert 'aria-current="page">Map' in page.text
+    nav = page.text.split('<nav aria-label="Repository">')[1].split("</nav>")[0]
+    assert nav.count('aria-current="page"') == 1  # and it is the map
+    assert "Map" in nav.split('aria-current="page"')[1].split("</a>")[0]
 
 
 def test_clicking_an_arrow_lists_its_edges(client: tuple[TestClient, str]) -> None:

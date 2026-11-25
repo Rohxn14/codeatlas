@@ -1,3 +1,4 @@
+{% import "_icons.html" as icons %}
 <!doctype html>
 <html lang="en">
 <head>
@@ -5,30 +6,54 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}CodeAtlas{% endblock %}</title>
   <link rel="stylesheet" href="/static/app.css">
+  <script src="/static/app.js"></script>
   {% block head %}{% endblock %}
 </head>
 <body>
-  <header class="topbar">
-    <a class="brand" href="/">CodeAtlas</a>
-    {% if snapshot %}
+{% if snapshot %}
+{% set home = "/s/" ~ (snapshot.id | slug) %}
+<div class="shell">
+  <aside class="side">
+    <a class="brand" href="/">{{ icons.logo() }}<span>CodeAtlas</span></a>
+    <div class="repo">{{ snapshot.repo }}</div>
     <nav aria-label="Repository">
-      <span class="repo">{{ snapshot.repo }}</span>
-      <a href="/s/{{ snapshot.id | slug }}/"{% if tab == "map" %} aria-current="page"{% endif %}>Map</a>
-      <a href="/s/{{ snapshot.id | slug }}/impact"{% if tab == "impact" %} aria-current="page"{% endif %}>Impact</a>
-      <a href="/s/{{ snapshot.id | slug }}/coverage"{% if tab == "coverage" %} aria-current="page"{% endif %}>Coverage</a>
-      {% if not read_only %}<a href="/s/{{ snapshot.id | slug }}/ask"{% if tab == "ask" %} aria-current="page"{% endif %}>Ask</a>{% endif %}
+      <a href="{{ home }}/"{% if tab == "map" %} aria-current="page"{% endif %}>{{ icons.icon("map") }}Map</a>
+      <a href="{{ home }}/search"{% if tab == "search" %} aria-current="page"{% endif %}>{{ icons.icon("search") }}Search</a>
+      <a href="{{ home }}/impact"{% if tab == "impact" %} aria-current="page"{% endif %}>{{ icons.icon("impact") }}Change impact</a>
+      <a href="{{ home }}/coverage"{% if tab == "coverage" %} aria-current="page"{% endif %}>{{ icons.icon("coverage") }}Coverage</a>
     </nav>
-    <form class="search" action="/s/{{ snapshot.id | slug }}/search" role="search">
-      <input type="search" name="q" value="{{ q | default("") }}" placeholder="Search symbols and files" aria-label="Search symbols and files">
+    <a class="all" href="/">{{ icons.icon("all") }}All repositories</a>
+  </aside>
+  <div class="page">
+    <header class="bar">
+      <form class="search" action="{{ home }}/search" role="search">
+        {{ icons.icon("search") }}
+        <input type="search" name="q" value="{{ q | default("") }}" placeholder="Search" aria-label="Search symbols, files and text">
+      </form>
+      {% if not read_only %}<a class="button ask-open" href="{{ home }}/ask" data-chat-open>{{ icons.icon("ask") }}Ask</a>{% endif %}
+    </header>
+    <main>
+      {% block main %}{% endblock %}
+    </main>
+  </div>
+  {% if not read_only %}
+  <aside class="chat" id="chat" data-url="{{ home }}/chat" aria-label="Ask about {{ snapshot.repo }}">
+    <div class="chat-head">
+      <strong>Ask</strong>
+      <a class="icon-button" href="{{ home }}/ask" title="Open as a page" aria-label="Open as a page">{{ icons.icon("page") }}</a>
+      <button class="icon-button" type="button" data-chat-close title="Close" aria-label="Close">{{ icons.icon("close") }}</button>
+    </div>
+    <div class="chat-log" aria-live="polite"></div>
+    <form class="chat-form">
+      <textarea name="question" rows="1" maxlength="2000" placeholder="Ask about {{ snapshot.repo }}" aria-label="Your question"></textarea>
+      <button class="send" type="submit" aria-label="Send">{{ icons.icon("send") }}</button>
     </form>
-    {% endif %}
-    <a class="topbar-end" href="/snapshots">All repositories</a>
-  </header>
-  <main>
-    {% block main %}{% endblock %}
-  </main>
-  <footer>
-    CodeAtlas {{ version }}. Built by reading code, never by running it.
-  </footer>
+  </aside>
+  {% endif %}
+</div>
+{% else %}
+{% block alone %}<main class="plain"><p><a class="brand" href="/">{{ icons.logo() }}CodeAtlas</a></p>
+{{ self.main() }}</main>{% endblock %}
+{% endif %}
 </body>
 </html>

@@ -12,13 +12,11 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
-from codeatlas.agent.loop import Answer, CitationCheck
 from codeatlas.config import Config
 from codeatlas.indexer.pipeline.index import index_repository
 from codeatlas.llm import LLMClient, LLMResponse, LLMUnavailableError, ToolCall
 from codeatlas.web import create_app, snapshot_slug
 from codeatlas.web.app import LLM_KEYS
-from codeatlas.web.asks import answer_parts
 
 FILES = {
     "lib/util.py": "def helper():\n    pass\n",
@@ -193,14 +191,6 @@ def test_a_question_posted_from_another_website_is_refused(
     assert client.get(f"{base}/ask/0123456789ab").status_code == 404
 
 
-def test_answer_parts_cut_the_text_at_each_citation() -> None:
-    long, short = "r@0123456789ab:a.py:12", "r@0123456789ab:a.py:1"
-    answer = Answer(f"see {long} and {short}.", citations=[
-        CitationCheck(short, "a.py", 1, True), CitationCheck(long, "a.py", 12, False, "x")])
-    parts = answer_parts(answer)
-    assert [p.get("text") or p["cite"].line for p in parts] == ["see ", 12, " and ", 1, "."]
-
-
 def test_a_rate_limit_wait_is_shown_with_the_answer(indexed: tuple[Path, Config, str]) -> None:
     from codeatlas.llm.errors import LLMTransientError
 
@@ -227,3 +217,85 @@ def test_a_running_question_knows_it_is_waiting_for_a_rate_limit() -> None:
     assert now["left"] == pytest.approx(30, abs=1)
     question.state = "done"
     assert question.waiting_now is None and question.seconds_waited == 30.0
+
+
+# The chat panel: the same questions, as a piece of a page.
+
+
+def chat_until_done(client: TestClient, base: str) -> str:
+    for _ in range(600):
+        page = client.get(f"{base}/chat")
+        assert page.status_code == 200
+        if 'data-active="0"' in page.text:
+            return page.text
+        threading.Event().wait(0.05)
+    raise AssertionError(f"still active after 30 s: {page.text[:800]}")
+
+
+def test_the_chat_panel_asks_and_answers(indexed: tuple[Path, Config, str]) -> None:
+    sid = indexed[2]
+    client, base = app_with(
+        indexed,
+        reply(calls=[ToolCall("1", "search_docs", {"query": "install"})]),
+        reply(f"**Run** the installer:\n\n- see {sid}:README.md:3\n- not {sid}:lib/gone.py:4"),
+    )
+    page = client.get(f"{base}/").text
+    assert 'id="chat"' in page and f'data-url="{base}/chat"' in page and "/static/app.js" in page
+    empty = client.get(f"{base}/chat").text
+    assert 'id="chat-empty"' in empty and "<html" not in empty  # a piece, not a page
+    started = client.post(f"{base}/chat", data={"question": "How do I <b>install</b> this?"})
+    assert started.status_code == 200 and "&lt;b&gt;install" in started.text
+    done = chat_until_done(client, base)
+    assert "<strong>Run</strong> the installer" in done and "<li>" in done
+    assert f'href="{base}/file?path=README.md#L3"' in done and ">README.md:3</a>" in done
+    assert "not a real place: no such file" in done
+    assert "1 of 2 citations point at no real place" in done
+    assert "2 steps" in done and "search_docs(query=&#39;install&#39;)" in done
+    assert "same as step" not in done
+
+
+def test_the_chat_shows_why_a_question_was_not_started(indexed: tuple[Path, Config, str]) -> None:
+    client, base = app_with(indexed)
+    refused = client.post(f"{base}/chat", data={"question": "  "})
+    assert refused.status_code == 400 and "Type a question first." in refused.text
+    other = client.post(f"{base}/chat", data={"question": "hello"},
+                        headers={"origin": "https://evil.example"})
+    assert other.status_code == 403
+    read_only, base = app_with(indexed, read_only=True)
+    assert read_only.get(f"{base}/chat").status_code == 403
+    assert 'id="chat"' not in read_only.get(f"{base}/").text
+
+
+def test_a_question_can_be_stopped_between_steps(indexed: tuple[Path, Config, str]) -> None:
+    db_path, config, sid = indexed
+    asked, go = threading.Event(), threading.Event()
+
+    class Slow(Scripted):
+        def chat(self, *args: Any) -> LLMResponse:
+            asked.set()
+            assert go.wait(20)
+            return super().chat(*args)
+
+    calls = [reply(calls=[ToolCall(str(i), "search_docs", {"query": f"q{i}"})]) for i in range(9)]
+    client = LLMClient([Slow(calls)], cache_mode="off", max_tries=1)
+    app = create_app(db_path, config, llm=lambda: client)
+    web, base = TestClient(app, follow_redirects=False), f"/s/{snapshot_slug(sid)}"
+    web.post(f"{base}/chat", data={"question": "Go on for ever?"})
+    assert asked.wait(20)
+    page = web.get(f"{base}/chat").text
+    qid = re.search(r'id="qa-([0-9a-f]+)"', page).group(1)  # type: ignore[union-attr]
+    assert f'action="{base}/chat/{qid}/stop"' in page
+    stopped = web.post(f"{base}/chat/{qid}/stop")
+    assert stopped.status_code == 200 and "Stopping" in stopped.text
+    go.set()
+    done = chat_until_done(web, base)
+    assert 'data-state="failed"' in done and "Stopped." in done
+    assert web.post(f"{base}/chat/0123456789ab/stop").status_code == 404
+
+
+def test_every_page_says_what_it_may_load(indexed: tuple[Path, Config, str]) -> None:
+    client, base = app_with(indexed)
+    for address in ("/", f"{base}/", f"{base}/chat", "/nothing-here"):
+        policy = client.get(address).headers["content-security-policy"]
+        assert "script-src 'self'" in policy and "default-src 'none'" in policy
+        assert "unsafe" not in policy.split("script-src")[1].split(";")[0]

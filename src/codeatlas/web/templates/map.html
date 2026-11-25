@@ -7,17 +7,16 @@
 {% set keep = {"pick": d.pick} if d.pick else ({"all": 1} if d.show_all else {}) %}
 
 {% block main %}
-<p class="eyebrow">Map</p>
-<h1>
+<div class="title"><h1>
   <a class="crumb" href="/s/{{ snapshot.id | slug }}/">{{ snapshot.repo }}</a>
   {%- for c in d.crumbs %}<span class="sep">/</span><a class="crumb" href="{{ here(c.focus) }}">{{ c.name }}</a>{% endfor %}
 </h1>
-<p class="meta">
-  How the {{ "folder" if d.focus else "repository" }} is put together.
-  A box is a folder or a file. An arrow from A to B means code in A uses code in B:
-  it imports it, calls it, inherits from it or calls its HTTP route.
-  <strong>Click a folder to open it, a file to see only its arrows, an arrow to list the edges behind it.</strong>
-</p>
+<button class="help" type="button" popovertarget="help-map" aria-label="How to read the map">?</button></div>
+<div class="help-popup" id="help-map" popover>
+  <p>A box is a folder or a file. An arrow from A to B means A uses B.</p>
+  <p><strong>Click a folder</strong> to open it, <strong>a file</strong> to see only its arrows, <strong>an arrow</strong> to list what is behind it.</p>
+  <p class="muted">A thicker arrow has more behind it. Solid: found by a rule of the language. Dashed: one of a few candidates. Dotted: matched by name only.</p>
+</div>
 
 {% if d.pick %}
 <p class="callout">
@@ -55,9 +54,10 @@
   <a href="{% if b.is_folder %}{{ here(b.path) }}{% elif d.pick == b.path %}{{ here(d.focus) }}{% else %}{{ here(d.focus, {"pick": b.path}) }}{% endif %}">
   <g class="box tier-{{ b.tier }}{% if d.pick == b.path %} picked{% endif %}">
     <title>{{ b.path }}: {% if b.is_folder %}{{ b.files }} file{{ "" if b.files == 1 else "s" }}. Click to open.{% elif d.pick == b.path %}Click to show the other arrows again.{% else %}Click to show only this file's arrows.{% endif %}</title>
-    <rect x="{{ b.x }}" y="{{ b.y }}" width="{{ d.box_w }}" height="{{ d.box_h }}" rx="8"/>
-    <text class="name" x="{{ b.x + 14 }}" y="{{ b.y + 24 }}">{{ b.name | truncate(19, True, "…", 0) }}</text>
-    <text class="sub" x="{{ b.x + 14 }}" y="{{ b.y + 43 }}">{% if b.is_folder %}{{ b.files | thousands }} file{{ "" if b.files == 1 else "s" }}{% else %}file · {{ b.tier }}{% endif %}</text>
+    <rect x="{{ b.x }}" y="{{ b.y }}" width="{{ d.box_w }}" height="{{ d.box_h }}" rx="10"/>
+    <rect class="bar-left" x="{{ b.x + 7 }}" y="{{ b.y + 14 }}" width="3" height="{{ d.box_h - 28 }}" rx="1.5"/>
+    <text class="name" x="{{ b.x + 18 }}" y="{{ b.y + 24 }}">{{ b.name | truncate(18, True, "…", 0) }}</text>
+    <text class="sub" x="{{ b.x + 18 }}" y="{{ b.y + 43 }}">{% if b.is_folder %}{{ b.files | thousands }} file{{ "" if b.files == 1 else "s" }}{% else %}file · {{ b.tier }}{% endif %}</text>
   </g>
   </a>
   {% endfor %}
@@ -65,10 +65,9 @@
 </div>
 
 <ul class="legend">
-  <li><svg class="swatch" viewBox="0 0 40 10"><path class="line level-certain" d="M0,5 H40"/></svg><strong>certain</strong> <span class="muted">at least one edge found by a rule of the language</span></li>
-  <li><svg class="swatch" viewBox="0 0 40 10"><path class="line level-likely" d="M0,5 H40"/></svg><strong>likely</strong> <span class="muted">best edge is one of a few candidates</span></li>
-  <li><svg class="swatch" viewBox="0 0 40 10"><path class="line level-guess" d="M0,5 H40"/></svg><strong>guess</strong> <span class="muted">matched by name only</span></li>
-  <li class="muted">A thicker line has more edges behind it.</li>
+  <li><svg class="swatch" viewBox="0 0 40 10"><path class="line level-certain" d="M0,5 H40"/></svg>certain</li>
+  <li><svg class="swatch" viewBox="0 0 40 10"><path class="line level-likely" d="M0,5 H40"/></svg>likely</li>
+  <li><svg class="swatch" viewBox="0 0 40 10"><path class="line level-guess" d="M0,5 H40"/></svg>guess</li>
 </ul>
 {% elif d.loose %}
 <p class="callout">No file in this folder uses code in another file of this folder, so there are no arrows to draw.</p>
@@ -118,12 +117,7 @@
 
 {% if d.loose %}
 <section>
-  <h2>Not connected here</h2>
-  <p class="muted">
-    {{ d.loose | length }} folder{{ "" if d.loose | length == 1 else "s" }} and files
-    with no arrow to another box at this level: nothing here uses them and they use
-    nothing here, or they hold no code the map can read.
-  </p>
+  <h2 title="No arrow joins these to another box at this level">Other files here <span class="count">{{ d.loose | length }}</span></h2>
   <ul class="chips">
     {% for b in d.loose %}
     <li class="tier-{{ b.tier }}">

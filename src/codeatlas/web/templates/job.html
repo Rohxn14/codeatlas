@@ -2,7 +2,6 @@
 {% block title %}Indexing · CodeAtlas{% endblock %}
 {% block head %}{% if job.active %}<meta http-equiv="refresh" content="2">{% endif %}{% endblock %}
 {% block main %}
-<p class="eyebrow">Index</p>
 <h1 class="path">{{ job.source }}</h1>
 
 {% if job.state == "waiting" %}

@@ -2,16 +2,15 @@
 {% import "_parts.html" as parts %}
 {% block title %}{{ q or "Search" }} · {{ snapshot.repo }} · CodeAtlas{% endblock %}
 {% block main %}
-<p class="eyebrow">Search</p>
 <h1>{% if q %}Results for “{{ q }}”{% else %}Search {{ snapshot.repo }}{% endif %}</h1>
 <form class="search big" action="{{ base }}/search" role="search">
-  <input type="search" name="q" value="{{ q }}" placeholder="A name, a word from a docstring, or a path" aria-label="Search" autofocus>
-  <button type="submit">Search</button>
+  <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
+  <input type="search" name="q" value="{{ q }}" placeholder="A name, a path, or words in the text" aria-label="Search" autofocus>
+  <button class="button" type="submit">Search</button>
 </form>
 
 {% if hits %}
 {% if docs %}<h2>In the code <span class="count">{{ hits | length }}</span></h2>{% endif %}
-<p class="muted">{{ hits | length }} result{{ "" if hits | length == 1 else "s" }}. Exact names first, then whole-word matches in names, docstrings and paths, then names that contain the text.</p>
 <ul class="results">
   {% for n in hits %}
   <li>
@@ -25,8 +24,7 @@
 {% endif %}
 
 {% if docs %}
-<h2>In the documentation <span class="count">{{ docs | length }}</span></h2>
-<p class="muted">Headings of Markdown and reStructuredText files whose text holds the words, best match first.</p>
+<h2>In the text of files <span class="count">{{ docs | length }}</span></h2>
 <ul class="results">
   {% for n in docs %}
   <li>
@@ -39,8 +37,7 @@
 
 {% if hits or docs %}
 {% elif q.strip() %}
-<p class="callout">Nothing matches “{{ q }}”. Search looks at symbol names, signatures, docstrings, file paths and the text of documentation files (Markdown, reStructuredText), not at the body of the code.</p>
+<p class="callout">Nothing matches “{{ q }}”. Search looks at names, signatures, docstrings, paths and the text of documentation and settings files, not at the body of the code.</p>
 {% else %}
-<p class="muted">Search looks at symbol names, signatures, docstrings, file paths and the text of documentation files.</p>
 {% endif %}
 {% endblock %}

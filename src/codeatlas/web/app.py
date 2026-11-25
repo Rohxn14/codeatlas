@@ -40,7 +40,7 @@ from codeatlas.web.asks import (
     MAX_QUESTION_CHARS,
     Questions,
     TooManyQuestions,
-    answer_parts,
+    chat_message,
     step_rows,
 )
 from codeatlas.web.changes import (
@@ -58,6 +58,7 @@ from codeatlas.web.data import Loaded, load_snapshot
 from codeatlas.web.diagram import arrow_edges, build_diagram, crumbs
 from codeatlas.web.impact_page import impact_view
 from codeatlas.web.jobs import Job, Jobs, TooManyJobs
+from codeatlas.web.markdown import render_answer
 from codeatlas.web.overview import build_overview
 from codeatlas.web.pages import MAX_DOC_HITS, MAX_HITS, file_page, search, symbol_page
 from codeatlas.web.source import MAX_LINES, checkout_root, read_lines
@@ -65,6 +66,16 @@ from codeatlas.web.source import MAX_LINES, checkout_root, read_lines
 _HERE = Path(__file__).parent
 MAX_SYMBOL_LINES = 400
 LLM_KEYS = ("GROQ_API_KEY", "GEMINI_API_KEY")
+# What a page of this app may load: its own script, style and requests, nothing else. A
+# name or an answer that slipped past the escaping could still not run a script or call
+# out. Styles may be inline because the meters set their widths that way.
+SECURITY_HEADERS = {
+    "Content-Security-Policy": "default-src 'none'; script-src 'self'; connect-src 'self'; "
+                               "style-src 'self' 'unsafe-inline'; img-src 'self' data:; "
+                               "form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "same-origin",
+}
 
 
 def snapshot_slug(snapshot_id: str) -> str:
@@ -162,6 +173,13 @@ def create_app(
     if hosts is not None:
         app.add_middleware(TrustedHostMiddleware, allowed_hosts=list(hosts))
     app.mount("/static", StaticFiles(directory=_HERE / "static"), name="static")
+
+    @app.middleware("http")
+    async def security_headers(request: Request, call_next: Callable[..., Any]) -> Any:
+        response = await call_next(request)
+        response.headers.update(SECURITY_HEADERS)
+        return response
+
     templates = Jinja2Templates(directory=_HERE / "templates")
     templates.env.filters.update(percent=percent, thousands=thousands, slug=snapshot_slug)
     templates.env.globals.update(version=__version__, level_meaning=MEANING)
@@ -269,7 +287,8 @@ def create_app(
                 snapshots = store.snapshots()
             for snapshot in snapshots:
                 saved = load_report(config, snapshot.id)
-                rows.append({"s": snapshot, "files": saved.files["total"] if saved else None})
+                rows.append({"s": snapshot, "files": saved.files["total"] if saved else None,
+                             "is_url": looks_like_url(snapshot.source)})
         shown = [job for job in jobs.recent() if job.state != "done"][:5]
         return templates.TemplateResponse(
             request, "snapshots.html",
@@ -470,6 +489,19 @@ def create_app(
         response.status_code = 400 if error else 200
         return response
 
+    def start_question(loaded: Loaded, text: str) -> tuple[str, str]:
+        """Start answering; returns the question's id, or why it was not started."""
+        if keys_missing():
+            return "", "No language model key is set."
+        if not text:
+            return "", "Type a question first."
+        if len(text) > MAX_QUESTION_CHARS:
+            return "", f"A question can be at most {MAX_QUESTION_CHARS:,} characters long."
+        try:
+            return questions.start(loaded.snapshot.id, text).id, ""
+        except TooManyQuestions as exc:
+            return "", str(exc)
+
     @app.get("/s/{slug}/ask", response_class=HTMLResponse)
     def ask_page(request: Request, slug: str) -> Any:
         """The question box and the questions already asked about this snapshot."""
@@ -484,18 +516,10 @@ def create_app(
         loaded = get_loaded(slug)
         can_change()
         text = form.get("question", "").strip()
-        if keys_missing():
-            return ask_response(request, loaded, "No language model key is set.", text)
-        if not text:
-            return ask_response(request, loaded, "Type a question first.", text)
-        if len(text) > MAX_QUESTION_CHARS:
-            return ask_response(request, loaded, f"A question can be at most "
-                                f"{MAX_QUESTION_CHARS:,} characters long.", text)
-        try:
-            question = questions.start(loaded.snapshot.id, text)
-        except TooManyQuestions as exc:
-            return ask_response(request, loaded, str(exc), text)
-        return RedirectResponse(f"/s/{slug}/ask/{question.id}", status_code=303)
+        question_id, error = start_question(loaded, text)
+        if error:
+            return ask_response(request, loaded, error, text)
+        return RedirectResponse(f"/s/{slug}/ask/{question_id}", status_code=303)
 
     @app.get("/s/{slug}/ask/{question_id}", response_class=HTMLResponse)
     def answer_page(request: Request, slug: str, question_id: str) -> Any:
@@ -517,7 +541,43 @@ def create_app(
                     active=state in ("waiting", "running"), answer=answer,
                     rows=step_rows(question), model=last.get("model", ""),
                     provider=last.get("provider", ""),
-                    pieces=answer_parts(answer) if answer else [])
+                    html=render_answer(answer, f"/s/{slug}") if answer else "")
+
+    def chat_response(request: Request, loaded: Loaded, error: str = "") -> Any:
+        """The conversation about one snapshot, oldest first: a piece of a page."""
+        base = f"/s/{snapshot_slug(loaded.snapshot.id)}"
+        asked = [chat_message(q, base) for q in reversed(questions.recent(loaded.snapshot.id))]
+        return templates.TemplateResponse(
+            request, "chat.html",
+            {"base": base, "asked": asked, "error": error, "keys_missing": keys_missing(),
+             "active": any(m["state"] in ("waiting", "running") for m in asked)},
+            status_code=400 if error else 200)
+
+    @app.get("/s/{slug}/chat", response_class=HTMLResponse)
+    def chat(request: Request, slug: str) -> Any:
+        """What the chat panel shows; it asks again while an answer is being made."""
+        loaded = get_loaded(slug)
+        can_change()
+        return chat_response(request, loaded)
+
+    @app.post("/s/{slug}/chat", response_class=HTMLResponse,
+              dependencies=[Depends(from_this_app)])
+    def chat_ask(request: Request, slug: str, form: dict[str, str] = POSTED_FORM) -> Any:
+        loaded = get_loaded(slug)
+        can_change()
+        _, error = start_question(loaded, form.get("question", "").strip())
+        return chat_response(request, loaded, error)
+
+    @app.post("/s/{slug}/chat/{question_id}/stop", response_class=HTMLResponse,
+              dependencies=[Depends(from_this_app)])
+    def chat_stop(request: Request, slug: str, question_id: str) -> Any:
+        loaded = get_loaded(slug)
+        can_change()
+        question = questions.get(question_id)
+        if question is None or question.snapshot_id != loaded.snapshot.id:
+            raise HTTPException(404, "no such question")
+        questions.stop(question_id)
+        return chat_response(request, loaded)
 
     @app.exception_handler(HTTPException)
     def http_error(request: Request, exc: HTTPException) -> Any:

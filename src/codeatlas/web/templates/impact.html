@@ -27,33 +27,31 @@
 {% endmacro %}
 
 {% block main %}
-<p class="eyebrow">Impact</p>
-
 {% if not chosen %}
 <h1>What could a change break?</h1>
-<p class="meta">
-  Choose a change. CodeAtlas follows the map backwards from what the change touches,
-  through callers, importers, HTTP clients and tests, and lists what it reaches and
-  which test files to run. Nothing is run; this is read from the map.
-</p>
+<p class="meta">Pick a change to see what it reaches and which test files to run.</p>
 {% if error %}<p class="notice">{{ error }}</p>{% endif %}
 
-<section>
+<section class="two">
+<div class="card">
   <h2>Uncommitted changes</h2>
   {% if worktree %}
-  <p>The edits in the checkout that are not committed yet.
-    <a class="button" href="{{ base }}/impact?change=worktree">Check my uncommitted changes</a></p>
+  <p><a class="button" href="{{ base }}/impact?change=worktree">Check my uncommitted changes</a></p>
   {% elif has_checkout %}
   <p class="muted">Not available: the checkout is not a git repository, or it has moved on from the indexed commit <code>{{ snapshot.commit_sha[:12] }}</code>. Index it again to use this.</p>
   {% else %}
   <p class="muted">Not available: the indexed checkout is no longer on disk.</p>
   {% endif %}
+</div>
+<div class="card">
+  <h2>One file or symbol</h2>
+  <p class="muted">Open it from the map or the search, then “What could a change here break?”.</p>
+</div>
 </section>
 
 <section>
   <h2>A recent commit</h2>
   {% if commits %}
-  <p class="muted">The indexed commit is exact to the line. For an older commit the line numbers have moved since, so each file it changed counts whole.</p>
   <ul class="plain commits">
     {% for c in commits %}
     <li>
@@ -69,17 +67,12 @@
 </section>
 
 <section>
-  <h2>A diff</h2>
-  <p class="muted">Paste the output of <code>git diff</code> or <code>git show</code>.</p>
+<details class="fold"><summary>Paste a diff</summary><div class="in">
   <form method="post" action="{{ base }}/impact" class="diff-form">
     <textarea name="diff" rows="10" spellcheck="false" aria-label="A diff" placeholder="diff --git a/app/service.py b/app/service.py&#10;--- a/app/service.py&#10;+++ b/app/service.py&#10;@@ -7,3 +7,4 @@"></textarea>
     <button type="submit" class="button">See what it reaches</button>
   </form>
-</section>
-
-<section>
-  <h2>One file or one symbol</h2>
-  <p class="muted">Open any file or symbol (from the map or the search box) and choose “What could a change here break?”.</p>
+</div></details>
 </section>
 
 {% else %}
@@ -180,13 +173,14 @@
 </section>
 
 <section>
-  <h2>How far to trust this</h2>
+<details class="fold"><summary>How far to trust this</summary><div class="in">
   <ul class="notes">
     <li>A score is not a probability. It is the confidence of each edge on the path multiplied together, times 0.8 for every step away from the change.</li>
     <li><strong>Test selection is measured:</strong> on two small benchmarks where code was broken on purpose, files at {{ "%.1f" | format(v.threshold) }} or more matched the tests that really failed with an F1 of about 0.84.</li>
     <li><strong>The ranking of other files is not proven:</strong> it does not yet predict which files change together better than plain git history does.</li>
     <li>Calls the map could not resolve (see Coverage) are paths this page cannot follow, so a missing file here is not proof that it is safe.</li>
   </ul>
+</div></details>
 </section>
 {% endif %}
 {% endblock %}

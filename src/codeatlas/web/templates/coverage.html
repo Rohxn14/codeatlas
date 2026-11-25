@@ -15,7 +15,6 @@
 {% endmacro %}
 
 {% block main %}
-<p class="eyebrow">Coverage</p>
 <h1>How much of {{ snapshot.repo }} is on the map</h1>
 <p class="meta">
   commit <code>{{ snapshot.commit_sha[:12] }}</code>
@@ -37,7 +36,7 @@
   <div class="tile"><span class="num">{{ o.totals.languages }}</span><span class="lbl">languages</span></div>
 </section>
 
-<section>
+<section class="card">
   <h2>How deeply the files were read</h2>
   {% set parts = [] %}
   {% for t in o.tiers %}{% set _ = parts.append({"name": t.tier, "count": t.files, "share": t.share}) %}{% endfor %}
@@ -49,13 +48,8 @@
   </dl>
 </section>
 
-<section>
-  <h2>How sure the map is</h2>
-  <p>
-    Every edge records how it was found and a confidence from 0 to 1.
-    These are the {{ o.trust_total.total | thousands }} edges found by analysis
-    (containment is left out: a file containing its functions is true by construction).
-  </p>
+<section class="card">
+  <h2>How sure the map is <span class="count">{{ o.trust_total.total | thousands }} edges</span></h2>
   {% set parts = [] %}
   {% for l in o.trust_total.levels %}{% set _ = parts.append({"name": l.level, "count": l.count, "share": l.share}) %}{% endfor %}
   {{ meter(parts, "Edges by confidence level") }}
@@ -65,6 +59,7 @@
     <dt>guess</dt><dd>Under 0.5: {{ level_meaning.guess }}.</dd>
   </dl>
 
+  <details><summary>By kind of edge</summary>
   <div class="table-wrap">
   <table>
     <thead><tr><th>Edge kind</th><th class="n">Edges</th><th class="n">Certain</th><th class="n">Likely</th><th class="n">Guess</th></tr></thead>
@@ -80,7 +75,7 @@
     {% endfor %}
     </tbody>
   </table>
-  </div>
+  </div></details>
 
   <p class="callout">
     <strong>{{ o.calls.resolved | thousands }} of {{ o.calls.total | thousands }} calls
@@ -92,7 +87,7 @@
 </section>
 
 <section>
-  <h2>Languages</h2>
+<details class="fold" open><summary>Languages</summary><div class="in">
   <div class="table-wrap">
   <table>
     <thead><tr><th>Language</th><th>Tier</th><th class="n">Files</th><th class="n">Symbols</th><th class="n">Calls</th><th class="n">Resolved</th><th class="n">Files with parse errors</th></tr></thead>
@@ -111,10 +106,9 @@
     </tbody>
   </table>
   </div>
-</section>
+</div></details>
 
-<section>
-  <h2>Packages</h2>
+<details class="fold"><summary>Packages</summary><div class="in">
   {% if o.packages %}
   <div class="table-wrap">
   <table>
@@ -135,10 +129,9 @@
   {% else %}
   <p class="muted">No package manifest (such as pyproject.toml or package.json) was found.</p>
   {% endif %}
-</section>
+</div></details>
 
-<section id="gaps">
-  <h2>What could not be analysed</h2>
+<details class="fold" id="gaps"><summary>What could not be analysed</summary><div class="in">
   {% set p = o.problems %}
   {% if p.report_missing %}
   <p class="notice">The index report for this snapshot is missing, so skipped files and dropped edges are not listed. Re-index with <code>--force</code> to recreate it.</p>
@@ -194,5 +187,6 @@
     </ul>
   </details>
   {% endif %}
+</div></details>
 </section>
 {% endblock %}
