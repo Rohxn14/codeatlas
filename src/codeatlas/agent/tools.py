@@ -387,7 +387,7 @@ def find_callees(
 
 
 def get_imports(ctx: ToolContext, path: str) -> dict[str, Any]:
-    """A module's IMPORTS edges, both directions."""
+    """A module's IMPORTS edges, both directions, and the files that name it or it names."""
     module = ctx.store.module_for_path(ctx.snapshot_id, path.replace("\\", "/"))
     if module is None:
         return _error(f"{path!r} is not a file of this snapshot")
@@ -409,10 +409,18 @@ def get_imports(ctx: ToolContext, path: str) -> dict[str, Any]:
         "imports": imports,
         "imported_by": imported_by,
     }
-    # Shrink the longer list first so neither direction is lost completely.
-    while len(json.dumps(result)) > MAX_RESULT_CHARS and (imports or imported_by):
-        longer = imports if len(imports) >= len(imported_by) else imported_by
-        longer.pop()
+    names = [_edge_row(ctx, e, e.dst_id)
+             for e in ctx.store.edges_from(module.id, [EdgeKind.REFERENCES])]
+    named_by = [_edge_row(ctx, e, e.src_id)
+                for e in ctx.store.edges_to(module.id, [EdgeKind.REFERENCES])]
+    lists = [imports, imported_by]
+    for label, rows in (("names", names), ("named_by", named_by)):
+        if rows:
+            result[label] = rows
+            lists.append(rows)
+    # Shrink the longest list first so no direction is lost completely.
+    while len(json.dumps(result)) > MAX_RESULT_CHARS and any(lists):
+        max(lists, key=len).pop()
         result["truncated"] = True
     return result
 
@@ -699,7 +707,8 @@ _TOOLS: tuple[Tool, ...] = (
     ),
     _tool(
         "get_imports",
-        "A file's imports and the files that import it.",
+        "A file's imports, the files that import it, and the files that name it in their "
+        "text (where an image, a settings file or a document is used).",
         _schema({"path": {"type": "string", "description": "Repo-relative path."}}, ["path"]),
         get_imports,
     ),

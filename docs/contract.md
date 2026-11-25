@@ -102,6 +102,7 @@ Three helper functions, the only logic in `models.py`:
 | `HANDLES` | `"handles"` | Route → Function |
 | `CALLS_HTTP` | `"calls_http"` | Function → Route |
 | `CO_CHANGES` | `"co_changes"` | Module → Module; directional, so a pair gets two edges |
+| `REFERENCES` | `"references"` | Module → Module: the first file's text names the second by path, name or folder. At least one of the two is in the text tier. It says the file is named, not that it is used, and the impact engine does not follow it. Confidence 1.0 (`direct`: its path), 0.8 (`convention`: its name, next to it or at the root), 0.3 or 1 ÷ files in the folder, whichever is smaller (`name_guess`: the only file of that name or path ending, or its folder) (D-62) |
 
 **`Resolution`**: how an edge was established. The confidence on each edge comes from this, as set out in the project plan.
 

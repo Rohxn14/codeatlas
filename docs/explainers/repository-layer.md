@@ -274,3 +274,51 @@ pair those; the impact engine should lean on import edges for them.
 - `TestConventionsAnalyzer` reads the manifests a second time; on very large
   repositories with many Go files this costs one extra pass over the Go files' first
   16 KB (for `package main` entry points).
+
+## References: files that name other files (D-62, Nov 25)
+
+**What.** `ReferenceAnalyzer` (`repo/references.py`) reads every text file and adds one REFERENCES
+edge to each other file its text names: a README and its images, a workflow and
+`requirements.txt`, a navigation file and its pages.
+
+**Why.** Imports and calls join code to code; everything else floated. The owner saw `.gitignore`,
+`README.md` and `images/` under "Not connected here". Measured on five repositories, files with
+no edge but containment, before and after:
+
+| Repository | Files | Floating before | After |
+| --- | --- | --- | --- |
+| PitwallOS | 269 | 122 | 40 |
+| Antidote graph-hacks | 112 | 29 | 2 |
+| cli (GitLab) | 1,853 | 379 | 127 |
+| itsdangerous | 50 | 23 | 6 |
+| logfire | 1,091 | 572 | 116 |
+
+What still floats is named nowhere (`.gitignore`, issue templates). Those are found by their text
+instead (`intake-and-discovery.md`, D-59).
+
+**How.** A name is looked up the way a reader would, and each way has its confidence:
+
+1. A path, next to the file that holds it, then from the root: 1.0 (`direct`).
+2. A bare file name, next to it or at the root: 0.8 (`convention`).
+3. A bare name or a path ending that only one file has: 0.3 (`name_guess`).
+4. A folder of at most 20 files: 0.3 or 1 ÷ its files, whichever is smaller, for each.
+
+A name two files have is not guessed. The surest way per pair wins, with its line. Code naming code
+is left out, because imports and calls say that better: at least one end is a text-tier file. Files
+that may hold secrets, binaries, minified files and files over 500 kB are not read.
+
+Example: `docs/guide.md` line 2 holds `![chart](images/chart.png)`; `docs/images/chart.png` exists,
+so the edge is `docs/guide.md` to `docs/images/chart.png`, 1.0, `direct`, line 2.
+
+**What an edge claims.** That the file is named, not that it is used. The impact engine does not
+follow it. On the map it is drawn in grey and the tooltip says "names"; `get_imports` gives the
+agent `names` and `named_by`.
+
+**How good it is.** The fixture's answer key has no references, so its score does not cover them
+(38 edges are listed as not scored; everything else is unchanged at precision 1.000). Read by hand,
+a random sample of 60: all 40 at 1.0 and 0.8 name the file; 18 of 20 guesses do. The two wrong ones:
+`logfire/{VERSION}` in a User-Agent string, and a test that writes its own `package.json`.
+
+**Where.** Tests: `tests/repo/test_references.py` (nine), the arrow in `test_web_diagram.py`, and
+`get_imports` in `test_tools.py`. Not found: paths built in code (`os.path.join("images", x)`),
+names with spaces, and Windows paths.

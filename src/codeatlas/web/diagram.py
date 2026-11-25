@@ -19,7 +19,8 @@ from codeatlas.web.layout import layered_rows
 
 # The edge kinds that mean "code here uses code there". Containment, tests-by-convention
 # and co-change are other relations and would bury the structure.
-ARROW_KINDS = (EdgeKind.IMPORTS, EdgeKind.CALLS, EdgeKind.INHERITS, EdgeKind.CALLS_HTTP)
+ARROW_KINDS = (EdgeKind.IMPORTS, EdgeKind.CALLS, EdgeKind.INHERITS, EdgeKind.CALLS_HTTP,
+               EdgeKind.REFERENCES)
 MAX_BOXES = 40
 MAX_ROW = 6
 MAX_ARROW_EDGES = 200
@@ -69,6 +70,11 @@ class Arrow:
     def level(self) -> str:
         """Drawn at the best level behind it: one certain edge makes the dependency certain."""
         return next(name for name in LEVELS if self.levels[name])
+
+    @property
+    def only_names(self) -> bool:
+        """True when nothing but text naming a file is behind it; drawn in grey."""
+        return set(self.kinds) == {str(EdgeKind.REFERENCES)}
 
     @property
     def width(self) -> float:

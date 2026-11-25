@@ -63,6 +63,7 @@ class EdgeKind(StrEnum):
     HANDLES = "handles"
     CALLS_HTTP = "calls_http"
     CO_CHANGES = "co_changes"
+    REFERENCES = "references"
 
 
 class Resolution(StrEnum):

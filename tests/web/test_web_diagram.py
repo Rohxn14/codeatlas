@@ -237,3 +237,11 @@ def test_opening_a_folder_and_an_unknown_folder(client: tuple[TestClient, str]) 
     assert "service.py" in inside.text
     assert "connect this folder to the rest" in inside.text
     assert http.get(address, params={"focus": "nope/"}).status_code == 404
+
+
+def test_an_arrow_of_names_only_is_marked(tmp_path: Path) -> None:
+    from codeatlas.web.diagram import Arrow
+
+    levels = {"certain": 1, "likely": 0, "guess": 0}
+    assert Arrow("README.md", "images/", 1, levels, {"references": 1}).only_names
+    assert not Arrow("a/", "b/", 2, levels, {"references": 1, "calls": 1}).only_names

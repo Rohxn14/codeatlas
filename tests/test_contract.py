@@ -36,6 +36,7 @@ ENUMS = {
         "HANDLES": "handles",
         "CALLS_HTTP": "calls_http",
         "CO_CHANGES": "co_changes",
+        "REFERENCES": "references",
     },
     "Resolution": {
         "STRUCTURAL": "structural",

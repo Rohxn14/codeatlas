@@ -20,7 +20,8 @@ from codeatlas.repo import (
 
 def test_default_analyzers_follow_the_contract_and_config() -> None:
     analyzers = default_analyzers(replace(Config(), max_history_commits=50))
-    assert [a.name for a in analyzers] == ["manifests", "test_conventions", "cochange"]
+    assert [a.name for a in analyzers] == [
+        "manifests", "test_conventions", "cochange", "references"]
     assert all(isinstance(a, RepoAnalyzer) for a in analyzers)
     assert isinstance(analyzers[0], ManifestAnalyzer)
     assert isinstance(analyzers[1], TestConventionsAnalyzer)
