@@ -141,10 +141,11 @@ class Questions:
             question.stop_requested = True
 
     def recent(self, snapshot_id: str) -> list[Question]:
-        """This snapshot's questions, newest first."""
+        """This snapshot's questions, newest first: the order asked, reversed (see `_history`
+        for why not by `created`)."""
         with self._lock:
             mine = [q for q in self._questions.values() if q.snapshot_id == snapshot_id]
-        return sorted(mine, key=lambda q: q.created, reverse=True)
+        return mine[::-1]
 
     def wait(self, question_id: str, timeout: float = 60.0) -> Question:
         """Block until a question is answered. For tests; pages never wait."""
@@ -195,8 +196,7 @@ class Questions:
         return recent_exchanges(chat)
 
     def _forget_old(self) -> None:
-        finished = sorted((q for q in self._questions.values() if not q.active),
-                          key=lambda q: q.created)
+        finished = [q for q in self._questions.values() if not q.active]  # oldest first
         for question in finished[: max(0, len(finished) - MAX_KEPT)]:
             del self._questions[question.id]
 

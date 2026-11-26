@@ -353,3 +353,18 @@ def test_a_question_remembers_only_answered_questions_about_the_same_snapshot() 
     assert seen["one"] == [] and seen["elsewhere"] == []
     assert seen["two"] == [Exchange("one", "answer to one")]  # the failed one is not there
     assert [e.question for e in seen["five"]] == ["two", "three", "four"]  # the last three
+
+
+def test_the_chat_lists_questions_in_the_order_asked_even_within_one_clock_tick() -> None:
+    from codeatlas.agent.loop import Answer
+    from codeatlas.web.asks import Questions
+
+    def work(*args: Any) -> Answer:
+        return Answer(text="ok")
+
+    questions = Questions(work)
+    # Three (the most that may wait), started within a fraction of one 15.6 ms clock step.
+    asked = [questions.start("a@1", f"question {n}").id for n in range(3)]
+    for qid in asked:
+        questions.wait(qid)
+    assert [q.id for q in questions.recent("a@1")] == asked[::-1]

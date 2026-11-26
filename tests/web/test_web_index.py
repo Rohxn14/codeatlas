@@ -286,3 +286,12 @@ def test_the_start_page_opens_a_repository_and_keeps_the_rest_behind_an_info_but
         close = inside.split("<button", 1)[1].split(">", 1)[0]
         assert 'class="overlay-close"' in close and f'popovertarget="{hides}"' in close
         assert 'popovertargetaction="hide"' in close
+
+
+def test_jobs_are_listed_in_the_order_started_even_within_one_clock_tick() -> None:
+    jobs = Jobs(lambda source, force, progress: {"source": source})
+    # Started within a fraction of one 15.6 ms step of Windows' clock.
+    started = [jobs.start(f"https://github.com/o/r{n}").id for n in range(3)]
+    for job_id in started:
+        jobs.wait(job_id)
+    assert [job.id for job in jobs.recent()] == started[::-1]
