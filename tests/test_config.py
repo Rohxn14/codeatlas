@@ -38,3 +38,15 @@ def test_example_config_matches_defaults() -> None:
 def test_deadline() -> None:
     assert not Deadline(60).expired()
     assert Deadline(0).expired()
+
+
+def test_a_deadline_shorter_than_the_coarsest_clock_step_still_ends() -> None:
+    """On Windows `time.monotonic` moves in steps of 15.6 ms: a 1 ms wait often saw no step,
+    and a one-microsecond deadline was still running after it."""
+    import time
+
+    from codeatlas.config import Deadline
+
+    deadline = Deadline(0.000001)
+    time.sleep(0.001)
+    assert deadline.expired()

@@ -83,11 +83,17 @@ def _coerce(name: str, value: object, default: object) -> object:
 
 
 class Deadline:
-    """The time limit for one index, shared by discovery and parsing."""
+    """The time limit for one index, shared by discovery and parsing.
+
+    `perf_counter`, not `monotonic`: on Windows `monotonic` moves in steps of 15.6 ms, so a
+    limit shorter than one step could not end before the clock happened to tick (a limit of
+    one microsecond was still running in 10,000 of 10,000 checks made at once, Nov 26).
+    Both clocks only go forward.
+    """
 
     def __init__(self, seconds: float) -> None:
         self.seconds = seconds
-        self._end = time.monotonic() + seconds
+        self._end = time.perf_counter() + seconds
 
     def expired(self) -> bool:
-        return time.monotonic() >= self._end
+        return time.perf_counter() >= self._end

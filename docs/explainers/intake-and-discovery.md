@@ -159,6 +159,9 @@ and `skipped = [("node_modules", "excluded directory", 1 file)]`, `limits_hit = 
 
 - The clone has a fixed 600-second timeout of its own; it does not count against
   `max_seconds`, which starts after intake.
+- The deadline is read from `time.perf_counter` (since Nov 26). On Windows `time.monotonic`
+  moves in steps of 15.6 ms, so a limit shorter than one step could not end until the clock
+  happened to tick; a test with a one-microsecond limit failed in 9 of 10 runs that way.
 - A changed remote SHA means a full new clone, not a fetch: cheap when blobless, slow for
   very large repositories.
 - Reuse works for branches and tags; a bare commit SHA as `@ref` is not supported, because

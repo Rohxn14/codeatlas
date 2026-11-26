@@ -120,9 +120,10 @@ class Jobs:
             return self._jobs.get(job_id)
 
     def recent(self) -> list[Job]:
-        """Newest first."""
+        """Newest first: the order started, reversed. Not by `created`: Windows' clock moves
+        in steps of 15.6 ms, so two jobs started together can share a time."""
         with self._lock:
-            return sorted(self._jobs.values(), key=lambda job: job.created, reverse=True)
+            return list(self._jobs.values())[::-1]
 
     def busy(self) -> bool:
         with self._lock:
@@ -158,7 +159,6 @@ class Jobs:
 
     def _forget_old(self) -> None:
         """Keep the newest finished jobs only, so a long-running server does not grow."""
-        finished = sorted((job for job in self._jobs.values() if not job.active),
-                          key=lambda job: job.created)
+        finished = [job for job in self._jobs.values() if not job.active]  # oldest first
         for job in finished[: max(0, len(finished) - MAX_KEPT)]:
             del self._jobs[job.id]

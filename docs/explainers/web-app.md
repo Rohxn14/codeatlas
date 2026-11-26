@@ -671,6 +671,9 @@ and still finds citations of other snapshots so they can be reported.
   - Follow-ups (Nov 26): a question remembers the last three answered questions about
     the same snapshot (`Questions._history`, D-64). How and why: "Follow-up questions" in
     `docs/explainers/agent.md`.
+  - Questions and index jobs are listed in the order they were asked or started, not by
+    the time they were made: on Windows that time moves in steps of 15.6 ms, and the chat
+    showed three questions asked within one step in the wrong order (Nov 26).
   - Questions are forgotten when the app stops; Stop is in the chat (Nov 25).
   - While a question runs, the model sees only this snapshot; there is no way to ask
     across repositories.
