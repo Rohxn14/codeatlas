@@ -27,6 +27,7 @@ from starlette.exceptions import HTTPException
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from codeatlas import __version__
+from codeatlas.agent.history import Exchange
 from codeatlas.agent.loop import Answer, OnStep
 from codeatlas.config import Config
 from codeatlas.impact.engine import LOAD_KINDS, ImpactEngine
@@ -235,7 +236,8 @@ def create_app(
 
         return LLMClient.from_config()
 
-    def run_question(snapshot_id: str, text: str, on_step: OnStep, on_wait: OnWait) -> Answer:
+    def run_question(snapshot_id: str, text: str, history: Sequence[Exchange],
+                     on_step: OnStep, on_wait: OnWait) -> Answer:
         """One question, on its own thread and so with its own connection."""
         from codeatlas.agent.loop import ask
         from codeatlas.llm import LLMError
@@ -244,7 +246,8 @@ def create_app(
         client.on_wait = on_wait  # so the page can say when it waits for a rate limit
         with GraphStore(db_path) as store:
             try:
-                return ask(text, store, snapshot_id, client, config=config, on_step=on_step)
+                return ask(text, store, snapshot_id, client, config=config, on_step=on_step,
+                           history=history)
             except LLMError as exc:  # the trajectory so far is already on disk
                 raise RuntimeError(f"the language model could not be reached: {exc}") from exc
 

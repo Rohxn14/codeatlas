@@ -5,12 +5,13 @@ from __future__ import annotations
 import json
 import re
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from codeatlas.agent.history import Exchange, with_history
 from codeatlas.agent.leads import leads_text, look_up
 from codeatlas.agent.prompts import system_prompt
 from codeatlas.agent.quotes import QuoteCheck, check_quotes
@@ -200,20 +201,28 @@ def ask(
     data_dir: str | Path | None = None,
     config: Config | None = None,
     on_step: OnStep | None = None,
+    history: Sequence[Exchange] = (),
 ) -> Answer:
-    """Answer `question` about one snapshot; write a trajectory file; check citations."""
+    """Answer `question` about one snapshot; write a trajectory file; check citations.
+
+    `history` is the earlier exchanges of the same chat, as `recent_exchanges` chose them;
+    they are sent as context before the question, and recorded in the trajectory (D-64).
+    """
     config = config or Config()
     tools = ToolSet(store, snapshot_id, config)
     snapshot = tools.context.snapshot
-    leads = look_up(question, tools)  # the symbols the question names, found before step 1
+    history = list(history)
+    # The symbols the question names, or failing that an earlier question, found before step 1.
+    leads = look_up(question, tools, [e.question for e in history])
     messages = [
         Message("system", system_prompt(store, snapshot, tools.specs)),
-        Message("user", question + leads_text(leads)),
+        Message("user", with_history(question + leads_text(leads), history)),
     ]
     first: dict[str, Any] = {"question": question}  # what step 1's record also holds
+    if history:
+        first["history"] = [{"question": e.question, "answer": e.answer} for e in history]
     if leads:
-        first["leads"] = [{"name": lead["name"], "keys": [s["key"] for s in lead["symbols"]],
-                           "more": lead["more"]} for lead in leads]
+        first["leads"] = [_lead_record(lead) for lead in leads]
     answer = Answer(text="")
     log: list[dict[str, Any]] = []
     try:
@@ -228,6 +237,15 @@ def ask(
         answer.trajectory_path = _write_trajectory(
             Path(data_dir if data_dir is not None else config.data_dir), log)
     return answer
+
+
+def _lead_record(lead: dict[str, Any]) -> dict[str, Any]:
+    """A lead as the trajectory keeps it: its keys, not the whole symbols."""
+    record = {"name": lead["name"], "keys": [s["key"] for s in lead["symbols"]],
+              "more": lead["more"]}
+    if lead.get("earlier"):
+        record["earlier"] = True
+    return record
 
 
 def _no_step(record: dict[str, Any]) -> None:

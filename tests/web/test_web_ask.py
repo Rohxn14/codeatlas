@@ -299,3 +299,57 @@ def test_every_page_says_what_it_may_load(indexed: tuple[Path, Config, str]) -> 
         policy = client.get(address).headers["content-security-policy"]
         assert "script-src 'self'" in policy and "default-src 'none'" in policy
         assert "unsafe" not in policy.split("script-src")[1].split(";")[0]
+
+
+# Follow-up questions remember the ones before them (D-64).
+
+
+def test_a_follow_up_is_sent_with_the_question_and_answer_before_it(
+    indexed: tuple[Path, Config, str],
+) -> None:
+    from codeatlas.agent.history import HISTORY_INTRO
+
+    sent: list[list[str]] = []
+
+    class Recording(Scripted):
+        def chat(self, messages: Any, *args: Any) -> LLMResponse:
+            sent.append([m.content for m in messages])
+            return super().chat(messages, *args)
+
+    db_path, config, sid = indexed
+    client = LLMClient([Recording([reply("Run the zeppelin installer."), reply("Nothing else.")])],
+                       cache_mode="off", max_tries=1)
+    web = TestClient(create_app(db_path, config, llm=lambda: client), follow_redirects=False)
+    base = f"/s/{snapshot_slug(sid)}"
+    web.post(f"{base}/chat", data={"question": "How do I install this?"})
+    chat_until_done(web, base)
+    web.post(f"{base}/chat", data={"question": "And what else does it need?"})
+    done = chat_until_done(web, base)
+    assert HISTORY_INTRO not in sent[0][1]  # the first question has nothing to remember
+    follow = sent[1][1]
+    assert follow.startswith(HISTORY_INTRO)
+    assert "Question 1: How do I install this?\nAnswer 1: Run the zeppelin installer." in follow
+    assert follow.endswith("The question now: And what else does it need?")
+    assert "remembered 1 earlier question" in done
+
+
+def test_a_question_remembers_only_answered_questions_about_the_same_snapshot() -> None:
+    from codeatlas.agent.history import Exchange
+    from codeatlas.agent.loop import Answer
+    from codeatlas.web.asks import Questions
+
+    seen: dict[str, list[Exchange]] = {}
+
+    def work(snapshot_id: str, text: str, history: Any, on_step: Any, on_wait: Any) -> Answer:
+        seen[text] = list(history)
+        if text == "fails":
+            raise RuntimeError("no model")
+        return Answer(text=f"answer to {text}")
+
+    questions = Questions(work)
+    for snapshot, text in [("a@1", "one"), ("a@1", "fails"), ("b@2", "elsewhere"),
+                           ("a@1", "two"), ("a@1", "three"), ("a@1", "four"), ("a@1", "five")]:
+        questions.wait(questions.start(snapshot, text).id)
+    assert seen["one"] == [] and seen["elsewhere"] == []
+    assert seen["two"] == [Exchange("one", "answer to one")]  # the failed one is not there
+    assert [e.question for e in seen["five"]] == ["two", "three", "four"]  # the last three

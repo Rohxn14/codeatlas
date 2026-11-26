@@ -10,6 +10,7 @@ tools, and its citation, for the answer.
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from typing import Any
 
 from codeatlas.agent.tools import ToolSet
@@ -30,6 +31,7 @@ _FILE_ENDINGS = frozenset({"py", "pyi", "ts", "tsx", "js", "jsx", "mjs", "md", "
 LEADS_INTRO = "Looked up before you start (search_symbols, exact matches only):"
 # The first wording ("Start from these keys") led the model to cite keys
 # (`cleaner.py::build_silver`) instead of citations in its answer (Nov 19).
+EARLIER_MARK = " (named in an earlier question)"
 LEADS_OUTRO = ("Give these keys to the tools instead of searching for them again. In the "
                "answer, cite places by their citation (repo@sha:path:line), never by key.")
 
@@ -81,8 +83,29 @@ def file_names(question: str, tools: ToolSet) -> list[str]:
     return found
 
 
-def look_up(question: str, tools: ToolSet) -> list[dict[str, Any]]:
-    """Each code-like name with its exact matches; names that match nothing are left out."""
+def look_up(question: str, tools: ToolSet, earlier: Sequence[str] = ()
+            ) -> list[dict[str, Any]]:
+    """Each code-like name with its exact matches; names that match nothing are left out.
+
+    A follow-up often names nothing ("and who calls it?"): its subject is in a question
+    before it. So the newest of the `earlier` questions that names something adds its leads
+    too, marked `earlier`, while there is room (MAX_NAMES in all). This is what the owner's
+    claim verifier does with a model call that rewrites the question; here it is a lookup
+    (D-64).
+    """
+    leads = _look_up(question, tools)
+    named = {lead["name"].lower() for lead in leads}
+    for text in reversed(earlier):
+        found = _look_up(text, tools)
+        if found:
+            room = max(0, MAX_NAMES - len(leads))
+            new = [lead for lead in found if lead["name"].lower() not in named]
+            leads += [{**lead, "earlier": True} for lead in new[:room]]
+            break
+    return leads
+
+
+def _look_up(question: str, tools: ToolSet) -> list[dict[str, Any]]:
     leads = []
     for path in file_names(question, tools)[:MAX_NAMES]:
         result = tools.call("search_symbols", {"name": path, "kind": "file", "limit": 50})
@@ -108,7 +131,8 @@ def leads_text(leads: list[dict[str, Any]]) -> str:
         for symbol in lead["symbols"]:
             signature = (symbol.get("signature") or "")[:MAX_SIGNATURE]
             lines.append(f"- {lead['name']}: {symbol['key']} ({symbol['kind']}) "
-                         f"{symbol['citation']}" + (f" `{signature}`" if signature else ""))
+                         f"{symbol['citation']}" + (f" `{signature}`" if signature else "")
+                         + (EARLIER_MARK if lead.get("earlier") else ""))
         if lead["more"]:
             lines.append(f"  ({lead['more']} more matches for {lead['name']} not shown)")
     lines.append(LEADS_OUTRO)

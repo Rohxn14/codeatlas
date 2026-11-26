@@ -7,6 +7,9 @@ once and the answer page reloads every two seconds, showing each step as it fini
 One question runs at a time because the free model tiers limit tokens per minute: two
 answers made together would only make both run into the limit.
 
+A question remembers the last three answered questions about the same snapshot (D-64,
+the owner's choice, Nov 26), so a follow-up such as "and who calls it?" can be answered.
+
 Questions live in memory only (the owner's choice, Nov 17). Each one's full record is
 also the agent's trajectory file on disk, which outlives the server.
 """
@@ -16,10 +19,11 @@ from __future__ import annotations
 import threading
 import time
 import uuid
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
+from codeatlas.agent.history import Exchange, recent_exchanges
 from codeatlas.agent.loop import Answer, OnStep
 from codeatlas.llm.client import OnWait
 from codeatlas.web.markdown import render_answer
@@ -28,8 +32,9 @@ MAX_QUESTION_CHARS = 2000
 MAX_WAITING = 3  # one running and two waiting
 MAX_KEPT = 30
 
-# What a question runs: (snapshot id, question, on_step, on_wait) -> the agent's answer.
-Work = Callable[[str, str, OnStep, OnWait], Answer]
+# What a question runs: (snapshot id, question, earlier exchanges, on_step, on_wait) -> the
+# agent's answer.
+Work = Callable[[str, str, Sequence[Exchange], OnStep, OnWait], Answer]
 
 
 class TooManyQuestions(Exception):
@@ -54,6 +59,7 @@ class Question:
     answer: Answer | None = None
     error: str = ""
     stop_requested: bool = False
+    remembered: int = 0  # how many earlier exchanges were sent with it
     created: float = field(default_factory=time.monotonic)
     started: float | None = None
     finished: float | None = None
@@ -154,7 +160,10 @@ class Questions:
             question.state, question.started = "running", time.monotonic()
             try:
                 question.check_stop()  # stopped while it waited its turn
-                answer = self._work(question.snapshot_id, question.text,
+                # Chosen once its turn has come, so the question before it has its answer.
+                history = self._history(question)
+                question.remembered = len(history)
+                answer = self._work(question.snapshot_id, question.text, history,
                                     question.record_step, question.record_wait)
             except Exception as exc:  # a question must end as "failed", never vanish
                 question.error = str(exc) or type(exc).__name__
@@ -166,6 +175,24 @@ class Questions:
             question.answer = answer
             question.finished = time.monotonic()
             question.state = "done"
+
+    def _history(self, question: Question) -> list[Exchange]:
+        """The exchanges a question remembers: the same snapshot's, asked before it."""
+        # In the order they were asked, which is the dictionary's order. Not by `created`:
+        # Windows' clock ticks every 15 ms or so, and two questions can share a time.
+        earlier = []
+        with self._lock:
+            for q in self._questions.values():
+                if q is question:
+                    break
+                if q.snapshot_id == question.snapshot_id:
+                    earlier.append(q)
+        chat = []
+        for q in earlier:
+            state = q.state  # read once: "done" means the answer is already set
+            answer = q.answer if state == "done" else None
+            chat.append(Exchange(q.text, answer.text if answer is not None else None))
+        return recent_exchanges(chat)
 
     def _forget_old(self) -> None:
         finished = sorted((q for q in self._questions.values() if not q.active),
@@ -200,8 +227,13 @@ def chat_message(question: Question, base: str) -> dict[str, Any]:
         steps = f"{answer.steps} step{'' if answer.steps == 1 else 's'}"
         out.update(html=render_answer(answer, base), warning=_warning(answer),
                    summary=f"{steps}, {question.seconds:.0f} s, {answer.input_tokens:,} tokens, "
-                           f"{_cited(answer)}")
+                           f"{_cited(answer)}{_remembered(question)}")
     return out
+
+
+def _remembered(question: Question) -> str:
+    n = question.remembered
+    return f", remembered {n} earlier question{'' if n == 1 else 's'}" if n else ""
 
 
 def _cited(answer: Answer) -> str:
