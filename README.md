@@ -149,11 +149,16 @@ joins client calls to server routes across languages.
 
 ## How well it works
 
-The acceptance suite indexes 47 pinned public repositories
-(`eval/results/suite_20261103_wave3.md`, the newest; measured before typed TypeScript
-receivers and the C/C++ caller fix, so re-run it before quoting): 47 of 47 complete, 69,762 files
-(deep 9,150, structural 15,862, text 44,750) in 38 languages, 1,130,634 raw calls of which
-45% stay unresolved, 275 seconds for all of them, 8 repositories stopped at a limit.
+The acceptance suite indexes 47 pinned public repositories. The newest run
+(`eval/results/suite_20261126.md`, Nov 26, on a Windows laptop; what changed since the run
+before is in `eval/results/README.md`): 46 run, all completed, and linux not run (its clone
+is several GB). 45 indexed to the end: 29,808 files (deep 4,957, structural 9,005, text
+15,846) in 37 languages, 882,204 raw calls of which 48.7% stay unresolved, 316 seconds for
+all of them. microsoft/TypeScript (68,192 files) does not fit the suite's 300 seconds a
+repository; alone, within the one-hour limit, it indexes in 970 seconds.
+
+"Resolved" means a call got an edge, not that the edge is right: precision on real
+repositories has not been measured yet.
 
 On `polyglot_app` the graph scores 165 of 165 labelled edges at precision 1.0. Test
 selection reaches F1 0.84 on both mutation benchmarks (run-everything scores 0.52 and
@@ -173,8 +178,9 @@ Claude Code then has `search_symbols`, `find_callers`, `find_callees`, `impact`,
 
 ## Limits
 
-- Set in `codeatlas.toml`: 20,000 files, 1 MB per file, 300 seconds per index. When one
-  is reached, CodeAtlas keeps what it has and names the limit under `limits hit`.
+- Set in `codeatlas.toml`: 200,000 files and 3,600 seconds per index. When one is
+  reached, CodeAtlas keeps what it has and names the limit under `limits hit`. A text file
+  over 5 MB is not parsed into symbols; its text is still searchable.
 - Resolution is static. Dynamic dispatch, reflection, `getattr`, dependency injection and
   monkeypatching are missed or guessed; a guess is labelled `name_guess` with a low
   confidence.
@@ -223,7 +229,7 @@ On Windows (PowerShell):
 python -m venv .venv; .\.venv\Scripts\Activate.ps1
 python -m pip install -e ".[dev]"
 ruff check .
-pytest -q                          # about 880 tests, under a minute; no network
+pytest -q                          # about 1,170 tests, about two minutes; no network
 python scripts/score_fixture.py    # the fixture graph against its hand-made labels
 python -m eval.suite --only click  # one repository of the acceptance suite
 ```
