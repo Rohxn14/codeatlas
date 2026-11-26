@@ -1,0 +1,1470 @@
+{
+ "edges": {
+  "external": 1613,
+  "direct": 2073,
+  "name_guess": 989,
+  "self_method": 274,
+  "import_scoped": 1002
+ },
+ "rows": [
+  {
+   "n": 1,
+   "stratum": "direct",
+   "confidence": 1.0,
+   "candidates": 1,
+   "caller": "tests/test_types/test_Path.py::test_path_type",
+   "line": 181,
+   "code": "params=[click.Argument([\"p\"], type=click.Path(path_type=cls))],",
+   "as_written": [
+    "click.Argument",
+    "click.Path"
+   ],
+   "target": "src/click/core.py::Argument.__init__",
+   "target_signature": "def __init__( self, param_decls: cabc.Sequence[str], required: bool | None = None, help: str | None = None, **attrs: t.A",
+   "right": true,
+   "reason": "the call names this function directly"
+  },
+  {
+   "n": 2,
+   "stratum": "direct",
+   "confidence": 1.0,
+   "candidates": 1,
+   "caller": "tests/test_options.py::test_aliases_for_flags.cli_alt",
+   "line": 1410,
+   "code": "click.echo(warnings)",
+   "as_written": [
+    "click.echo"
+   ],
+   "target": "src/click/utils.py::echo",
+   "target_signature": "def echo( message: object = None, file: t.IO[t.Any] | None = None, nl: bool = True, err: bool = False, color: bool | Non",
+   "right": true,
+   "reason": "the call names this function directly"
+  },
+  {
+   "n": 3,
+   "stratum": "direct",
+   "confidence": 1.0,
+   "candidates": 1,
+   "caller": "tests/test_options.py::test_bool_flag_group_parameter_source.cli",
+   "line": 3353,
+   "code": "@click.command()",
+   "as_written": [
+    "click.command"
+   ],
+   "target": "src/click/decorators.py::command#6f48",
+   "target_signature": "def command( name: str | _AnyCallable | None = None, cls: type[CmdType] | None = None, **attrs: t.Any, ) -> Command | t.",
+   "right": true,
+   "reason": "the call names this function directly"
+  },
+  {
+   "n": 4,
+   "stratum": "direct",
+   "confidence": 1.0,
+   "candidates": 1,
+   "caller": "tests/test_commands.py::test_deprecated_in_invocation.deprecated_cmd",
+   "line": 589,
+   "code": "@click.command(deprecated=deprecated)",
+   "as_written": [
+    "click.command"
+   ],
+   "target": "src/click/decorators.py::command#6f48",
+   "target_signature": "def command( name: str | _AnyCallable | None = None, cls: type[CmdType] | None = None, **attrs: t.Any, ) -> Command | t.",
+   "right": true,
+   "reason": "the call names this function directly"
+  },
+  {
+   "n": 5,
+   "stratum": "direct",
+   "confidence": 1.0,
+   "candidates": 1,
+   "caller": "src/click/exceptions.py::UsageError.show",
+   "line": 106,
+   "code": "echo(f\"{self.ctx.get_usage()}\\n{hint}\", file=file, color=color)",
+   "as_written": [
+    "echo",
+    "self.ctx.get_usage"
+   ],
+   "target": "src/click/utils.py::echo",
+   "target_signature": "def echo( message: object = None, file: t.IO[t.Any] | None = None, nl: bool = True, err: bool = False, color: bool | Non",
+   "right": true,
+   "reason": "the call names this function directly"
+  },
+  {
+   "n": 6,
+   "stratum": "direct",
+   "confidence": 1.0,
+   "candidates": 1,
+   "caller": "src/click/core.py::Parameter.spec",
+   "line": 2583,
+   "code": "return max(self.opts, key=lambda opt: len(_split_opt(opt)[0]))",
+   "as_written": [
+    "max",
+    "len",
+    "_split_opt"
+   ],
+   "target": "src/click/parser.py::_split_opt",
+   "target_signature": "def _split_opt(opt: str) -> tuple[str, str]",
+   "right": true,
+   "reason": "the call names this function directly"
+  },
+  {
+   "n": 7,
+   "stratum": "direct",
+   "confidence": 1.0,
+   "candidates": 1,
+   "caller": "tests/test_defaults.py::test_unset_in_default_map.cli",
+   "line": 561,
+   "code": "@click.option(\"--port\", default=8000)",
+   "as_written": [
+    "click.option"
+   ],
+   "target": "src/click/decorators.py::option",
+   "target_signature": "def option( *param_decls: str, cls: type[Option] | None = None, **attrs: t.Any ) -> t.Callable[[FC], FC]",
+   "right": true,
+   "reason": "the call names this function directly"
+  },
+  {
+   "n": 8,
+   "stratum": "direct",
+   "confidence": 1.0,
+   "candidates": 1,
+   "caller": "tests/test_options.py::test_missing_envvar",
+   "line": 1157,
+   "code": "\"cli\", params=[click.Option([\"--foo\"], envvar=\"bar\", required=True)]",
+   "as_written": [
+    "click.Option"
+   ],
+   "target": "src/click/core.py::Option.__init__",
+   "target_signature": "def __init__( self, param_decls: cabc.Sequence[str] | None = None, show_default: bool | str | None = None, prompt: bool ",
+   "right": true,
+   "reason": "the call names this function directly"
+  },
+  {
+   "n": 9,
+   "stratum": "direct",
+   "confidence": 1.0,
+   "candidates": 1,
+   "caller": "tests/test_defaults.py::test_shared_param_prefers_first_default.prefers_green",
+   "line": 147,
+   "code": "@click.command",
+   "as_written": [
+    "click.command"
+   ],
+   "target": "src/click/decorators.py::command#6f48",
+   "target_signature": "def command( name: str | _AnyCallable | None = None, cls: type[CmdType] | None = None, **attrs: t.Any, ) -> Command | t.",
+   "right": true,
+   "reason": "the call names this function directly"
+  },
+  {
+   "n": 10,
+   "stratum": "direct",
+   "confidence": 1.0,
+   "candidates": 1,
+   "caller": "tests/test_shell_completion.py::test_choice_conflicting_prefix",
+   "line": 161,
+   "code": "cli = Command(",
+   "as_written": [
+    "Command"
+   ],
+   "target": "src/click/core.py::Command.__init__",
+   "target_signature": "def __init__( self, name: str | None, context_settings: cabc.MutableMapping[str, t.Any] | None = None, callback: t.Calla",
+   "right": true,
+   "reason": "the call names this function directly"
+  },
+  {
+   "n": 11,
+   "stratum": "direct",
+   "confidence": 1.0,
+   "candidates": 1,
+   "caller": "tests/test_stream_lifecycle.py::test_logging_with_cli_log_level",
+   "line": 283,
+   "code": "runner = CliRunner()",
+   "as_written": [
+    "CliRunner"
+   ],
+   "target": "src/click/testing.py::CliRunner.__init__",
+   "target_signature": "def __init__( self, charset: str = \"utf-8\", env: cabc.Mapping[str, str | None] | None = None, echo_stdin: bool = False, ",
+   "right": true,
+   "reason": "the call names this function directly"
+  },
+  {
+   "n": 12,
+   "stratum": "direct",
+   "confidence": 1.0,
+   "candidates": 1,
+   "caller": "tests/test_chain.py::test_chaining_with_arguments.sdist",
+   "line": 115,
+   "code": "click.echo(f\"sdist called {format}\")",
+   "as_written": [
+    "click.echo"
+   ],
+   "target": "src/click/utils.py::echo",
+   "target_signature": "def echo( message: object = None, file: t.IO[t.Any] | None = None, nl: bool = True, err: bool = False, color: bool | Non",
+   "right": true,
+   "reason": "the call names this function directly"
+  },
+  {
+   "n": 13,
+   "stratum": "direct",
+   "confidence": 1.0,
+   "candidates": 1,
+   "caller": "tests/test_defaults.py::test_multiple_defaults.cli",
+   "line": 51,
+   "code": "@click.command()",
+   "as_written": [
+    "click.command"
+   ],
+   "target": "src/click/decorators.py::command#6f48",
+   "target_signature": "def command( name: str | _AnyCallable | None = None, cls: type[CmdType] | None = None, **attrs: t.Any, ) -> Command | t.",
+   "right": true,
+   "reason": "the call names this function directly"
+  },
+  {
+   "n": 14,
+   "stratum": "direct",
+   "confidence": 1.0,
+   "candidates": 1,
+   "caller": "tests/test_custom_classes.py::test_context_invoke_type.second",
+   "line": 31,
+   "code": "@click.command()",
+   "as_written": [
+    "click.command"
+   ],
+   "target": "src/click/decorators.py::command#6f48",
+   "target_signature": "def command( name: str | _AnyCallable | None = None, cls: type[CmdType] | None = None, **attrs: t.Any, ) -> Command | t.",
+   "right": true,
+   "reason": "the call names this function directly"
+  },
+  {
+   "n": 15,
+   "stratum": "direct",
+   "confidence": 1.0,
+   "candidates": 1,
+   "caller": "tests/test_utils/test_open_file.py::test_open_file.cli",
+   "line": 12,
+   "code": "@click.command()",
+   "as_written": [
+    "click.command"
+   ],
+   "target": "src/click/decorators.py::command#6f48",
+   "target_signature": "def command( name: str | _AnyCallable | None = None, cls: type[CmdType] | None = None, **attrs: t.Any, ) -> Command | t.",
+   "right": true,
+   "reason": "the call names this function directly"
+  },
+  {
+   "n": 16,
+   "stratum": "direct",
+   "confidence": 1.0,
+   "candidates": 1,
+   "caller": "src/click/exceptions.py::BadParameter.format_message",
+   "line": 155,
+   "code": "param_hint=_join_param_hints(param_hint), message=self.message",
+   "as_written": [
+    "_join_param_hints"
+   ],
+   "target": "src/click/exceptions.py::_join_param_hints",
+   "target_signature": "def _join_param_hints(param_hint: cabc.Sequence[str] | str | None) -> str | None",
+   "right": true,
+   "reason": "the call names this function directly"
+  },
+  {
+   "n": 17,
+   "stratum": "direct",
+   "confidence": 1.0,
+   "candidates": 1,
+   "caller": "src/click/parser.py::_OptionParser._process_args_for_args",
+   "line": 317,
+   "code": "pargs, args = _unpack_args(",
+   "as_written": [
+    "_unpack_args"
+   ],
+   "target": "src/click/parser.py::_unpack_args",
+   "target_signature": "def _unpack_args( args: cabc.Sequence[str], nargs_spec: cabc.Sequence[int] ) -> tuple[cabc.Sequence[str | cabc.Sequence[",
+   "right": true,
+   "reason": "the call names this function directly"
+  },
+  {
+   "n": 18,
+   "stratum": "direct",
+   "confidence": 1.0,
+   "candidates": 1,
+   "caller": "tests/test_termui.py::test_get_pager_file_with_real_pager_binary_stream",
+   "line": 745,
+   "code": "output = _run_get_pager_file_with_real_pager(",
+   "as_written": [
+    "_run_get_pager_file_with_real_pager"
+   ],
+   "target": "tests/test_termui.py::_run_get_pager_file_with_real_pager",
+   "target_signature": "def _run_get_pager_file_with_real_pager(monkeypatch, capfd, writer, color=False)",
+   "right": true,
+   "reason": "the call names this function directly"
+  },
+  {
+   "n": 19,
+   "stratum": "direct",
+   "confidence": 1.0,
+   "candidates": 1,
+   "caller": "tests/test_termui.py::test_echo_via_pager_tty_pager_missing.cli",
+   "line": 1054,
+   "code": "@click.command()",
+   "as_written": [
+    "click.command"
+   ],
+   "target": "src/click/decorators.py::command#6f48",
+   "target_signature": "def command( name: str | _AnyCallable | None = None, cls: type[CmdType] | None = None, **attrs: t.Any, ) -> Command | t.",
+   "right": true,
+   "reason": "the call names this function directly"
+  },
+  {
+   "n": 20,
+   "stratum": "direct",
+   "confidence": 1.0,
+   "candidates": 1,
+   "caller": "src/click/core.py::Command.get_short_help_str",
+   "line": 1279,
+   "code": "text = _make_default_short_help(self.help, limit)",
+   "as_written": [
+    "_make_default_short_help"
+   ],
+   "target": "src/click/utils.py::_make_default_short_help",
+   "target_signature": "def _make_default_short_help(help: str, max_length: int = 45) -> str",
+   "right": true,
+   "reason": "the call names this function directly"
+  },
+  {
+   "n": 21,
+   "stratum": "self_method",
+   "confidence": 0.9,
+   "candidates": 1,
+   "caller": "src/click/types.py::Path.convert",
+   "line": 1180,
+   "code": "return self.coerce_path_result(rv)",
+   "as_written": [
+    "self.coerce_path_result"
+   ],
+   "target": "src/click/types.py::Path.coerce_path_result",
+   "target_signature": "def coerce_path_result(self, value: str | os.PathLike[str]) -> _PathT_co",
+   "right": true,
+   "reason": "the call names this function directly"
+  },
+  {
+   "n": 22,
+   "stratum": "self_method",
+   "confidence": 0.9,
+   "candidates": 1,
+   "caller": "src/click/parser.py::_OptionParser._match_short_opt",
+   "line": 413,
+   "code": "value = self._get_value_from_state(opt, option, state)",
+   "as_written": [
+    "self._get_value_from_state"
+   ],
+   "target": "src/click/parser.py::_OptionParser._get_value_from_state",
+   "target_signature": "def _get_value_from_state( self, option_name: str, option: _Option, state: _ParsingState ) -> str | cabc.Sequence[str] |",
+   "right": true,
+   "reason": "the call names this function directly"
+  },
+  {
+   "n": 23,
+   "stratum": "self_method",
+   "confidence": 0.9,
+   "candidates": 1,
+   "caller": "src/click/_termui_impl.py::Editor.edit_files",
+   "line": 718,
+   "code": "editor = self.get_editor()",
+   "as_written": [
+    "self.get_editor"
+   ],
+   "target": "src/click/_termui_impl.py::Editor.get_editor",
+   "target_signature": "def get_editor(self) -> str",
+   "right": true,
+   "reason": "the call names this function directly"
+  },
+  {
+   "n": 24,
+   "stratum": "self_method",
+   "confidence": 0.9,
+   "candidates": 1,
+   "caller": "tests/test_context.py::test_multiple_eager_callbacks.ExitingOption.set_state",
+   "line": 420,
+   "code": "ctx.exit()",
+   "as_written": [
+    "ctx.exit"
+   ],
+   "target": "src/click/core.py::Context.exit",
+   "target_signature": "def exit(self, code: int = 0) -> t.NoReturn",
+   "right": true,
+   "reason": "ctx: Context is declared in the signature"
+  },
+  {
+   "n": 25,
+   "stratum": "self_method",
+   "confidence": 0.9,
+   "candidates": 1,
+   "caller": "src/click/core.py::Option.to_info_dict",
+   "line": 3378,
+   "code": "info_dict = super().to_info_dict()",
+   "as_written": [
+    "super().to_info_dict",
+    "super"
+   ],
+   "target": "src/click/core.py::Parameter.to_info_dict",
+   "target_signature": "def to_info_dict(self) -> dict[str, t.Any]",
+   "right": true,
+   "reason": "the call names this function directly"
+  },
+  {
+   "n": 26,
+   "stratum": "self_method",
+   "confidence": 0.9,
+   "candidates": 1,
+   "caller": "src/click/core.py::Command.shell_complete",
+   "line": 1465,
+   "code": "for param in self.get_params(ctx):",
+   "as_written": [
+    "self.get_params"
+   ],
+   "target": "src/click/core.py::Command.get_params",
+   "target_signature": "def get_params(self, ctx: Context) -> list[Parameter]",
+   "right": true,
+   "reason": "the call names this function directly"
+  },
+  {
+   "n": 27,
+   "stratum": "self_method",
+   "confidence": 0.9,
+   "candidates": 1,
+   "caller": "src/click/formatting.py::HelpFormatter.section",
+   "line": 280,
+   "code": "self.write_paragraph()",
+   "as_written": [
+    "self.write_paragraph"
+   ],
+   "target": "src/click/formatting.py::HelpFormatter.write_paragraph",
+   "target_signature": "def write_paragraph(self) -> None",
+   "right": true,
+   "reason": "the call names this function directly"
+  },
+  {
+   "n": 28,
+   "stratum": "self_method",
+   "confidence": 0.9,
+   "candidates": 1,
+   "caller": "src/click/core.py::Option.get_default",
+   "line": 3412,
+   "code": "raw = super().get_default(ctx, call=False)",
+   "as_written": [
+    "super().get_default",
+    "super"
+   ],
+   "target": "src/click/core.py::Parameter.get_default#247d",
+   "target_signature": "def get_default( self, ctx: Context, call: bool = True ) -> t.Any | t.Callable[[], t.Any] | None",
+   "right": true,
+   "reason": "the call names this function directly"
+  },
+  {
+   "n": 29,
+   "stratum": "self_method",
+   "confidence": 0.9,
+   "candidates": 1,
+   "caller": "tests/test_termui.py::test_editor_unclosed_quote",
+   "line": 1314,
+   "code": "Editor(editor='\"unclosed').edit_files([\"f.txt\"])",
+   "as_written": [
+    "Editor(editor='\"unclosed').edit_files",
+    "Editor"
+   ],
+   "target": "src/click/_termui_impl.py::Editor.edit_files",
+   "target_signature": "def edit_files(self, filenames: cabc.Iterable[str | os.PathLike[str]]) -> None",
+   "right": true,
+   "reason": "the call names this function directly"
+  },
+  {
+   "n": 30,
+   "stratum": "self_method",
+   "confidence": 0.9,
+   "candidates": 1,
+   "caller": "src/click/core.py::Command.to_info_dict",
+   "line": 1112,
+   "code": "\"params\": [param.to_info_dict() for param in self.get_params(ctx)],",
+   "as_written": [
+    "param.to_info_dict",
+    "self.get_params"
+   ],
+   "target": "src/click/core.py::Command.get_params",
+   "target_signature": "def get_params(self, ctx: Context) -> list[Parameter]",
+   "right": true,
+   "reason": "the call names this function directly"
+  },
+  {
+   "n": 31,
+   "stratum": "self_method",
+   "confidence": 0.9,
+   "candidates": 1,
+   "caller": "src/click/core.py::Command.format_options",
+   "line": 1328,
+   "code": "for param in self.get_params(ctx):",
+   "as_written": [
+    "self.get_params"
+   ],
+   "target": "src/click/core.py::Command.get_params",
+   "target_signature": "def get_params(self, ctx: Context) -> list[Parameter]",
+   "right": true,
+   "reason": "the call names this function directly"
+  },
+  {
+   "n": 32,
+   "stratum": "self_method",
+   "confidence": 0.9,
+   "candidates": 1,
+   "caller": "src/click/testing.py::EchoingStdin.readlines",
+   "line": 61,
+   "code": "return [self._echo(x) for x in self._input.readlines()]",
+   "as_written": [
+    "self._echo",
+    "self._input.readlines"
+   ],
+   "target": "src/click/testing.py::EchoingStdin._echo",
+   "target_signature": "def _echo(self, rv: bytes) -> bytes",
+   "right": true,
+   "reason": "the call names this function directly"
+  },
+  {
+   "n": 33,
+   "stratum": "self_method",
+   "confidence": 0.9,
+   "candidates": 1,
+   "caller": "src/click/exceptions.py::BadParameter.format_message",
+   "line": 150,
+   "code": "param_hint = self.param.get_error_hint(self.ctx)",
+   "as_written": [
+    "self.param.get_error_hint"
+   ],
+   "target": "src/click/core.py::Parameter.get_error_hint",
+   "target_signature": "def get_error_hint(self, ctx: Context | None) -> str",
+   "right": true,
+   "reason": "the call names this function directly"
+  },
+  {
+   "n": 34,
+   "stratum": "self_method",
+   "confidence": 0.9,
+   "candidates": 1,
+   "caller": "src/click/_termui_impl.py::ProgressBar.render_finish",
+   "line": 149,
+   "code": "self.render_progress()",
+   "as_written": [
+    "self.render_progress"
+   ],
+   "target": "src/click/_termui_impl.py::ProgressBar.render_progress",
+   "target_signature": "def render_progress(self) -> None",
+   "right": true,
+   "reason": "the call names this function directly"
+  },
+  {
+   "n": 35,
+   "stratum": "self_method",
+   "confidence": 0.9,
+   "candidates": 1,
+   "caller": "tests/typing/typing_aliased_group.py::AliasedGroup.get_command",
+   "line": 20,
+   "code": "ctx.fail(f\"Too many matches: {', '.join(sorted(matches))}\")",
+   "as_written": [
+    "ctx.fail",
+    "', '.join",
+    "sorted"
+   ],
+   "target": "src/click/core.py::Context.fail",
+   "target_signature": "def fail(self, message: str) -> t.NoReturn",
+   "right": true,
+   "reason": "the call names this function directly"
+  },
+  {
+   "n": 36,
+   "stratum": "self_method",
+   "confidence": 0.9,
+   "candidates": 1,
+   "caller": "src/click/core.py::Command.format_help",
+   "line": 1305,
+   "code": "self.format_epilog(ctx, formatter)",
+   "as_written": [
+    "self.format_epilog"
+   ],
+   "target": "src/click/core.py::Command.format_epilog",
+   "target_signature": "def format_epilog(self, ctx: Context, formatter: HelpFormatter) -> None",
+   "right": true,
+   "reason": "the call names this function directly"
+  },
+  {
+   "n": 37,
+   "stratum": "self_method",
+   "confidence": 0.9,
+   "candidates": 1,
+   "caller": "src/click/core.py::Group.format_commands",
+   "line": 2016,
+   "code": "cmd = self.get_command(ctx, subcommand)",
+   "as_written": [
+    "self.get_command"
+   ],
+   "target": "src/click/core.py::Group.get_command",
+   "target_signature": "def get_command(self, ctx: Context, cmd_name: str) -> Command | None",
+   "right": true,
+   "reason": "the call names this function directly"
+  },
+  {
+   "n": 38,
+   "stratum": "self_method",
+   "confidence": 0.9,
+   "candidates": 1,
+   "caller": "src/click/types.py::_NumberRangeBase.convert",
+   "line": 691,
+   "code": "value=rv, range=self._describe_range()",
+   "as_written": [
+    "self._describe_range"
+   ],
+   "target": "src/click/types.py::_NumberRangeBase._describe_range",
+   "target_signature": "def _describe_range(self) -> str",
+   "right": true,
+   "reason": "the call names this function directly"
+  },
+  {
+   "n": 39,
+   "stratum": "self_method",
+   "confidence": 0.9,
+   "candidates": 1,
+   "caller": "src/click/core.py::Context.exit",
+   "line": 856,
+   "code": "self.close()",
+   "as_written": [
+    "self.close"
+   ],
+   "target": "src/click/core.py::Context.close",
+   "target_signature": "def close(self) -> None",
+   "right": true,
+   "reason": "the call names this function directly"
+  },
+  {
+   "n": 40,
+   "stratum": "self_method",
+   "confidence": 0.9,
+   "candidates": 1,
+   "caller": "src/click/core.py::Parameter.consume_value",
+   "line": 2704,
+   "code": "envvar_value = self.value_from_envvar(ctx)",
+   "as_written": [
+    "self.value_from_envvar"
+   ],
+   "target": "src/click/core.py::Parameter.value_from_envvar",
+   "target_signature": "def value_from_envvar(self, ctx: Context) -> str | cabc.Sequence[str] | None",
+   "right": true,
+   "reason": "the call names this function directly"
+  },
+  {
+   "n": 41,
+   "stratum": "import_scoped",
+   "confidence": 0.25,
+   "candidates": 4,
+   "caller": "tests/test_options.py::test_duplicate_names_warning",
+   "line": 2327,
+   "code": "runner.invoke(cli, [])",
+   "as_written": [
+    "runner.invoke"
+   ],
+   "target": "src/click/core.py::Command.invoke",
+   "target_signature": "def invoke(self, ctx: Context) -> t.Any",
+   "right": false,
+   "reason": "runner is a CliRunner (pytest fixture): CliRunner.invoke runs"
+  },
+  {
+   "n": 42,
+   "stratum": "import_scoped",
+   "confidence": 0.333,
+   "candidates": 3,
+   "caller": "src/click/core.py::Command.format_options",
+   "line": 1329,
+   "code": "rv = param.get_help_record(ctx)",
+   "as_written": [
+    "param.get_help_record"
+   ],
+   "target": "src/click/core.py::Option.get_help_record",
+   "target_signature": "def get_help_record(self, ctx: Context) -> tuple[str, str] | None",
+   "right": true,
+   "reason": "param can be an Option, whose get_help_record runs"
+  },
+  {
+   "n": 43,
+   "stratum": "import_scoped",
+   "confidence": 1.0,
+   "candidates": 1,
+   "caller": "tests/test_commands.py::test_invoked_subcommand",
+   "line": 293,
+   "code": "result = runner.invoke(cli, [\"sync\"])",
+   "as_written": [
+    "runner.invoke"
+   ],
+   "target": "tests/test_commands.py::test_custom_parser.OptParseCommand.invoke",
+   "target_signature": "def invoke(self, ctx)",
+   "right": false,
+   "reason": "runner is a CliRunner; a test class's invoke in the same file is not reachable from it"
+  },
+  {
+   "n": 44,
+   "stratum": "import_scoped",
+   "confidence": 1.0,
+   "candidates": 1,
+   "caller": "tests/test_testing.py::test_with_color_errors",
+   "line": 240,
+   "code": "result = runner.invoke(cli)",
+   "as_written": [
+    "runner.invoke"
+   ],
+   "target": "src/click/testing.py::CliRunner.invoke",
+   "target_signature": "def invoke( self, cli: Command, args: str | cabc.Sequence[str] | None = None, input: str | bytes | t.IO[t.Any] | None = ",
+   "right": true,
+   "reason": "the call names this function directly"
+  },
+  {
+   "n": 45,
+   "stratum": "import_scoped",
+   "confidence": 1.0,
+   "candidates": 1,
+   "caller": "tests/test_testing.py::test_tempdir_isolation_is_thread_safe",
+   "line": 522,
+   "code": "t.start()",
+   "as_written": [
+    "t.start"
+   ],
+   "target": "src/click/testing.py::_FDCapture.start",
+   "target_signature": "def start(self) -> None",
+   "right": false,
+   "reason": "t is a threading.Thread (list of Thread(...)): Thread.start runs"
+  },
+  {
+   "n": 46,
+   "stratum": "import_scoped",
+   "confidence": 0.25,
+   "candidates": 4,
+   "caller": "tests/test_options.py::test_legacy_options",
+   "line": 1092,
+   "code": "result = runner.invoke(cmd, [\"-whatever\", \"42\"])",
+   "as_written": [
+    "runner.invoke"
+   ],
+   "target": "src/click/core.py::Command.invoke",
+   "target_signature": "def invoke(self, ctx: Context) -> t.Any",
+   "right": false,
+   "reason": "runner is a CliRunner"
+  },
+  {
+   "n": 47,
+   "stratum": "import_scoped",
+   "confidence": 0.333,
+   "candidates": 3,
+   "caller": "src/click/_compat.py::isatty",
+   "line": 542,
+   "code": "return stream.isatty()",
+   "as_written": [
+    "stream.isatty"
+   ],
+   "target": "src/click/_winconsole.py::ConsoleStream.isatty",
+   "target_signature": "def isatty(self) -> bool",
+   "right": true,
+   "reason": "on Windows the stream can be a _winconsole ConsoleStream"
+  },
+  {
+   "n": 48,
+   "stratum": "import_scoped",
+   "confidence": 0.333,
+   "candidates": 3,
+   "caller": "tests/test_options.py::test_callable_flag_value_get_default_override",
+   "line": 2871,
+   "code": "assert opt.get_default(ctx, call=True) is expected_get_default",
+   "as_written": [
+    "opt.get_default"
+   ],
+   "target": "src/click/core.py::Parameter.get_default#247d",
+   "target_signature": "def get_default( self, ctx: Context, call: bool = True ) -> t.Any | t.Callable[[], t.Any] | None",
+   "right": false,
+   "reason": "opt = cli.params[0] is an Option: Option.get_default runs, which overrides this one"
+  },
+  {
+   "n": 49,
+   "stratum": "import_scoped",
+   "confidence": 0.2,
+   "candidates": 5,
+   "caller": "tests/test_options.py::test_show_default_string",
+   "line": 1645,
+   "code": "message = opt.get_help_record(ctx)[1]",
+   "as_written": [
+    "opt.get_help_record"
+   ],
+   "target": "src/click/core.py::Parameter.get_help_record",
+   "target_signature": "def get_help_record(self, ctx: Context) -> tuple[str, str] | None",
+   "right": false,
+   "reason": "opt = click.Option(...): Option.get_help_record runs, which overrides this one"
+  },
+  {
+   "n": 50,
+   "stratum": "import_scoped",
+   "confidence": 1.0,
+   "candidates": 1,
+   "caller": "src/click/utils.py::echo",
+   "line": 313,
+   "code": "file.flush()",
+   "as_written": [
+    "file.flush"
+   ],
+   "target": "src/click/utils.py::_PacifyFlushWrapper.flush",
+   "target_signature": "def flush(self) -> None",
+   "right": true,
+   "reason": "core.main wraps sys.stdout in _PacifyFlushWrapper, and echo writes to sys.stdout"
+  },
+  {
+   "n": 51,
+   "stratum": "import_scoped",
+   "confidence": 0.125,
+   "candidates": 8,
+   "caller": "tests/test_info_dict.py::test_context",
+   "line": 261,
+   "code": "out = ctx.to_info_dict()",
+   "as_written": [
+    "ctx.to_info_dict"
+   ],
+   "target": "src/click/types.py::Tuple.to_info_dict",
+   "target_signature": "def to_info_dict(self) -> TupleInfoDict",
+   "right": false,
+   "reason": "ctx is a click.Context: Context.to_info_dict runs, not a Tuple's"
+  },
+  {
+   "n": 52,
+   "stratum": "import_scoped",
+   "confidence": 0.333,
+   "candidates": 3,
+   "caller": "tests/test_termui.py::test_edit",
+   "line": 434,
+   "code": "named_tempfile.flush()",
+   "as_written": [
+    "named_tempfile.flush"
+   ],
+   "target": "tests/test_termui.py::test_echo_via_pager_streams_each_write.RecordingStream.flush",
+   "target_signature": "def flush(self)",
+   "right": false,
+   "reason": "named_tempfile is a tempfile.NamedTemporaryFile: a test helper's flush is not reached"
+  },
+  {
+   "n": 53,
+   "stratum": "import_scoped",
+   "confidence": 0.25,
+   "candidates": 4,
+   "caller": "tests/test_options.py::test_explicit_envvar_list_keeps_each_spelling",
+   "line": 968,
+   "code": "result = runner.invoke(cmd, [], env={name: \"1\"})",
+   "as_written": [
+    "runner.invoke"
+   ],
+   "target": "src/click/core.py::Command.invoke",
+   "target_signature": "def invoke(self, ctx: Context) -> t.Any",
+   "right": false,
+   "reason": "runner is a CliRunner"
+  },
+  {
+   "n": 54,
+   "stratum": "import_scoped",
+   "confidence": 0.25,
+   "candidates": 4,
+   "caller": "tests/test_options.py::test_explicit_envvar_list_keeps_each_spelling",
+   "line": 968,
+   "code": "result = runner.invoke(cmd, [], env={name: \"1\"})",
+   "as_written": [
+    "runner.invoke"
+   ],
+   "target": "src/click/core.py::Context.invoke#304d",
+   "target_signature": "def invoke( self, callback: Command | t.Callable[..., V], /, *args: t.Any, **kwargs: t.Any ) -> t.Any | V",
+   "right": false,
+   "reason": "runner is a CliRunner"
+  },
+  {
+   "n": 55,
+   "stratum": "import_scoped",
+   "confidence": 0.25,
+   "candidates": 4,
+   "caller": "tests/test_options.py::test_bool_flag_group_competition",
+   "line": 3242,
+   "code": "result = runner.invoke(cli, args)",
+   "as_written": [
+    "runner.invoke"
+   ],
+   "target": "src/click/core.py::Context.invoke#304d",
+   "target_signature": "def invoke( self, callback: Command | t.Callable[..., V], /, *args: t.Any, **kwargs: t.Any ) -> t.Any | V",
+   "right": false,
+   "reason": "runner is a CliRunner"
+  },
+  {
+   "n": 56,
+   "stratum": "import_scoped",
+   "confidence": 0.25,
+   "candidates": 4,
+   "caller": "src/click/core.py::Command.to_info_dict",
+   "line": 1112,
+   "code": "\"params\": [param.to_info_dict() for param in self.get_params(ctx)],",
+   "as_written": [
+    "param.to_info_dict",
+    "self.get_params"
+   ],
+   "target": "src/click/core.py::Group.to_info_dict",
+   "target_signature": "def to_info_dict(self, ctx: Context) -> dict[str, t.Any]",
+   "right": false,
+   "reason": "param is a Parameter; Group is a Command, never a param"
+  },
+  {
+   "n": 57,
+   "stratum": "import_scoped",
+   "confidence": 0.333,
+   "candidates": 3,
+   "caller": "tests/test_defaults.py::test_parameter_source_on_parse_result_bypass",
+   "line": 416,
+   "code": "result = runner.invoke(cli, [\"--hijacker\", \"anything\"])",
+   "as_written": [
+    "runner.invoke"
+   ],
+   "target": "src/click/core.py::Context.invoke#304d",
+   "target_signature": "def invoke( self, callback: Command | t.Callable[..., V], /, *args: t.Any, **kwargs: t.Any ) -> t.Any | V",
+   "right": false,
+   "reason": "runner is a CliRunner"
+  },
+  {
+   "n": 58,
+   "stratum": "import_scoped",
+   "confidence": 0.25,
+   "candidates": 4,
+   "caller": "tests/test_options.py::test_bool_flag_with_type",
+   "line": 1390,
+   "code": "result = runner.invoke(cmd)",
+   "as_written": [
+    "runner.invoke"
+   ],
+   "target": "src/click/testing.py::CliRunner.invoke",
+   "target_signature": "def invoke( self, cli: Command, args: str | cabc.Sequence[str] | None = None, input: str | bytes | t.IO[t.Any] | None = ",
+   "right": true,
+   "reason": "the call names this function directly"
+  },
+  {
+   "n": 59,
+   "stratum": "import_scoped",
+   "confidence": 1.0,
+   "candidates": 1,
+   "caller": "tests/test_stream_lifecycle.py::test_sequential_threaded_invokes",
+   "line": 364,
+   "code": "result = runner.invoke(cli, [str(i)])",
+   "as_written": [
+    "runner.invoke",
+    "str"
+   ],
+   "target": "src/click/testing.py::CliRunner.invoke",
+   "target_signature": "def invoke( self, cli: Command, args: str | cabc.Sequence[str] | None = None, input: str | bytes | t.IO[t.Any] | None = ",
+   "right": true,
+   "reason": "the call names this function directly"
+  },
+  {
+   "n": 60,
+   "stratum": "import_scoped",
+   "confidence": 0.25,
+   "candidates": 4,
+   "caller": "tests/test_options.py::test_toupper_envvar_prefix",
+   "line": 842,
+   "code": "result = runner.invoke(cmd, [], auto_envvar_prefix=\"test\", env={\"TEST_ARG\": \"foo\"})",
+   "as_written": [
+    "runner.invoke"
+   ],
+   "target": "src/click/core.py::Group.invoke",
+   "target_signature": "def invoke(self, ctx: Context) -> t.Any",
+   "right": false,
+   "reason": "runner is a CliRunner"
+  },
+  {
+   "n": 61,
+   "stratum": "name_guess",
+   "confidence": 0.2,
+   "candidates": 5,
+   "caller": "tests/test_basic.py::test_path_option",
+   "line": 489,
+   "code": "result = runner.invoke(write_to_dir, [\"-O\", str(test_dir)])",
+   "as_written": [
+    "runner.invoke",
+    "str"
+   ],
+   "target": "src/click/core.py::Command.invoke",
+   "target_signature": "def invoke(self, ctx: Context) -> t.Any",
+   "right": false,
+   "reason": "runner is a CliRunner"
+  },
+  {
+   "n": 62,
+   "stratum": "name_guess",
+   "confidence": 0.2,
+   "candidates": 5,
+   "caller": "tests/test_basic.py::test_choice_argument_none",
+   "line": 632,
+   "code": "result = runner.invoke(cli, [\"not-none\"])",
+   "as_written": [
+    "runner.invoke"
+   ],
+   "target": "src/click/testing.py::CliRunner.invoke",
+   "target_signature": "def invoke( self, cli: Command, args: str | cabc.Sequence[str] | None = None, input: str | bytes | t.IO[t.Any] | None = ",
+   "right": true,
+   "reason": "the call names this function directly"
+  },
+  {
+   "n": 63,
+   "stratum": "name_guess",
+   "confidence": 0.3,
+   "candidates": 1,
+   "caller": "examples/completion/completion.py::select_user",
+   "line": 50,
+   "code": "@group.command(help=\"Choose a user\")",
+   "as_written": [
+    "group.command"
+   ],
+   "target": "src/click/core.py::Group.command#a1c1",
+   "target_signature": "def command( self, *args: t.Any, **kwargs: t.Any ) -> t.Callable[[t.Callable[..., t.Any]], Command] | Command",
+   "right": true,
+   "reason": "group comes from @click.group(), a Group"
+  },
+  {
+   "n": 64,
+   "stratum": "name_guess",
+   "confidence": 0.2,
+   "candidates": 5,
+   "caller": "tests/test_basic.py::test_choice_option",
+   "line": 529,
+   "code": "result = runner.invoke(cli, [\"--method=foo\"])",
+   "as_written": [
+    "runner.invoke"
+   ],
+   "target": "src/click/core.py::Context.invoke#304d",
+   "target_signature": "def invoke( self, callback: Command | t.Callable[..., V], /, *args: t.Any, **kwargs: t.Any ) -> t.Any | V",
+   "right": false,
+   "reason": "runner is a CliRunner"
+  },
+  {
+   "n": 65,
+   "stratum": "name_guess",
+   "confidence": 0.2,
+   "candidates": 5,
+   "caller": "tests/test_arguments.py::test_argument_names",
+   "line": 106,
+   "code": "result = runner.invoke(cmd, [\"value\"])",
+   "as_written": [
+    "runner.invoke"
+   ],
+   "target": "src/click/core.py::Command.invoke",
+   "target_signature": "def invoke(self, ctx: Context) -> t.Any",
+   "right": false,
+   "reason": "runner is a CliRunner"
+  },
+  {
+   "n": 66,
+   "stratum": "name_guess",
+   "confidence": 0.3,
+   "candidates": 1,
+   "caller": "tests/test_stream_lifecycle.py::test_mixer_buffers_survive_wrapper_gc",
+   "line": 133,
+   "code": "assert mixer.stdout.getvalue() == b\"out\"",
+   "as_written": [
+    "mixer.stdout.getvalue"
+   ],
+   "target": "src/click/formatting.py::HelpFormatter.getvalue",
+   "target_signature": "def getvalue(self) -> str",
+   "right": false,
+   "reason": "mixer.stdout is a BytesIO: HelpFormatter.getvalue is not reached"
+  },
+  {
+   "n": 67,
+   "stratum": "name_guess",
+   "confidence": 0.2,
+   "candidates": 5,
+   "caller": "tests/test_arguments.py::test_nargs_tup",
+   "line": 36,
+   "code": "result = runner.invoke(copy, [\"peter\", \"1\", \"2\"])",
+   "as_written": [
+    "runner.invoke"
+   ],
+   "target": "src/click/testing.py::CliRunner.invoke",
+   "target_signature": "def invoke( self, cli: Command, args: str | cabc.Sequence[str] | None = None, input: str | bytes | t.IO[t.Any] | None = ",
+   "right": true,
+   "reason": "the call names this function directly"
+  },
+  {
+   "n": 68,
+   "stratum": "name_guess",
+   "confidence": 0.2,
+   "candidates": 5,
+   "caller": "tests/test_arguments.py::test_deprecated_usage_help_record",
+   "line": 845,
+   "code": "result = runner.invoke(cli, [\"--help\"])",
+   "as_written": [
+    "runner.invoke"
+   ],
+   "target": "src/click/core.py::Context.invoke#304d",
+   "target_signature": "def invoke( self, callback: Command | t.Callable[..., V], /, *args: t.Any, **kwargs: t.Any ) -> t.Any | V",
+   "right": false,
+   "reason": "runner is a CliRunner"
+  },
+  {
+   "n": 69,
+   "stratum": "name_guess",
+   "confidence": 0.2,
+   "candidates": 5,
+   "caller": "tests/test_basic.py::test_return_values",
+   "line": 137,
+   "code": "rv = cli.invoke(ctx)",
+   "as_written": [
+    "cli.invoke"
+   ],
+   "target": "tests/test_commands.py::test_custom_parser.OptParseCommand.invoke",
+   "target_signature": "def invoke(self, ctx)",
+   "right": false,
+   "reason": "cli is a click.Command: Command.invoke runs; the target is a test class in another file"
+  },
+  {
+   "n": 70,
+   "stratum": "name_guess",
+   "confidence": 0.2,
+   "candidates": 5,
+   "caller": "tests/test_basic.py::test_choice_argument_optional_metavar",
+   "line": 669,
+   "code": "variadic = runner.invoke(cli_variadic, [\"--help\"]).output",
+   "as_written": [
+    "runner.invoke"
+   ],
+   "target": "src/click/core.py::Group.invoke",
+   "target_signature": "def invoke(self, ctx: Context) -> t.Any",
+   "right": false,
+   "reason": "runner is a CliRunner"
+  },
+  {
+   "n": 71,
+   "stratum": "name_guess",
+   "confidence": 0.2,
+   "candidates": 5,
+   "caller": "tests/test_termui.py::test_prompt_and_confirm_ansi_respects_color",
+   "line": 1443,
+   "code": "result = runner.invoke(cli, input=user_input, color=color)",
+   "as_written": [
+    "runner.invoke"
+   ],
+   "target": "src/click/core.py::Context.invoke#304d",
+   "target_signature": "def invoke( self, callback: Command | t.Callable[..., V], /, *args: t.Any, **kwargs: t.Any ) -> t.Any | V",
+   "right": false,
+   "reason": "runner is a CliRunner"
+  },
+  {
+   "n": 72,
+   "stratum": "name_guess",
+   "confidence": 0.2,
+   "candidates": 5,
+   "caller": "tests/test_chain.py::test_args_and_chain",
+   "line": 187,
+   "code": "result = runner.invoke(cli, [\"a\", \"b\", \"c\"])",
+   "as_written": [
+    "runner.invoke"
+   ],
+   "target": "src/click/core.py::Group.invoke",
+   "target_signature": "def invoke(self, ctx: Context) -> t.Any",
+   "right": false,
+   "reason": "runner is a CliRunner"
+  },
+  {
+   "n": 73,
+   "stratum": "name_guess",
+   "confidence": 0.3,
+   "candidates": 1,
+   "caller": "src/click/core.py::Option.get_help_extra",
+   "line": 3688,
+   "code": "range_str = self.type._describe_range()",
+   "as_written": [
+    "self.type._describe_range"
+   ],
+   "target": "src/click/types.py::_NumberRangeBase._describe_range",
+   "target_signature": "def _describe_range(self) -> str",
+   "right": true,
+   "reason": "Option.get_help_extra checks the type is a number range first"
+  },
+  {
+   "n": 74,
+   "stratum": "name_guess",
+   "confidence": 0.2,
+   "candidates": 5,
+   "caller": "tests/test_chain.py::test_args_and_chain",
+   "line": 187,
+   "code": "result = runner.invoke(cli, [\"a\", \"b\", \"c\"])",
+   "as_written": [
+    "runner.invoke"
+   ],
+   "target": "src/click/testing.py::CliRunner.invoke",
+   "target_signature": "def invoke( self, cli: Command, args: str | cabc.Sequence[str] | None = None, input: str | bytes | t.IO[t.Any] | None = ",
+   "right": true,
+   "reason": "the call names this function directly"
+  },
+  {
+   "n": 75,
+   "stratum": "name_guess",
+   "confidence": 0.2,
+   "candidates": 5,
+   "caller": "tests/test_arguments.py::test_nargs_specified_plus_star_ordering",
+   "line": 974,
+   "code": "result = runner.invoke(cmd, [\"a\", \"b\", \"c\", \"d\", \"e\", \"f\"])",
+   "as_written": [
+    "runner.invoke"
+   ],
+   "target": "src/click/core.py::Group.invoke",
+   "target_signature": "def invoke(self, ctx: Context) -> t.Any",
+   "right": false,
+   "reason": "runner is a CliRunner"
+  },
+  {
+   "n": 76,
+   "stratum": "name_guess",
+   "confidence": 0.2,
+   "candidates": 5,
+   "caller": "tests/test_arguments.py::test_bytes_args",
+   "line": 464,
+   "code": "runner.invoke(",
+   "as_written": [
+    "runner.invoke"
+   ],
+   "target": "tests/test_commands.py::test_custom_parser.OptParseCommand.invoke",
+   "target_signature": "def invoke(self, ctx)",
+   "right": false,
+   "reason": "runner is a CliRunner"
+  },
+  {
+   "n": 77,
+   "stratum": "name_guess",
+   "confidence": 0.2,
+   "candidates": 5,
+   "caller": "tests/test_arguments.py::test_file_args",
+   "line": 483,
+   "code": "result = runner.invoke(inout, [\"-\", str(hello)], input=\"Hey!\")",
+   "as_written": [
+    "runner.invoke",
+    "str"
+   ],
+   "target": "src/click/core.py::Group.invoke",
+   "target_signature": "def invoke(self, ctx: Context) -> t.Any",
+   "right": false,
+   "reason": "runner is a CliRunner"
+  },
+  {
+   "n": 78,
+   "stratum": "name_guess",
+   "confidence": 0.2,
+   "candidates": 5,
+   "caller": "tests/test_normalization.py::test_choice_normalization",
+   "line": 30,
+   "code": "result = runner.invoke(cli, [\"--METHOD=snake_case\"])",
+   "as_written": [
+    "runner.invoke"
+   ],
+   "target": "src/click/core.py::Group.invoke",
+   "target_signature": "def invoke(self, ctx: Context) -> t.Any",
+   "right": false,
+   "reason": "runner is a CliRunner"
+  },
+  {
+   "n": 79,
+   "stratum": "name_guess",
+   "confidence": 0.2,
+   "candidates": 5,
+   "caller": "tests/test_formatting.py::test_removing_multiline_marker",
+   "line": 402,
+   "code": "result = runner.invoke(cli, [\"--help\"])",
+   "as_written": [
+    "runner.invoke"
+   ],
+   "target": "tests/test_commands.py::test_custom_parser.OptParseCommand.invoke",
+   "target_signature": "def invoke(self, ctx)",
+   "right": false,
+   "reason": "runner is a CliRunner"
+  },
+  {
+   "n": 80,
+   "stratum": "name_guess",
+   "confidence": 0.2,
+   "candidates": 5,
+   "caller": "tests/test_basic.py::test_summary_line",
+   "line": 841,
+   "code": "result = runner.invoke(cli, [\"--help\"])",
+   "as_written": [
+    "runner.invoke"
+   ],
+   "target": "src/click/core.py::Command.invoke",
+   "target_signature": "def invoke(self, ctx: Context) -> t.Any",
+   "right": false,
+   "reason": "runner is a CliRunner"
+  },
+  {
+   "n": 81,
+   "stratum": "external",
+   "confidence": 1.0,
+   "candidates": 1,
+   "caller": "tests/test_options.py::test_flag_group_unset_vs_none_vs_explicit",
+   "line": 3647,
+   "code": "@pytest.mark.parametrize(",
+   "as_written": [
+    "pytest.mark.parametrize"
+   ],
+   "target": "::external:pytest.mark.parametrize",
+   "target_signature": "",
+   "right": true,
+   "reason": "the call names this function directly"
+  },
+  {
+   "n": 82,
+   "stratum": "external",
+   "confidence": 1.0,
+   "candidates": 1,
+   "caller": "src/click/_textwrap.py::TextWrapper._handle_long_word",
+   "line": 55,
+   "code": "space_left = max(width - cur_len, 1)",
+   "as_written": [
+    "max"
+   ],
+   "target": "::external:builtins.max",
+   "target_signature": "",
+   "right": true,
+   "reason": "the call names this function directly"
+  },
+  {
+   "n": 83,
+   "stratum": "external",
+   "confidence": 1.0,
+   "candidates": 1,
+   "caller": "src/click/types.py::Tuple.convert",
+   "line": 1292,
+   "code": "len_type = len(self.types)",
+   "as_written": [
+    "len"
+   ],
+   "target": "::external:builtins.len",
+   "target_signature": "",
+   "right": true,
+   "reason": "the call names this function directly"
+  },
+  {
+   "n": 84,
+   "stratum": "external",
+   "confidence": 1.0,
+   "candidates": 1,
+   "caller": "src/click/types.py::UUIDParameterType.convert",
+   "line": 903,
+   "code": "_(\"{value!r} is not a valid UUID.\").format(value=value), param, ctx",
+   "as_written": [
+    "_(\"{value!r} is not a valid UUID.\").format",
+    "_"
+   ],
+   "target": "::external:gettext.gettext",
+   "target_signature": "",
+   "right": true,
+   "reason": "the call names this function directly"
+  },
+  {
+   "n": 85,
+   "stratum": "external",
+   "confidence": 1.0,
+   "candidates": 1,
+   "caller": "tests/test_utils/test_open_file.py::test_open_file_atomic_permissions_new_file",
+   "line": 112,
+   "code": "permissions = stat.S_IMODE(os.stat(probe).st_mode)",
+   "as_written": [
+    "stat.S_IMODE",
+    "os.stat"
+   ],
+   "target": "::external:os.stat",
+   "target_signature": "",
+   "right": true,
+   "reason": "the call names this function directly"
+  },
+  {
+   "n": 86,
+   "stratum": "external",
+   "confidence": 1.0,
+   "candidates": 1,
+   "caller": "src/click/_termui_impl.py::ProgressBar.__init__",
+   "line": 106,
+   "code": "self.start = self.last_eta = time.time()",
+   "as_written": [
+    "time.time"
+   ],
+   "target": "::external:time.time",
+   "target_signature": "",
+   "right": true,
+   "reason": "the call names this function directly"
+  },
+  {
+   "n": 87,
+   "stratum": "external",
+   "confidence": 1.0,
+   "candidates": 1,
+   "caller": "tests/test_arguments.py::test_nargs_envvar",
+   "line": 536,
+   "code": "@pytest.mark.parametrize(",
+   "as_written": [
+    "pytest.mark.parametrize"
+   ],
+   "target": "::external:pytest.mark.parametrize",
+   "target_signature": "",
+   "right": true,
+   "reason": "the call names this function directly"
+  },
+  {
+   "n": 88,
+   "stratum": "external",
+   "confidence": 1.0,
+   "candidates": 1,
+   "caller": "src/click/types.py::_guess_type",
+   "line": 1328,
+   "code": "return type(default)",
+   "as_written": [
+    "type"
+   ],
+   "target": "::external:builtins.type",
+   "target_signature": "",
+   "right": true,
+   "reason": "the call names this function directly"
+  },
+  {
+   "n": 89,
+   "stratum": "external",
+   "confidence": 1.0,
+   "candidates": 1,
+   "caller": "tests/test_termui.py::test_editor_failure_exception",
+   "line": 610,
+   "code": "with pytest.raises(click.ClickException, match=\"Editing failed\"):",
+   "as_written": [
+    "pytest.raises"
+   ],
+   "target": "::external:pytest.raises",
+   "target_signature": "",
+   "right": true,
+   "reason": "the call names this function directly"
+  },
+  {
+   "n": 90,
+   "stratum": "external",
+   "confidence": 1.0,
+   "candidates": 1,
+   "caller": "src/click/core.py::Argument.spec",
+   "line": 3931,
+   "code": "@property",
+   "as_written": [
+    "property"
+   ],
+   "target": "::external:builtins.property",
+   "target_signature": "",
+   "right": true,
+   "reason": "the call names this function directly"
+  }
+ ],
+ "labelled_by": "Claude Code, Nov 27, 2026, by reading the code at each line with the rule in scripts/sample_precision.py; every row has its reason, so any can be checked",
+ "snapshot": "click@2247b35ea1c4 (the suite's pinned commit)"
+}
