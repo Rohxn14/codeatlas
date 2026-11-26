@@ -63,7 +63,7 @@ from codeatlas.web.jobs import Job, Jobs, TooManyJobs
 from codeatlas.web.markdown import render_answer
 from codeatlas.web.overview import build_overview
 from codeatlas.web.pages import MAX_DOC_HITS, MAX_HITS, file_page, search, symbol_page
-from codeatlas.web.source import MAX_LINES, checkout_root, read_lines
+from codeatlas.web.source import MAX_LINES, checkout_root, read_indexed
 
 _HERE = Path(__file__).parent
 MAX_SYMBOL_LINES = 400
@@ -402,6 +402,12 @@ def create_app(
             loaded.overview = build_overview(loaded)
         return page(request, "coverage.html", loaded, "coverage", o=loaded.overview)
 
+    def source_of(loaded: Loaded, path: str) -> tuple[list[str] | None, str, str]:
+        """A file's lines as indexed, for the file and symbol pages."""
+        sha256 = next((f.sha256 for f in loaded.files if f.path == path), None)
+        return read_indexed(checkout_root(loaded.snapshot, config), path,
+                            loaded.snapshot.commit_sha, sha256)
+
     @app.get("/s/{slug}/file", response_class=HTMLResponse)
     def file_view(request: Request, slug: str, path: str) -> Any:
         """One file: what it uses, what uses it, its symbols and its source."""
@@ -409,11 +415,11 @@ def create_app(
         facts = file_page(loaded, path)
         if facts is None:
             raise HTTPException(404, f"no file {path!r} in {loaded.snapshot.id}")
-        lines, why_not = read_lines(checkout_root(loaded.snapshot, config), path)
+        lines, why_not, notice = source_of(loaded, path)
         cut = lines is not None and len(lines) > MAX_LINES
         return page(request, "file.html", loaded, "map", f=facts, path=path,
                     crumbs=crumbs(path), lines=(lines or [])[:MAX_LINES], cut=cut,
-                    total_lines=len(lines or []), why_not=why_not)
+                    total_lines=len(lines or []), why_not=why_not, notice=notice)
 
     @app.get("/s/{slug}/symbol", response_class=HTMLResponse)
     def symbol_view(request: Request, slug: str, key: str) -> Any:
@@ -423,13 +429,13 @@ def create_app(
         if facts is None:
             raise HTTPException(404, f"no symbol {key!r} in {loaded.snapshot.id}")
         node = facts["node"]
-        lines, why_not = read_lines(checkout_root(loaded.snapshot, config), node.path)
+        lines, why_not, notice = source_of(loaded, node.path)
         start = node.span.start_line
         end = min(node.span.end_line, start + MAX_SYMBOL_LINES - 1)
         body = (lines or [])[start - 1:end]
         return page(request, "symbol.html", loaded, "map", y=facts, node=node,
                     crumbs=crumbs(node.path), body=body, start=start,
-                    cut=node.span.end_line > end, why_not=why_not)
+                    cut=node.span.end_line > end, why_not=why_not, notice=notice)
 
     @app.get("/s/{slug}/search", response_class=HTMLResponse)
     def search_view(request: Request, slug: str, q: str = "") -> Any:

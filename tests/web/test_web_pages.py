@@ -186,12 +186,38 @@ def test_search_page_finds_misses_and_waits(http: tuple[TestClient, str]) -> Non
     assert client.get(f"{base}/search").status_code == 200
 
 
-def test_source_gone_after_indexing_still_gives_a_page(
+def test_a_file_changed_after_indexing_is_shown_as_it_was_indexed(
     site: tuple[Path, Config, Snapshot, Path], http: tuple[TestClient, str]
 ) -> None:
+    """The map's line numbers belong to the indexed commit: lines read from a checkout that
+    moved on would sit at the wrong numbers. Git still has the indexed version."""
     client, base = http
-    (site[3] / "lib" / "util.py").unlink()
+    util = site[3] / "lib" / "util.py"
+    util.write_text("# a new first line\n" + util.read_text(encoding="utf-8"), encoding="utf-8")
+    page = client.get(f"{base}/file", params={"path": "lib/util.py"}).text
+    assert "a new first line" not in page and "def helper():" in page
+    assert "As indexed, at commit" in page
+    symbol = client.get(f"{base}/symbol", params={"key": "lib/util.py::apply_gate"}).text
+    assert "def apply_gate():" in symbol and "a new first line" not in symbol
+    util.unlink()  # gone from the checkout, still in the commit
+    assert "def helper():" in client.get(f"{base}/file", params={"path": "lib/util.py"}).text
+
+
+def test_a_changed_file_that_git_cannot_give_back_is_shown_with_a_notice(
+    tmp_path: Path,
+) -> None:
+    folder = tmp_path / "plain"  # not a git repository: nothing to read the old version from
+    (folder / "lib").mkdir(parents=True)
+    util = folder / "lib" / "util.py"
+    util.write_text(REPO["lib/util.py"], encoding="utf-8")
+    config = Config(data_dir=(tmp_path / "data").as_posix())
+    db_path = tmp_path / "data" / "codeatlas.db"
+    sid = index_repository(str(folder), config, db_path).snapshot["id"]
+    client, base = TestClient(create_app(db_path, config)), f"/s/{snapshot_slug(sid)}"
+    util.write_text("# changed\n" + REPO["lib/util.py"], encoding="utf-8")
+    page = client.get(f"{base}/file", params={"path": "lib/util.py"}).text
+    assert "# changed" in page and "has changed since it was indexed" in page
+    util.unlink()
     page = client.get(f"{base}/file", params={"path": "lib/util.py"})
-    assert page.status_code == 200
-    assert "not in the checkout" in page.text
-    assert "apply_gate" in page.text      # the outline comes from the map, not the disk
+    assert page.status_code == 200 and "not in the checkout" in page.text
+    assert "apply_gate" in page.text  # the outline comes from the map, not the disk

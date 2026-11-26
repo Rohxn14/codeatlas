@@ -66,7 +66,8 @@
   {% if why_not %}
   <p class="callout">{{ why_not }}</p>
   {% else %}
-  <p class="muted">Read from the indexed checkout. A highlighted line starts a symbol; click it to open the symbol.</p>
+  {% if notice %}<p class="callout">{{ notice }}</p>{% endif %}
+  <p class="muted">{% if not notice %}As indexed, at commit <code>{{ snapshot.commit_sha[:12] }}</code>. {% endif %}A highlighted line starts a symbol; click it to open the symbol.</p>
   {{ parts.code(lines, 1, f.starts, base) }}
   {% if cut %}<p class="muted">Showing the first {{ lines | length | thousands }} of {{ total_lines | thousands }} lines.</p>{% endif %}
   {% endif %}

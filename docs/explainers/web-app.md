@@ -318,7 +318,8 @@ would scan all edges.
    counts, per other file, the edges and the best confidence: uses `lib/util.py`,
    1 edge, certain.
 4. Raw calls whose caller is in this file are counted: 2 calls, 1 got an edge.
-5. `read_lines` returns the lines, or `None` and a sentence saying why not.
+5. `read_indexed` returns the lines as indexed, or `None` and a sentence saying why not,
+   plus a notice when only a newer version could be read (since Nov 26, below).
 6. `starts` maps a line number to the symbol that begins there, so the template can
    mark that line and link it.
 
@@ -352,8 +353,14 @@ are never mixed, because a README's prose would outrank the code it describes.
   - No syntax colouring.
   - Search does not look inside code bodies and has no filters by kind or folder.
   - A file is cut at 5,000 lines and a symbol at 400, each with a note.
-  - The source shown is the checkout as it is now. If it changed since indexing, line
-    numbers can be off; the page does not detect that yet.
+  - Since Nov 26 the source shown is the file **as indexed** (`read_indexed`, with the
+    agent's `snapshot_bytes`): from the checkout while its bytes still have the indexed
+    hash, else from the indexed commit with `git show`. Before, it was the checkout as it is
+    now, and the map's line numbers belong to the indexed commit: in the owner's Nov 15
+    PitwallOS snapshot, 44 symbols in four changed files pointed at the wrong line, and
+    `StintChart`'s page opened with `except Exception as e:`. Only a folder that is not a
+    git repository can lose the indexed version; its page then shows the file as it is
+    now, under a notice that the lines may not match the map.
   - `checkout_root` repeats the rule in `agent/tools.py` (`ToolContext.repo_root`).
     Making the agent call this one is a separate, small refactor.
 

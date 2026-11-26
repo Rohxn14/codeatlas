@@ -88,6 +88,7 @@
   {% if why_not %}
   <p class="callout">{{ why_not }}</p>
   {% elif body %}
+  {% if notice %}<p class="callout">{{ notice }}</p>{% endif %}
   {{ parts.code(body, start, none, base) }}
   {% if cut %}<p class="muted">Showing the first {{ body | length }} lines. <a href="{{ parts.file_url(base, node.path) }}#L{{ node.span.start_line }}">Open the file</a> for the rest.</p>{% endif %}
   {% else %}
