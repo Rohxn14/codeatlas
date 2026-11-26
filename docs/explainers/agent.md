@@ -212,6 +212,60 @@ Input tokens grow each step because the whole conversation is sent again (older 
 agent asked `find_callers` first and then fell back to text search, because the
 Python/TypeScript resolvers (T06, T07) were not merged, so the fixture had no CALLS edges.
 
+### Follow-up questions (Nov 26)
+
+"And who calls it?" names nothing, and a model knows only what a request carries. So the web
+app sends a question with the chat before it (D-64, the owner's choices of Nov 26: three
+exchanges, answers cut, no extra model call first).
+
+- **What is remembered** (`history.py`, `recent_exchanges`): the last 3 answered questions
+  about the same snapshot, oldest first, in the order they were asked. A failed or unfinished
+  question is left out and does not use up a place. Each answer is cut at 1,200 characters,
+  ending ` [...]`; a question is never cut. Why 1,200: on the 32 recorded answers the median
+  is 1,180 characters and the longest 6,200. Every step re-sends the history, so three long
+  answers kept whole would add about 4,600 tokens to each request, more than half of Groq's
+  8,000 a minute. Cut, over half the answers stay whole and three cost at most about 950.
+- **How it is sent** (`with_history`): in the user message, before the question, under a
+  line saying it is context, not evidence: every claim must still come from a tool result.
+  The owner's claim verifier does the same. Rejected: sending the exchanges as earlier user
+  and assistant turns. The model would then read its old answers as things it had already
+  established, and they were never checked the way tool results are.
+- **How the subject is found** (`look_up(question, tools, earlier)`): the question's own
+  names first, then the names of the newest earlier question that has any, marked
+  `(named in an earlier question)`, up to three names in all. Rejected for now: the claim
+  verifier's rewrite, an extra model call that turns the follow-up into a standalone
+  question. It costs a request from the same per-minute budget, and the real follow-ups
+  below did not need it.
+- **Recorded**: the trajectory's first line keeps `history` (the exchanges as sent) and
+  marks carried leads `"earlier": true`. The chat says "remembered N earlier questions"
+  under the answer.
+- **Order**: the questions are taken in the order they were asked (the dictionary's order),
+  not by their `created` time. Windows' clock ticks about every 15 ms, so two questions can
+  share a time; a test that asked seven questions in a row caught it.
+
+Measured live on PitwallOS (Nov 26, Groq gpt-oss-20b, one run each):
+
+| Chat before | Follow-up | Result |
+| --- | --- | --- |
+| nothing (baseline) | "And who calls it?" | 1 step: "I'm not sure which function you're referring to" |
+| "What does build_silver do?" | "And who calls it?" | 2 steps, 5,141 tokens: `build_race`, `run_pipeline` and the test fixtures, all right |
+| "Which functions in the pipeline call contracts.validate?" | "What does the second one in your list do?" | 2 steps, 4,556 tokens: `build_gold`, right. The subject came from the remembered answer, not from a lead |
+| the two above | "What does the gitignore exclude?" (a new subject) | 2 steps, right. The carried lead (`contracts.validate`) cost about 100 tokens and did not mislead |
+
+The first request grew by about 380 tokens with one exchange remembered and about 800 with
+two.
+
+Known limits:
+
+- One chat per snapshot and no "New chat": an unrelated question still carries the last
+  three exchanges.
+- An earlier answer can be wrong, and a follow-up can build on it. The checks still run on
+  the new answer, but not on what it took from the old one.
+- Whatever lies past character 1,200 of an answer ("the ninth in your list") is not there.
+- `codeatlas ask` and the MCP server remember nothing (Claude Code keeps its own
+  conversation), and a restart of the app forgets the chat.
+- Three follow-ups, one run each: enough to choose, not to claim it always works.
+
 ### Worked example: the citation check
 
 Answer text: `create calls save (demo@3f2a9c1e5b7d:app/service.py:4) and also

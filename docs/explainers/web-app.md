@@ -668,8 +668,9 @@ and still finds citations of other snapshots so they can be reported.
   on. That is step 6c.
 - Known limits:
   - A citation whose path holds a space is not recognised.
-  - No follow-up questions yet: each question starts a new conversation (decided after
-    the real runs, step 6d).
+  - Follow-ups (Nov 26): a question remembers the last three answered questions about
+    the same snapshot (`Questions._history`, D-64). How and why: "Follow-up questions" in
+    `docs/explainers/agent.md`.
   - Questions are forgotten when the app stops; Stop is in the chat (Nov 25).
   - While a question runs, the model sees only this snapshot; there is no way to ask
     across repositories.

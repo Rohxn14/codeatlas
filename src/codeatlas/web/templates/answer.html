@@ -35,7 +35,7 @@
 <p class="meta">All {{ a.citations | length }} citation{{ "" if a.citations | length == 1 else "s" }} point at a real file and line. That checks the place exists, not that it says what the answer claims: open them.</p>
 {% endif %}
 <p class="meta">{{ a.steps }} model call{{ "" if a.steps == 1 else "s" }}, {{ a.input_tokens | thousands }} tokens in, {{ a.output_tokens | thousands }} out,
-  {{ "%.1f" | format(qn.seconds) }} s{% if qn.waits %} (of which {{ "%.1f" | format(qn.seconds_waited) }} s waiting for rate limits){% endif %}{% if model %}, {{ provider }} <code>{{ model }}</code>{% endif %}.</p>
+  {{ "%.1f" | format(qn.seconds) }} s{% if qn.remembered %}, with the {{ qn.remembered }} question{{ "" if qn.remembered == 1 else "s" }} before it as context{% endif %}{% if qn.waits %} (of which {{ "%.1f" | format(qn.seconds_waited) }} s waiting for rate limits){% endif %}{% if model %}, {{ provider }} <code>{{ model }}</code>{% endif %}.</p>
 {% endif %}
 
 <section>
