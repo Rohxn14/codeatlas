@@ -22,9 +22,11 @@ What discovery does not enter at all (a `node_modules`-style folder, a symlink, 
 submodule) is listed once in `skipped`, with its reason and, for a folder, how many files
 it holds.
 
-**Config** holds the limits: 20,000 files, 1 MB per file and 300 seconds per index by
-default, plus `max_history_commits` (2,000) for the repository layer. When a limit is
-reached, indexing stops, keeps what it has, and names the limit in `Snapshot.limits_hit`.
+**Config** holds the limits: 200,000 files, 5 MB per parsed file and 3,600 seconds per
+index by default (since Nov 25; 20,000, 1 MB and 300 before), plus `max_history_commits`
+(2,000) for the repository layer. When the file or time limit is reached, indexing stops,
+keeps what it has, and names the limit in `Snapshot.limits_hit`; a larger file only goes
+unparsed (below).
 
 ## Why
 
