@@ -35,6 +35,15 @@ Other levels on the same fixture: `@logged` is `DIRECT` to `decorators.py::logge
 - Contract types: `RawImport`, `RawCall`, `Node` (`attrs["bases"]`, `signature`, `owner_key`), `Edge`, `EdgeKind` (IMPORTS, CALLS, INHERITS, TESTS), `Resolution`.
 - Measured with `scripts/score_fixture.py`; results are in the pull request.
 
+### Measured on real code (Nov 27)
+
+On click, 90 sampled CALLS edges checked against the code (`eval/results/precision_click_20261127.md`,
+`scripts/sample_precision.py`): direct, self-method and external edges 50 of 50 right;
+IMPORT_SCOPED 6 of 20 (mean confidence 0.45, so over-confident); NAME_GUESS 5 of 20 (mean
+0.22, calibrated). Most wrong edges come from the first limit below: 27 of the 90 rows are
+`runner.<method>` on click's `runner` fixture, and 41% of click's guessed edges have a
+receiver made by a fixture or a local constructor.
+
 ### What it cannot see
 
 - **Locals and duck typing.** `x = Foo(); x.run()`, `client = TestClient(app); client.get()` and every call on a fixture parameter without an annotation (`runner.invoke` in click's tests) have no known type. They fall to IMPORT_SCOPED or stay raw.

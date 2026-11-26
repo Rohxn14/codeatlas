@@ -44,3 +44,10 @@ click 0.387 against 0.294, cobra 0.497 against 0.477, express 0.677 against 0.53
 this table: on cobra, "files in the same folder" scores 0.520 and beats both. Search
 recall@5 is as on Nov 16 (vectors 0.733, fused 0.600); MRR rose a little wherever BM25
 takes part (BM25 0.164 to 0.208), and the change that did it was not traced.
+
+## Nov 27, 2026: precision of CALLS edges on click
+
+`precision_click_20261127.md` and `.json`: the first measurement of how often edges are
+right on a real repository, from 90 sampled edges labelled against the code
+(`scripts/sample_precision.py`). About 76% of click's CALLS edges are right; guesses whose
+receiver comes from a pytest fixture or a local constructor make most of the wrong ones.

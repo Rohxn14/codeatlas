@@ -157,8 +157,12 @@ is several GB). 45 indexed to the end: 29,808 files (deep 4,957, structural 9,00
 all of them. microsoft/TypeScript (68,192 files) does not fit the suite's 300 seconds a
 repository; alone, within the one-hour limit, it indexes in 970 seconds.
 
-"Resolved" means a call got an edge, not that the edge is right: precision on real
-repositories has not been measured yet.
+"Resolved" means a call got an edge, not that the edge is right. On click, a sample of 90
+CALLS edges checked against the code (`eval/results/precision_click_20261127.md`): every
+edge found from what the code says was right (50 of 50), name guesses were right 25% of
+the time at a confidence of about 0.2, import-scoped guesses 30% at about 0.45; about 76%
+of all of click's CALLS edges are right. One repository, labelled by a model with a
+reason per row.
 
 On `polyglot_app` the graph scores 165 of 165 labelled edges at precision 1.0. Test
 selection reaches F1 0.84 on both mutation benchmarks (run-everything scores 0.52 and
